@@ -5,10 +5,10 @@ class OTPSection extends StatelessWidget {
   final VoidCallback onRefresh;
   
   const OTPSection({
-    Key? key,
+    super.key,
     this.otp,
     required this.onRefresh,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

@@ -9,10 +9,10 @@ class AuthScreen extends StatefulWidget {
   final Function() onAuthSuccess;
 
   const AuthScreen({
-    Key? key,
+    super.key,
     required this.authController,
     required this.onAuthSuccess,
-  }) : super(key: key);
+  });
 
   @override
   State<AuthScreen> createState() => _AuthScreenState();
@@ -47,8 +47,8 @@ class _AuthScreenState extends State<AuthScreen> {
             }
             return NavigationDecision.navigate;
           },
-          onPageStarted: (String url) => print('Page started: $url'),
-          onPageFinished: (String url) => print('Page finished: $url'),
+          onPageStarted: (String url) => debugPrint('Page started: $url'),
+          onPageFinished: (String url) => debugPrint('Page finished: $url'),
           onWebResourceError: (WebResourceError error) {
             setState(() => this.error = 'WebView error: ${error.description}');
           },
@@ -72,11 +72,7 @@ class _AuthScreenState extends State<AuthScreen> {
   Widget _buildWebView() {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Apple Sign In'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => setState(() => showWebView = false),
-        ),
+        title: const Text('Sign in with Apple'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),

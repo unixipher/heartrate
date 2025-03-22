@@ -1,0 +1,20 @@
+{
+  "buildFiles": [
+    "/home/sysadmin/snap/flutter/common/flutter/packages/flutter_tools/gradle/src/main/groovy/CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "/snap/flutter/current/usr/bin/ninja",
+      "-C",
+      "/home/sysadmin/Documents/heartrate/android/app/.cxx/Debug/274t3741/armeabi-v7a",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "/snap/flutter/current/usr/bin/ninja",
+    "-C",
+    "/home/sysadmin/Documents/heartrate/android/app/.cxx/Debug/274t3741/armeabi-v7a",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {}
+}

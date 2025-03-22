@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/material.dart';
 
 class AudioController {
   final AudioPlayer mainPlayer = AudioPlayer();
@@ -29,7 +30,7 @@ class AudioController {
       await mainPlayer.play(AssetSource('MainTrack_15.mp3'));
       _startPlaybackTimer();
     } catch (e) {
-      print('Error playing main track: $e');
+      debugPrint('Error playing main track: $e');
     }
   }
 
@@ -71,7 +72,7 @@ class AudioController {
         overlayPlayers.remove(overlayPlayer);
       });
     } catch (e) {
-      print('Error playing overlay: $e');
+      debugPrint('Error playing overlay: $e');
     }
   }
 

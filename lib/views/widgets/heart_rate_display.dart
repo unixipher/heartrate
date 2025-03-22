@@ -7,10 +7,10 @@ class HeartRateDisplay extends StatelessWidget {
   final bool isLoading;
   
   const HeartRateDisplay({
-    Key? key,
+    super.key,
     this.heartRate,
     this.isLoading = false,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -21,6 +21,7 @@ class HeartRateDisplay extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
+            // ignore: deprecated_member_use
             color: Colors.red.withOpacity(0.1),
             spreadRadius: 2,
             blurRadius: 10,
