@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/otp_controller.dart';
 import '../../controllers/socket_controller.dart';
+import '../../controllers/audio_controller.dart';
 import '../../models/heart_rate.dart';
 import '../../views/widgets/heart_rate_display.dart';
-import '../../views/widgets/otp_section.dart';
 
 class HomeScreen extends StatefulWidget {
   final AuthController authController;
@@ -27,10 +27,12 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   HeartRate? heartRate;
   String error = '';
+  late AudioController audioController;
 
   @override
   void initState() {
     super.initState();
+    audioController = AudioController();
     widget.socketController.onHeartRateReceived = _updateHeartRate;
     widget.socketController.onError = _handleError;
   }
@@ -70,15 +72,26 @@ class _HomeScreenState extends State<HomeScreen> {
             isLoading: widget.socketController.isLoading,
           ),
           const SizedBox(height: 20),
-          OTPSection(
-            otp: widget.otpController.otp,
-            onRefresh: _refreshOTP,
-          ),
+          _buildAudioButton(),
           const SizedBox(height: 20),
           _buildLogoutButton(),
           if (error.isNotEmpty) _buildErrorDisplay(),
         ],
       ),
+    );
+  }
+
+  Widget _buildAudioButton() {
+    return ElevatedButton.icon(
+      icon: const Icon(Icons.music_note),
+      label: const Text('Start Main Track'),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.blue[50],
+        foregroundColor: Colors.blue[800],
+      ),
+      onPressed: () {
+        audioController.startMainTrack();
+      },
     );
   }
 
@@ -102,7 +115,10 @@ class _HomeScreenState extends State<HomeScreen> {
         color: Colors.red.shade100,
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Text(error, style: TextStyle(color: Colors.red.shade800)),
+      child: Text(
+        error,
+        style: TextStyle(color: Colors.red.shade800),
+      ),
     );
   }
 }

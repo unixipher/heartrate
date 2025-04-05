@@ -18,18 +18,6 @@
 @import audioplayers_darwin;
 #endif
 
-#if __has_include(<firebase_auth/FLTFirebaseAuthPlugin.h>)
-#import <firebase_auth/FLTFirebaseAuthPlugin.h>
-#else
-@import firebase_auth;
-#endif
-
-#if __has_include(<firebase_core/FLTFirebaseCorePlugin.h>)
-#import <firebase_core/FLTFirebaseCorePlugin.h>
-#else
-@import firebase_core;
-#endif
-
 #if __has_include(<flutter_inappwebview_ios/InAppWebViewFlutterPlugin.h>)
 #import <flutter_inappwebview_ios/InAppWebViewFlutterPlugin.h>
 #else
@@ -71,8 +59,6 @@
 + (void)registerWithRegistry:(NSObject<FlutterPluginRegistry>*)registry {
   [AppLinksIosPlugin registerWithRegistrar:[registry registrarForPlugin:@"AppLinksIosPlugin"]];
   [AudioplayersDarwinPlugin registerWithRegistrar:[registry registrarForPlugin:@"AudioplayersDarwinPlugin"]];
-  [FLTFirebaseAuthPlugin registerWithRegistrar:[registry registrarForPlugin:@"FLTFirebaseAuthPlugin"]];
-  [FLTFirebaseCorePlugin registerWithRegistrar:[registry registrarForPlugin:@"FLTFirebaseCorePlugin"]];
   [InAppWebViewFlutterPlugin registerWithRegistrar:[registry registrarForPlugin:@"InAppWebViewFlutterPlugin"]];
   [PathProviderPlugin registerWithRegistrar:[registry registrarForPlugin:@"PathProviderPlugin"]];
   [SharedPreferencesPlugin registerWithRegistrar:[registry registrarForPlugin:@"SharedPreferencesPlugin"]];

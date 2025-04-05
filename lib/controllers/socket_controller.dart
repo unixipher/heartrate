@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 import '../models/heart_rate.dart';
 import '../utils/constants.dart';
@@ -38,10 +39,12 @@ class SocketController {
       socket
         ..onConnect((_) {
           isConnected = true;
+          debugPrint('Connected to socket');
           isLoading = false;
         })
         ..onDisconnect((_) {
           isConnected = false;
+          debugPrint("Disconnected from socket");
           isLoading = false;
         })
         ..onError((err) {

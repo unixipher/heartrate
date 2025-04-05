@@ -36,6 +36,10 @@
 		<string>external-accessory</string>
 		<string>remote-notification</string>
 	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+	    <string>com.example.heartrate.testingheartrate</string>
+	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
