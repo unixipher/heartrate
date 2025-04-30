@@ -9,16 +9,6 @@
 			<key>isShown</key>
 			<false/>
 		</dict>
-		<key>OrderedSet-OrderedSet_privacy.xcscheme</key>
-		<dict>
-			<key>isShown</key>
-			<false/>
-		</dict>
-		<key>OrderedSet.xcscheme</key>
-		<dict>
-			<key>isShown</key>
-			<false/>
-		</dict>
 		<key>Pods-Runner.xcscheme</key>
 		<dict>
 			<key>isShown</key>
@@ -29,12 +19,12 @@
 			<key>isShown</key>
 			<false/>
 		</dict>
-		<key>app_links-app_links_ios_privacy.xcscheme</key>
+		<key>audio_service.xcscheme</key>
 		<dict>
 			<key>isShown</key>
 			<false/>
 		</dict>
-		<key>app_links.xcscheme</key>
+		<key>audio_session.xcscheme</key>
 		<dict>
 			<key>isShown</key>
 			<false/>
@@ -44,12 +34,7 @@
 			<key>isShown</key>
 			<false/>
 		</dict>
-		<key>flutter_inappwebview_ios-flutter_inappwebview_ios_privacy.xcscheme</key>
-		<dict>
-			<key>isShown</key>
-			<false/>
-		</dict>
-		<key>flutter_inappwebview_ios.xcscheme</key>
+		<key>just_audio.xcscheme</key>
 		<dict>
 			<key>isShown</key>
 			<false/>
@@ -79,22 +64,22 @@
 			<key>isShown</key>
 			<false/>
 		</dict>
-		<key>url_launcher_ios-url_launcher_ios_privacy.xcscheme</key>
+		<key>sqflite_darwin-sqflite_darwin_privacy.xcscheme</key>
 		<dict>
 			<key>isShown</key>
 			<false/>
 		</dict>
-		<key>url_launcher_ios.xcscheme</key>
+		<key>sqflite_darwin.xcscheme</key>
 		<dict>
 			<key>isShown</key>
 			<false/>
 		</dict>
-		<key>webview_flutter_wkwebview-webview_flutter_wkwebview_privacy.xcscheme</key>
+		<key>video_player_avfoundation-video_player_avfoundation_privacy.xcscheme</key>
 		<dict>
 			<key>isShown</key>
 			<false/>
 		</dict>
-		<key>webview_flutter_wkwebview.xcscheme</key>
+		<key>video_player_avfoundation.xcscheme</key>
 		<dict>
 			<key>isShown</key>
 			<false/>

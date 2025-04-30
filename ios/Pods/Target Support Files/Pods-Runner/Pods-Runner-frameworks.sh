@@ -176,37 +176,37 @@ code_sign_if_enabled() {
 }
 
 if [[ "$CONFIGURATION" == "Debug" ]]; then
-  install_framework "${BUILT_PRODUCTS_DIR}/OrderedSet/OrderedSet.framework"
-  install_framework "${BUILT_PRODUCTS_DIR}/app_links/app_links.framework"
+  install_framework "${BUILT_PRODUCTS_DIR}/audio_service/audio_service.framework"
+  install_framework "${BUILT_PRODUCTS_DIR}/audio_session/audio_session.framework"
   install_framework "${BUILT_PRODUCTS_DIR}/audioplayers_darwin/audioplayers_darwin.framework"
-  install_framework "${BUILT_PRODUCTS_DIR}/flutter_inappwebview_ios/flutter_inappwebview_ios.framework"
+  install_framework "${BUILT_PRODUCTS_DIR}/just_audio/just_audio.framework"
   install_framework "${BUILT_PRODUCTS_DIR}/path_provider_foundation/path_provider_foundation.framework"
   install_framework "${BUILT_PRODUCTS_DIR}/shared_preferences_foundation/shared_preferences_foundation.framework"
   install_framework "${BUILT_PRODUCTS_DIR}/sign_in_with_apple/sign_in_with_apple.framework"
-  install_framework "${BUILT_PRODUCTS_DIR}/url_launcher_ios/url_launcher_ios.framework"
-  install_framework "${BUILT_PRODUCTS_DIR}/webview_flutter_wkwebview/webview_flutter_wkwebview.framework"
+  install_framework "${BUILT_PRODUCTS_DIR}/sqflite_darwin/sqflite_darwin.framework"
+  install_framework "${BUILT_PRODUCTS_DIR}/video_player_avfoundation/video_player_avfoundation.framework"
 fi
 if [[ "$CONFIGURATION" == "Profile" ]]; then
-  install_framework "${BUILT_PRODUCTS_DIR}/OrderedSet/OrderedSet.framework"
-  install_framework "${BUILT_PRODUCTS_DIR}/app_links/app_links.framework"
+  install_framework "${BUILT_PRODUCTS_DIR}/audio_service/audio_service.framework"
+  install_framework "${BUILT_PRODUCTS_DIR}/audio_session/audio_session.framework"
   install_framework "${BUILT_PRODUCTS_DIR}/audioplayers_darwin/audioplayers_darwin.framework"
-  install_framework "${BUILT_PRODUCTS_DIR}/flutter_inappwebview_ios/flutter_inappwebview_ios.framework"
+  install_framework "${BUILT_PRODUCTS_DIR}/just_audio/just_audio.framework"
   install_framework "${BUILT_PRODUCTS_DIR}/path_provider_foundation/path_provider_foundation.framework"
   install_framework "${BUILT_PRODUCTS_DIR}/shared_preferences_foundation/shared_preferences_foundation.framework"
   install_framework "${BUILT_PRODUCTS_DIR}/sign_in_with_apple/sign_in_with_apple.framework"
-  install_framework "${BUILT_PRODUCTS_DIR}/url_launcher_ios/url_launcher_ios.framework"
-  install_framework "${BUILT_PRODUCTS_DIR}/webview_flutter_wkwebview/webview_flutter_wkwebview.framework"
+  install_framework "${BUILT_PRODUCTS_DIR}/sqflite_darwin/sqflite_darwin.framework"
+  install_framework "${BUILT_PRODUCTS_DIR}/video_player_avfoundation/video_player_avfoundation.framework"
 fi
 if [[ "$CONFIGURATION" == "Release" ]]; then
-  install_framework "${BUILT_PRODUCTS_DIR}/OrderedSet/OrderedSet.framework"
-  install_framework "${BUILT_PRODUCTS_DIR}/app_links/app_links.framework"
+  install_framework "${BUILT_PRODUCTS_DIR}/audio_service/audio_service.framework"
+  install_framework "${BUILT_PRODUCTS_DIR}/audio_session/audio_session.framework"
   install_framework "${BUILT_PRODUCTS_DIR}/audioplayers_darwin/audioplayers_darwin.framework"
-  install_framework "${BUILT_PRODUCTS_DIR}/flutter_inappwebview_ios/flutter_inappwebview_ios.framework"
+  install_framework "${BUILT_PRODUCTS_DIR}/just_audio/just_audio.framework"
   install_framework "${BUILT_PRODUCTS_DIR}/path_provider_foundation/path_provider_foundation.framework"
   install_framework "${BUILT_PRODUCTS_DIR}/shared_preferences_foundation/shared_preferences_foundation.framework"
   install_framework "${BUILT_PRODUCTS_DIR}/sign_in_with_apple/sign_in_with_apple.framework"
-  install_framework "${BUILT_PRODUCTS_DIR}/url_launcher_ios/url_launcher_ios.framework"
-  install_framework "${BUILT_PRODUCTS_DIR}/webview_flutter_wkwebview/webview_flutter_wkwebview.framework"
+  install_framework "${BUILT_PRODUCTS_DIR}/sqflite_darwin/sqflite_darwin.framework"
+  install_framework "${BUILT_PRODUCTS_DIR}/video_player_avfoundation/video_player_avfoundation.framework"
 fi
 if [ "${COCOAPODS_PARALLEL_CODE_SIGN}" == "true" ]; then
   wait
