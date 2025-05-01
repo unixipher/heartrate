@@ -10,7 +10,7 @@ class SocketService {
   String? token;
   final Function(bool) onLoadingChanged;
   final Function(String?) onErrorChanged;
-  final Function(double?) onHeartRateChanged;
+  late final Function(double?) onHeartRateChanged;
 
   SocketService({
     required this.onLoadingChanged,

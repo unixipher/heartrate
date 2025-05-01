@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:testingheartrate/services/audio_manager.dart';
+import 'package:testingheartrate/services/socket_service.dart';
 import 'package:testingheartrate/views/completion_screen.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -12,8 +13,14 @@ class MusicPlayerScreen extends StatefulWidget {
   final String image;
   final int zoneId;
 
-  const MusicPlayerScreen(
-      {super.key, required this.audioUrl, required this.id, required this.challengeName, required this.image, required this.zoneId});
+  const MusicPlayerScreen({
+    super.key,
+    required this.audioUrl,
+    required this.id,
+    required this.challengeName,
+    required this.image,
+    required this.zoneId,
+  });
 
   @override
   State<MusicPlayerScreen> createState() => _MusicPlayerScreenState();
@@ -21,11 +28,28 @@ class MusicPlayerScreen extends StatefulWidget {
 
 class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   final AudioManager _audioManager = AudioManager();
+  late final SocketService _socketService;
+
   Duration _currentPosition = Duration.zero;
   Duration _totalDuration = Duration.zero;
+
   @override
   void initState() {
     super.initState();
+
+    _socketService = SocketService(
+      onLoadingChanged: (isLoading) {
+        debugPrint('Loading: $isLoading');
+      },
+      onErrorChanged: (error) {
+        debugPrint('Error: $error');
+      },
+      onHeartRateChanged: (heartRate) {
+        setState(() {});
+      },
+    );
+
+    _initializeSocketService();
 
     _audioManager.audioPlayer.onDurationChanged.listen((Duration d) {
       setState(() {
@@ -78,11 +102,21 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
 
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => CompletionScreen(storyName: widget.challengeName, backgroundImage: widget.image, storyId: widget.id)),
+        MaterialPageRoute(
+          builder: (context) => CompletionScreen(
+            storyName: widget.challengeName,
+            backgroundImage: widget.image,
+            storyId: widget.id,
+          ),
+        ),
       );
     });
 
     _audioManager.play(widget.audioUrl);
+  }
+
+  Future<void> _initializeSocketService() async {
+    await _socketService.fetechtoken();
   }
 
   void _togglePlayPause() {
@@ -97,6 +131,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   @override
   void dispose() {
     _audioManager.dispose();
+    _socketService.dispose();
     super.dispose();
   }
 
@@ -193,9 +228,10 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                   children: [
                     SliderTheme(
                       data: SliderTheme.of(context).copyWith(
-                        thumbColor: Colors.purpleAccent,
-                        activeTrackColor: Colors.purpleAccent,
+                        thumbColor: Colors.purple,
+                        activeTrackColor: Colors.purple,
                         inactiveTrackColor: Colors.white30,
+                        trackHeight: 8.0,
                       ),
                       child: Slider(
                         value: _currentPosition.inSeconds.toDouble(),

@@ -17,9 +17,8 @@ class SplashScreen extends ConsumerWidget {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              builder: (context) => isAuthenticated
-                  ? const CharacterChallengesScreen()
-                  : const AuthScreen(),
+              builder: (context) =>
+                  isAuthenticated ? const HomeScreen() : const AuthScreen(),
             ),
           );
         });

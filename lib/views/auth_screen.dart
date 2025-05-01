@@ -7,7 +7,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
-
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
 
@@ -39,7 +38,10 @@ class _AuthScreenState extends State<AuthScreen> {
 
     try {
       final credential = await SignInWithApple.getAppleIDCredential(
-        scopes: [AppleIDAuthorizationScopes.email, AppleIDAuthorizationScopes.fullName],
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName
+        ],
       );
 
       final userIdentifier = credential.userIdentifier;
@@ -61,7 +63,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const CharacterChallengesScreen()),
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
         );
       } else {
         throw Exception('Failed to authenticate: ${response.body}');

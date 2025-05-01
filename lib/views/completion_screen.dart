@@ -36,7 +36,7 @@ class _CompletionScreenState extends State<CompletionScreen> {
     Future.delayed(const Duration(seconds: 15), () {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const CharacterChallengesScreen()),
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
       );
     });
   }
@@ -213,8 +213,7 @@ class _CompletionScreenState extends State<CompletionScreen> {
                                 Navigator.pushReplacement(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) =>
-                                        CharacterChallengesScreen(),
+                                    builder: (context) => HomeScreen(),
                                   ),
                                 );
                               },
@@ -237,8 +236,7 @@ class _CompletionScreenState extends State<CompletionScreen> {
                                 Navigator.pushReplacement(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) =>
-                                        CharacterChallengesScreen(),
+                                    builder: (context) => HomeScreen(),
                                   ),
                                 );
                               },

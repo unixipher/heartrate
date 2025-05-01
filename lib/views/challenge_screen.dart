@@ -6,14 +6,14 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:testingheartrate/views/playing_screen.dart';
 
-class AradiumHomePage extends StatefulWidget {
+class ChallengeScreen extends StatefulWidget {
   final String title;
   final String description;
   final String jarekImagePath;
   final String backgroundImagePath;
   final int storyId;
 
-  const AradiumHomePage({
+  const ChallengeScreen({
     Key? key,
     required this.title,
     required this.description,
@@ -23,10 +23,10 @@ class AradiumHomePage extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  State<AradiumHomePage> createState() => _AradiumHomePageState();
+  State<ChallengeScreen> createState() => _ChallengeScreenState();
 }
 
-class _AradiumHomePageState extends State<AradiumHomePage> {
+class _ChallengeScreenState extends State<ChallengeScreen> {
   int selectedChallenge = 0;
   List<Map<String, dynamic>> filteredChallenges = [];
 
@@ -265,75 +265,108 @@ class _AradiumHomePageState extends State<AradiumHomePage> {
       backgroundColor: Colors.transparent,
       builder: (context) {
         return Container(
-          decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.7),
-            borderRadius: const BorderRadius.only(
+          decoration: const BoxDecoration(
+            color: Colors.black,
+            borderRadius: BorderRadius.only(
               topLeft: Radius.circular(24),
               topRight: Radius.circular(24),
             ),
           ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _buildZoneButton('ZONE 1', 'WALK', zoneId: 1, onTap: () {
-                    final audioUrl =
-                        filteredChallenges[selectedChallenge]['audiourl'] ?? '';
-                    final challengeId =
-                        filteredChallenges[selectedChallenge]['id'] ?? '';
-                    final challengeName =
-                        filteredChallenges[selectedChallenge]['title'] ?? '';
-                    Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => MusicPlayerScreen(
-                                  audioUrl: audioUrl,
-                                  id: challengeId,
-                                  challengeName: challengeName,
-                                  image: widget.backgroundImagePath,
-                                  zoneId: 1,
-                                )));
-                  }),
-                  _buildZoneButton('ZONE 2', 'JOG', zoneId: 2, onTap: () {
-                    final audioUrl =
-                        filteredChallenges[selectedChallenge]['audiourl'] ?? '';
-                    final challengeId =
-                        filteredChallenges[selectedChallenge]['id'] ?? '';
-                    final challengeName =
-                        filteredChallenges[selectedChallenge]['title'] ?? '';
-                    Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => MusicPlayerScreen(
-                                  audioUrl: audioUrl,
-                                  id: challengeId,
-                                  challengeName: challengeName,
-                                  image: widget.backgroundImagePath,
-                                  zoneId: 2,
-                                )));
-                  }),
-                  _buildZoneButton('ZONE 3', 'RUN', zoneId: 3, onTap: () {
-                    final audioUrl =
-                        filteredChallenges[selectedChallenge]['audiourl'] ?? '';
-                    final challengeId =
-                        filteredChallenges[selectedChallenge]['id'] ?? '';
-                    final challengeName =
-                        filteredChallenges[selectedChallenge]['title'] ?? '';
-                    Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => MusicPlayerScreen(
-                                  audioUrl: audioUrl,
-                                  id: challengeId,
-                                  challengeName: challengeName,
-                                  image: widget.backgroundImagePath,
-                                  zoneId: 3,
-                                )));
-                  }),
-                ],
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    IconButton(
+                      icon:
+                          const Icon(Icons.arrow_back_ios, color: Colors.white),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    const Text(
+                      'Select Zone',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontFamily: 'Thewitcher',
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(width: 48),
+                  ],
+                ),
               ),
-            ),
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildZoneButton('ZONE 1', 'WALK', zoneId: 1, onTap: () {
+                      final audioUrl = filteredChallenges[selectedChallenge]
+                              ['audiourl'] ??
+                          '';
+                      final challengeId =
+                          filteredChallenges[selectedChallenge]['id'] ?? '';
+                      final challengeName =
+                          filteredChallenges[selectedChallenge]['title'] ?? '';
+                      Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => MusicPlayerScreen(
+                                    audioUrl: audioUrl,
+                                    id: challengeId,
+                                    challengeName: challengeName,
+                                    image: widget.backgroundImagePath,
+                                    zoneId: 1,
+                                  )));
+                    }),
+                    _buildZoneButton('ZONE 2', 'JOG', zoneId: 2, onTap: () {
+                      final audioUrl = filteredChallenges[selectedChallenge]
+                              ['audiourl'] ??
+                          '';
+                      final challengeId =
+                          filteredChallenges[selectedChallenge]['id'] ?? '';
+                      final challengeName =
+                          filteredChallenges[selectedChallenge]['title'] ?? '';
+                      Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => MusicPlayerScreen(
+                                    audioUrl: audioUrl,
+                                    id: challengeId,
+                                    challengeName: challengeName,
+                                    image: widget.backgroundImagePath,
+                                    zoneId: 2,
+                                  )));
+                    }),
+                    _buildZoneButton('ZONE 3', 'RUN', zoneId: 3, onTap: () {
+                      final audioUrl = filteredChallenges[selectedChallenge]
+                              ['audiourl'] ??
+                          '';
+                      final challengeId =
+                          filteredChallenges[selectedChallenge]['id'] ?? '';
+                      final challengeName =
+                          filteredChallenges[selectedChallenge]['title'] ?? '';
+                      Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => MusicPlayerScreen(
+                                    audioUrl: audioUrl,
+                                    id: challengeId,
+                                    challengeName: challengeName,
+                                    image: widget.backgroundImagePath,
+                                    zoneId: 3,
+                                  )));
+                    }),
+                  ],
+                ),
+              ),
+            ],
+          ),
         );
       },
     );
@@ -371,6 +404,7 @@ class _AradiumHomePageState extends State<AradiumHomePage> {
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 20,
+                      fontFamily: 'Thewitcher',
                       fontWeight: FontWeight.bold,
                     ),
                   ),

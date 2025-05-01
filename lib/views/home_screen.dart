@@ -4,17 +4,17 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:testingheartrate/views/challenge_screen.dart';
+import 'package:testingheartrate/views/history_screen.dart';
 import 'package:testingheartrate/views/splash_screen.dart';
 
-class CharacterChallengesScreen extends StatefulWidget {
-  const CharacterChallengesScreen({super.key});
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
 
   @override
-  State<CharacterChallengesScreen> createState() =>
-      _CharacterChallengesScreenState();
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _CharacterChallengesScreenState extends State<CharacterChallengesScreen> {
+class _HomeScreenState extends State<HomeScreen> {
   final PageController _pageController = PageController(viewportFraction: 0.8);
   int _currentPage = 0;
 
@@ -25,7 +25,7 @@ class _CharacterChallengesScreenState extends State<CharacterChallengesScreen> {
       challengeCount: 18,
       description:
           'The true heir to the throne of Aradium. With only his father’s pocket watch to guide him, Jarek must reach the mountain top before his treacherous cousin Kaelen’s coronation.',
-      page: const AradiumHomePage(
+      page: const ChallengeScreen(
         storyId: 1,
         title: 'Aradium',
         description:
@@ -40,7 +40,7 @@ class _CharacterChallengesScreenState extends State<CharacterChallengesScreen> {
       challengeCount: 30,
       description:
           'The only survivor in a dystopian world taken over by bots. With only an AI agent Luther to guide her, Maya must take down the uprising before they exterminate the human race.',
-      page: const AradiumHomePage(
+      page: const ChallengeScreen(
         storyId: 3,
         title: 'Luther',
         description:
@@ -54,8 +54,8 @@ class _CharacterChallengesScreenState extends State<CharacterChallengesScreen> {
       image: 'assets/images/nyc.png',
       challengeCount: 6,
       description:
-          'An undercover agent on a secret mission to deliver a package to 191 Bedford Hills. With Agent Tokyo as his only guide he must navigate the streets of New York and board the bus in time',
-      page: const AradiumHomePage(
+          'An undercover agent on a secret mission to deliver a package to 191 Bedford Hills. Agent Tokyo as his guide he must navigate the streets of NYC and board the bus in time',
+      page: const ChallengeScreen(
         storyId: 4,
         title: 'New York',
         description:
@@ -70,7 +70,7 @@ class _CharacterChallengesScreenState extends State<CharacterChallengesScreen> {
       challengeCount: 30,
       description:
           'An undercover agent on a secret mission to take down the sand mafia. With Stingray and Starfish, Seahorse must find the mastermind before the operation turns deadly.',
-      page: const AradiumHomePage(
+      page: const ChallengeScreen(
         storyId: 2,
         title: 'Project\nsmm',
         description:
@@ -343,6 +343,7 @@ class _CharacterChallengesScreenState extends State<CharacterChallengesScreen> {
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 26,
+                  fontFamily: 'Thewitcher',
                   fontWeight: FontWeight.bold,
                   letterSpacing: 1.5,
                 ),
@@ -430,6 +431,26 @@ class _CharacterChallengesScreenState extends State<CharacterChallengesScreen> {
                 },
               ),
             ),
+            const SizedBox(height: 20),
+            Center(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(
+                  _characters.length,
+                  (index) => Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _currentPage == index
+                          ? Colors.purple
+                          : Colors.grey.withOpacity(0.5),
+                    ),
+                  ),
+                ),
+              ),
+            ),
             const SizedBox(height: 24),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -465,20 +486,27 @@ class _CharacterChallengesScreenState extends State<CharacterChallengesScreen> {
         currentIndex: 0,
         onTap: (index) {
           if (index == 0) {
-          } else if (index == 1) {
-            SharedPreferences.getInstance().then((prefs) {
-              prefs.clear();
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const SplashScreen()),
-              );
-            });
+          } if (index == 1) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => HistoryScreen()),
+            );
+          }
+          else if (index == 2) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const SplashScreen()),
+            );
           }
         },
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home),
             label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.history),
+            label: 'History',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.logout),
