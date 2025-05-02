@@ -1,40 +1,53 @@
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/material.dart';
 
 class AudioManager {
   static final AudioManager _instance = AudioManager._internal();
-  final AudioPlayer _audioPlayer = AudioPlayer();
+  final AudioPlayer _mainPlayer = AudioPlayer();
+  final AudioPlayer _overlayPlayer = AudioPlayer();
   bool _isPlaying = false;
 
-  factory AudioManager() {
-    return _instance;
-  }
+  factory AudioManager() => _instance;
 
   AudioManager._internal();
 
-  AudioPlayer get audioPlayer => _audioPlayer;
+  AudioPlayer get audioPlayer => _mainPlayer;
 
   bool get isPlaying => _isPlaying;
 
   Future<void> play(String url, {Duration? seekTo}) async {
-    await _audioPlayer.stop();
-    await _audioPlayer.play(UrlSource(url));
+    await _mainPlayer.stop();
+    await _mainPlayer.play(UrlSource(url));
     _isPlaying = true;
   }
 
+  Future<void> playOverlay(String assetPath) async {
+    try {
+      await _overlayPlayer.stop();
+      await _overlayPlayer.play(AssetSource(assetPath));
+    } catch (e) {
+      debugPrint('Error playing overlay: $e');
+    }
+  }
+
   Future<void> pause() async {
-    await _audioPlayer.pause();
+    await _mainPlayer.pause();
     _isPlaying = false;
   }
 
   Future<void> resume() async {
-    await _audioPlayer.resume();
+    await _mainPlayer.resume();
     _isPlaying = true;
   }
 
   Future<void> stop() async {
-    await _audioPlayer.stop();
+    await _mainPlayer.stop();
+    await _overlayPlayer.stop();
     _isPlaying = false;
   }
 
-  void dispose() {}
+  Future<void> dispose() async {
+    await _mainPlayer.dispose();
+    await _overlayPlayer.dispose();
+  }
 }
