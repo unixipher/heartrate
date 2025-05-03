@@ -122,203 +122,7 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) {
-        final TextEditingController nameController =
-            TextEditingController(text: user['name'] ?? '');
-        final TextEditingController ageController = TextEditingController();
-        String gender = user['gender'] ?? 'male';
-        bool isSubmitting = false;
-
-        Future<void> _submitForm() async {
-          setState(() {
-            isSubmitting = true;
-          });
-
-          try {
-            final prefs = await SharedPreferences.getInstance();
-            final token = prefs.getString('token') ?? '';
-
-            final response = await http.post(
-              Uri.parse('https://authcheck.co/updateuser'),
-              headers: {
-                'Accept': '/',
-                'Authorization': 'Bearer $token',
-                'User-Agent': 'Thunder Client (https://www.thunderclient.com)',
-                'Content-Type': 'application/json',
-              },
-              body: json.encode({
-                'name': nameController.text,
-                'age': int.tryParse(ageController.text) ?? 0,
-                'gender': gender,
-              }),
-            );
-
-            if (response.statusCode == 200) {
-              Navigator.pop(context);
-              debugPrint('User data updated successfully');
-            } else {
-              debugPrint('Failed to update user data: ${response.statusCode}');
-            }
-          } catch (e) {
-            debugPrint('Error updating user data: $e');
-          } finally {
-            setState(() {
-              isSubmitting = false;
-            });
-          }
-        }
-
-        return Stack(
-          children: [
-            BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-              child: Container(
-                color: Colors.black.withOpacity(0.5),
-              ),
-            ),
-            DraggableScrollableSheet(
-              initialChildSize: 0.5,
-              maxChildSize: 0.9,
-              minChildSize: 0.3,
-              builder: (context, scrollController) {
-                return Container(
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF0A0D29),
-                    borderRadius:
-                        BorderRadius.vertical(top: Radius.circular(20)),
-                  ),
-                  child: SingleChildScrollView(
-                    controller: scrollController,
-                    padding: EdgeInsets.only(
-                      left: 16,
-                      right: 16,
-                      top: 16,
-                      bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 16),
-                        const Text(
-                          'Complete Your Profile',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 24,
-                            fontFamily: 'Thewitcher',
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        TextField(
-                          controller: nameController,
-                          decoration: InputDecoration(
-                            labelText: 'Name',
-                            labelStyle: const TextStyle(
-                                fontFamily: 'Battambang',
-                                color: Colors.white70),
-                            enabledBorder: OutlineInputBorder(
-                              borderSide:
-                                  const BorderSide(color: Colors.white70),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderSide: const BorderSide(color: Colors.white),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            filled: true,
-                            fillColor: const Color(0xFF1E1F2D),
-                          ),
-                          style: const TextStyle(color: Colors.white),
-                        ),
-                        const SizedBox(height: 16),
-                        TextField(
-                          controller: ageController,
-                          keyboardType: TextInputType.number,
-                          decoration: InputDecoration(
-                            labelText: 'Age',
-                            labelStyle: const TextStyle(
-                                fontFamily: 'Battambang',
-                                color: Colors.white70),
-                            enabledBorder: OutlineInputBorder(
-                              borderSide: BorderSide(color: Colors.white70),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderSide: BorderSide(color: Colors.white),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            filled: true,
-                            fillColor: Color(0xFF1E1F2D),
-                          ),
-                          style: const TextStyle(color: Colors.white),
-                        ),
-                        const SizedBox(height: 16),
-                        DropdownButtonFormField<String>(
-                          value: gender,
-                          items: ['male', 'female']
-                              .map((g) => DropdownMenuItem(
-                                    value: g,
-                                    child: Text(
-                                      g[0].toUpperCase() + g.substring(1),
-                                      style: TextStyle(color: Colors.white),
-                                    ),
-                                  ))
-                              .toList(),
-                          onChanged: (value) {
-                            gender = value!;
-                          },
-                          decoration: InputDecoration(
-                            labelText: 'Gender',
-                            labelStyle: const TextStyle(
-                                fontFamily: 'Battambang',
-                                color: Colors.white70),
-                            enabledBorder: OutlineInputBorder(
-                              borderSide: BorderSide(color: Colors.white70),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderSide: BorderSide(color: Colors.white),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            filled: true,
-                            fillColor: Color(0xFF1E1F2D),
-                          ),
-                          dropdownColor: Color(0xFF0A0D29),
-                          style: const TextStyle(color: Colors.black),
-                        ),
-                        const SizedBox(height: 24),
-                        Center(
-                          child: ElevatedButton(
-                            onPressed: isSubmitting ? null : _submitForm,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Color(0xFF7B1FA2),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10)),
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 12, horizontal: 24),
-                            ),
-                            child: isSubmitting
-                                ? const CircularProgressIndicator(
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                        Colors.white),
-                                  )
-                                : const Text(
-                                    'Save',
-                                    style: TextStyle(
-                                        color: Colors.white, fontSize: 16),
-                                  ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ],
-        );
-      },
+      builder: (context) => ProfileForm(user: user),
     );
   }
 
@@ -486,13 +290,12 @@ class _HomeScreenState extends State<HomeScreen> {
         currentIndex: 0,
         onTap: (index) {
           if (index == 0) {
-          } if (index == 1) {
+          } else if (index == 1) {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => HistoryScreen()),
             );
-          }
-          else if (index == 2) {
+          } else if (index == 2) {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (context) => const SplashScreen()),
@@ -514,6 +317,227 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class ProfileForm extends StatefulWidget {
+  final Map<String, dynamic> user;
+
+  const ProfileForm({super.key, required this.user});
+
+  @override
+  State<ProfileForm> createState() => _ProfileFormState();
+}
+
+class _ProfileFormState extends State<ProfileForm> {
+  late TextEditingController _nameController;
+  late TextEditingController _ageController;
+  late String _gender;
+  bool _isSubmitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.user['name'] ?? '');
+    _ageController = TextEditingController();
+    _gender = widget.user['gender'] ?? 'male';
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _ageController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submitForm() async {
+    setState(() {
+      _isSubmitting = true;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token') ?? '';
+
+      final response = await http.post(
+        Uri.parse('https://authcheck.co/updateuser'),
+        headers: {
+          'Accept': '/',
+          'Authorization': 'Bearer $token',
+          'User-Agent': 'Thunder Client (https://www.thunderclient.com)',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({
+          'name': _nameController.text,
+          'age': int.tryParse(_ageController.text) ?? 0,
+          'gender': _gender,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        Navigator.pop(context);
+        debugPrint('User data updated successfully');
+      } else {
+        debugPrint('Failed to update user data: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('Error updating user data: $e');
+    } finally {
+      setState(() {
+        _isSubmitting = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            color: Colors.black.withOpacity(0.5),
+          ),
+        ),
+        DraggableScrollableSheet(
+          initialChildSize: 0.5,
+          maxChildSize: 0.9,
+          minChildSize: 0.3,
+          builder: (context, scrollController) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: Color(0xFF0A0D29),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: SingleChildScrollView(
+                controller: scrollController,
+                padding: EdgeInsets.only(
+                  left: 16,
+                  right: 16,
+                  top: 16,
+                  bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Complete Your Profile',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontFamily: 'Thewitcher',
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    TextField(
+                      controller: _nameController,
+                      decoration: InputDecoration(
+                        labelText: 'Name',
+                        labelStyle: const TextStyle(
+                            fontFamily: 'Battambang', color: Colors.white70),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: const BorderSide(color: Colors.white70),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: const BorderSide(color: Colors.white),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        filled: true,
+                        fillColor: const Color(0xFF1E1F2D),
+                      ),
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _ageController,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: 'Age',
+                        labelStyle: const TextStyle(
+                            fontFamily: 'Battambang', color: Colors.white70),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: const BorderSide(color: Colors.white70),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: const BorderSide(color: Colors.white),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        filled: true,
+                        fillColor: const Color(0xFF1E1F2D),
+                      ),
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      value: _gender,
+                      items: ['male', 'female']
+                          .map((g) => DropdownMenuItem(
+                                value: g,
+                                child: Text(
+                                  g[0].toUpperCase() + g.substring(1),
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                              ))
+                          .toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _gender = value!;
+                        });
+                      },
+                      decoration: InputDecoration(
+                        labelText: 'Gender',
+                        labelStyle: const TextStyle(
+                            fontFamily: 'Battambang', color: Colors.white70),
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: const BorderSide(color: Colors.white70),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: const BorderSide(color: Colors.white),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        filled: true,
+                        fillColor: const Color(0xFF1E1F2D),
+                      ),
+                      dropdownColor: const Color(0xFF0A0D29),
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                    const SizedBox(height: 24),
+                    Center(
+                      child: ElevatedButton(
+                        onPressed: _isSubmitting ? null : _submitForm,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF7B1FA2),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 12, horizontal: 24),
+                        ),
+                        child: _isSubmitting
+                            ? const CircularProgressIndicator(
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white),
+                              )
+                            : const Text(
+                                'Save',
+                                style: TextStyle(
+                                    color: Colors.white, fontSize: 16),
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ],
     );
   }
 }
