@@ -1,10 +1,10 @@
 import 'dart:convert';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:testingheartrate/views/playing_screen.dart';
+import 'package:testingheartrate/screens/audioplayer/player_screen.dart';
+import 'package:testingheartrate/screens/audioplayer/without_watch/without_watch_playing_screen.dart';
 
 class ChallengeScreen extends StatefulWidget {
   final String title;
@@ -184,7 +184,8 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                                         setState(() {
                                           selectedChallenge = index;
                                         });
-                                        _showZoneSelector(context);
+                                        // _showZoneSelector(context);
+                                        _showConfirmationDialog(context);
                                       },
                                 borderRadius: BorderRadius.circular(12),
                                 child: Container(
@@ -266,7 +267,7 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
       builder: (context) {
         return Container(
           decoration: const BoxDecoration(
-            color: Colors.black,
+            color: Color(0xFF0A0D29),
             borderRadius: BorderRadius.only(
               topLeft: Radius.circular(24),
               topRight: Radius.circular(24),
@@ -316,12 +317,14 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                       Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (_) => MusicPlayerScreen(
+                              builder: (_) => PlayerScreen(
                                     audioUrl: audioUrl,
                                     id: challengeId,
                                     challengeName: challengeName,
                                     image: widget.backgroundImagePath,
                                     zoneId: 1,
+                                    indexid: selectedChallenge,
+                                    storyId: widget.storyId,
                                   )));
                     }),
                     _buildZoneButton('ZONE 2', 'JOG', zoneId: 2, onTap: () {
@@ -335,12 +338,14 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                       Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (_) => MusicPlayerScreen(
+                              builder: (_) => PlayerScreen(
                                     audioUrl: audioUrl,
                                     id: challengeId,
                                     challengeName: challengeName,
                                     image: widget.backgroundImagePath,
                                     zoneId: 2,
+                                    indexid: selectedChallenge,
+                                    storyId: widget.storyId,
                                   )));
                     }),
                     _buildZoneButton('ZONE 3', 'RUN', zoneId: 3, onTap: () {
@@ -354,12 +359,14 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                       Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (_) => MusicPlayerScreen(
+                              builder: (_) => PlayerScreen(
                                     audioUrl: audioUrl,
                                     id: challengeId,
                                     challengeName: challengeName,
                                     image: widget.backgroundImagePath,
                                     zoneId: 3,
+                                    indexid: selectedChallenge,
+                                    storyId: widget.storyId,
                                   )));
                     }),
                   ],
@@ -372,10 +379,170 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
     );
   }
 
+  void _showConfirmationDialog(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFF0A0D29),
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(24),
+              topRight: Radius.circular(24),
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    IconButton(
+                      icon:
+                          const Icon(Icons.arrow_back_ios, color: Colors.white),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    const Text(
+                      'Continue with apple watch?',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontFamily: 'Thewitcher',
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(width: 48),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      minimumSize: const Size(150, 48),
+                    ),
+                    onPressed: () {
+                      final audioUrl = filteredChallenges[selectedChallenge]
+                              ['audiourl'] ??
+                          '';
+                      final challengeId =
+                          filteredChallenges[selectedChallenge]['id'] ?? '';
+                      final challengeName =
+                          filteredChallenges[selectedChallenge]['title'] ?? '';
+                      Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => WithoutWatchScreen(
+                              audioUrl: audioUrl,
+                              id: challengeId,
+                              challengeName: challengeName,
+                              image: widget.backgroundImagePath,
+                              zoneId: 3,
+                              indexid: selectedChallenge,
+                            ),
+                          ));
+                    },
+                    child: const Text(
+                      'No',
+                      style: TextStyle(
+                          fontFamily: 'Thewitcher',
+                          color: Colors.white,
+                          fontSize: 18),
+                    ),
+                  ),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.purple,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      minimumSize: const Size(150, 48),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      // _showZoneSelector(context);
+                      _showWorkoutTenureSelector(context);
+                    },
+                    child: const Text(
+                      'Yes',
+                      style: TextStyle(
+                          fontFamily: 'Thewitcher',
+                          color: Colors.white,
+                          fontSize: 18),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 64),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildZoneButton(String title, String action,
       {VoidCallback? onTap, required int zoneId}) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: () async {
+        final audioUrl =
+            filteredChallenges[selectedChallenge]['audiourl'] ?? '';
+        final challengeId = filteredChallenges[selectedChallenge]['id'] ?? '';
+        final challengeName =
+            filteredChallenges[selectedChallenge]['title'] ?? '';
+
+        final prefs = await SharedPreferences.getInstance();
+        final token = prefs.getString('token') ?? '';
+
+        if (token.isNotEmpty) {
+          final response = await http.post(
+            Uri.parse('https://authcheck.co/startchallenge'),
+            headers: {
+              'Accept': '*/*',
+              'Authorization': 'Bearer $token',
+              'Content-Type': 'application/json',
+              'User-Agent': 'Thunder Client (https://www.thunderclient.com)',
+            },
+            body: jsonEncode({
+              'challengeId': challengeId,
+              'zoneId': zoneId,
+            }),
+          );
+
+          if (response.statusCode == 200) {
+            debugPrint('Challenge started successfully');
+          } else {
+            debugPrint('Failed to start challenge: ${response.statusCode}');
+          }
+        } else {
+          debugPrint('Token not found');
+        }
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PlayerScreen(
+              audioUrl: audioUrl,
+              id: challengeId,
+              challengeName: challengeName,
+              image: widget.backgroundImagePath,
+              zoneId: zoneId,
+              indexid: selectedChallenge,
+              storyId: widget.storyId,
+            ),
+          ),
+        );
+      },
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -414,6 +581,180 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  void _showWorkoutTenureSelector(BuildContext context) {
+    int selectedHour = 1;
+    int selectedMinute = 5;
+    int challengeCount = filteredChallenges.length;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setModalState) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: Color(0xFF0A0D29),
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(24),
+                  topRight: Radius.circular(24),
+                ),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.arrow_back_ios,
+                              color: Colors.white),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                        const Text(
+                          'Set Workout Time',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontFamily: 'Thewitcher',
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            _showZoneSelector(context);
+                          },
+                          child: const Text(
+                            'Skip',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontFamily: 'Thewitcher',
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        )
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      if (challengeCount > 11)
+                        Expanded(
+                          child: SizedBox(
+                            height: 150,
+                            child: ListWheelScrollView.useDelegate(
+                              itemExtent: 40,
+                              physics: const FixedExtentScrollPhysics(),
+                              onSelectedItemChanged: (index) {
+                                setModalState(() {
+                                  selectedHour = index;
+                                  if (selectedHour == 1 &&
+                                      selectedMinute > 30) {
+                                    selectedMinute = 30;
+                                  }
+                                });
+                              },
+                              childDelegate: ListWheelChildBuilderDelegate(
+                                builder: (context, index) {
+                                  return Center(
+                                    child: Text(
+                                      '$index hr',
+                                      style: TextStyle(
+                                        fontFamily: 'Thewitcher',
+                                        color: selectedHour == index
+                                            ? Colors.white
+                                            : Colors.grey,
+                                        fontSize: 22,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                childCount: 2,
+                              ),
+                            ),
+                          ),
+                        ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: SizedBox(
+                          height: 150,
+                          child: ListWheelScrollView.useDelegate(
+                            itemExtent: 40,
+                            physics: const FixedExtentScrollPhysics(),
+                            onSelectedItemChanged: (index) {
+                              setModalState(() {
+                                selectedMinute = index * 5;
+                              });
+                            },
+                            childDelegate: ListWheelChildBuilderDelegate(
+                              builder: (context, index) {
+                                final minute = index * 5;
+                                if (selectedHour == 1 && minute > 30) {
+                                  return null;
+                                }
+                                return Center(
+                                  child: Text(
+                                    '$minute min',
+                                    style: TextStyle(
+                                      fontFamily: 'Thewitcher',
+                                      color: selectedMinute == minute
+                                          ? Colors.white
+                                          : Colors.grey,
+                                      fontSize: 22,
+                                    ),
+                                  ),
+                                );
+                              },
+                              childCount: challengeCount,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.purple,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      minimumSize: const Size(150, 48),
+                    ),
+                    onPressed: () {
+                      final duration = Duration(
+                        hours: selectedHour,
+                        minutes: selectedMinute,
+                      );
+                      Navigator.pop(context);
+                      _showZoneSelector(context);
+                      debugPrint('Selected Duration: $duration');
+                    },
+                    child: const Text(
+                      'Confirm',
+                      style: TextStyle(
+                        fontFamily: 'Thewitcher',
+                        color: Colors.white,
+                        fontSize: 18,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

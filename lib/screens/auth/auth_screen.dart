@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:testingheartrate/views/home_screen.dart';
+import 'package:testingheartrate/screens/home/home_screen.dart';
 import 'package:video_player/video_player.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';

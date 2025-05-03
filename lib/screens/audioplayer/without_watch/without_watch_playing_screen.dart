@@ -1,55 +1,130 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:testingheartrate/services/audio_manager.dart';
-import 'package:testingheartrate/services/socket_service.dart';
-import 'package:testingheartrate/views/completion_screen.dart';
+import 'package:testingheartrate/screens/completion/completion_screen.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
-class MusicPlayerScreen extends StatefulWidget {
+class CustomSliderTrackShape extends RoundedRectSliderTrackShape {
+  final List<Duration> timestamps;
+  final Duration totalDuration;
+
+  CustomSliderTrackShape(
+      {required this.timestamps, required this.totalDuration});
+
+  @override
+  void paint(
+    PaintingContext context,
+    Offset offset, {
+    required RenderBox parentBox,
+    required SliderThemeData sliderTheme,
+    required Animation<double> enableAnimation,
+    required TextDirection textDirection,
+    required Offset thumbCenter,
+    double additionalActiveTrackHeight = 0.0,
+    Offset? secondaryOffset,
+    bool isEnabled = false,
+    bool isDiscrete = false,
+  }) {
+    super.paint(
+      context,
+      offset,
+      parentBox: parentBox,
+      sliderTheme: sliderTheme,
+      enableAnimation: enableAnimation,
+      textDirection: textDirection,
+      thumbCenter: thumbCenter,
+      isEnabled: isEnabled,
+      isDiscrete: isDiscrete,
+    );
+
+    final Canvas canvas = context.canvas;
+    final trackRect = getPreferredRect(
+      parentBox: parentBox,
+      offset: offset,
+      sliderTheme: sliderTheme,
+      isEnabled: isEnabled,
+      isDiscrete: isDiscrete,
+    );
+
+    final markerPaint = Paint()
+      ..color = Colors.white.withOpacity(0.5)
+      ..strokeWidth = 4.0;
+
+    for (final timestamp in timestamps) {
+      final positionPercentage =
+          timestamp.inMilliseconds / totalDuration.inMilliseconds;
+      final markerX = trackRect.left + (trackRect.width * positionPercentage);
+      final markerY = trackRect.center.dy;
+
+      canvas.drawLine(
+        Offset(markerX, markerY - 6),
+        Offset(markerX, markerY + 6),
+        markerPaint,
+      );
+    }
+  }
+}
+
+class WithoutWatchScreen extends StatefulWidget {
   final String audioUrl;
   final int id;
   final String challengeName;
   final String image;
   final int zoneId;
+  final int indexid;
 
-  const MusicPlayerScreen({
+  const WithoutWatchScreen({
     super.key,
     required this.audioUrl,
     required this.id,
     required this.challengeName,
     required this.image,
     required this.zoneId,
+    required this.indexid,
   });
 
   @override
-  State<MusicPlayerScreen> createState() => _MusicPlayerScreenState();
+  State<WithoutWatchScreen> createState() => _WithoutWatchScreenState();
 }
 
-class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
+class _WithoutWatchScreenState extends State<WithoutWatchScreen> {
   final AudioManager _audioManager = AudioManager();
-  late final SocketService _socketService;
 
   Duration _currentPosition = Duration.zero;
   Duration _totalDuration = Duration.zero;
-  int? _currentHR;
-  double? _maxHR;
   List<Duration> _timestamps = [];
   List<bool> _triggered = [];
-  bool _hasMaxHR = false;
+
+  void _togglePlayPause() {
+    setState(() {
+      if (_audioManager.isPlaying) {
+        _audioManager.pause();
+      } else {
+        _audioManager.play(widget.audioUrl);
+      }
+    });
+  }
 
   @override
   void initState() {
     super.initState();
     _initializeTimestamps();
-    _initializeSocketService();
     _initializeAudioListeners();
     _audioManager.play(widget.audioUrl);
+    _audioManager.audioPlayer.setVolume(0.4);
+    debugPrint('Main audio started: ${widget.audioUrl}');
   }
 
   void _initializeTimestamps() {
+    int adjustedIndexId = widget.indexid;
+
+    if (widget.indexid >= 1) {
+      adjustedIndexId = ((widget.indexid - 1) % 5) + 1;
+    }
+
     List<String> timeStrings = [];
-    switch (widget.zoneId) {
+    switch (adjustedIndexId) {
       case 0:
         timeStrings = ['2:20', '2:50', '3:20', '3:50', '4:20', '4:50'];
         break;
@@ -78,22 +153,10 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     _timestamps = timeStrings.map((time) {
       final parts = time.split(':');
       return Duration(
-        minutes: int.parse(parts[0]),
-        seconds: int.parse(parts[1]),
-      );
+          minutes: int.parse(parts[0]), seconds: int.parse(parts[1]));
     }).toList();
 
     _triggered = List<bool>.filled(_timestamps.length, false);
-    debugPrint('Timestamps: $_timestamps');
-  }
-
-  void _initializeSocketService() {
-    _socketService = SocketService(
-      onLoadingChanged: (isLoading) => debugPrint('Loading: $isLoading'),
-      onErrorChanged: (error) => debugPrint('Error: $error'),
-      onHeartRateChanged: _handleHeartRateUpdate,
-    );
-    _socketService.fetechtoken();
   }
 
   void _initializeAudioListeners() {
@@ -103,64 +166,18 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     _audioManager.audioPlayer.onPlayerComplete.listen(_handleAudioCompletion);
   }
 
-  void _handleHeartRateUpdate(double? heartRate) async {
-    if (heartRate == null) return;
-
-    if (!_hasMaxHR) await _fetchMaxHR();
-
-    setState(() => _currentHR = heartRate.toInt());
-
-    if (_maxHR == null) return;
-
-    final currentHRPercent = (_currentHR! / _maxHR!) * 100;
-    final inValidRange = currentHRPercent >= 50 && currentHRPercent <= 80;
-
-    if (!inValidRange) return;
-
-    _checkForOverlayTrigger(_currentPosition);
-  }
-
-  Future<void> _fetchMaxHR() async {
-    setState(() {
-      _maxHR = 180;
-      _hasMaxHR = true;
-    });
-    debugPrint('Max HR: $_maxHR');
-  }
-
   void _handlePositionUpdate(Duration position) {
     setState(() => _currentPosition = position);
-    if (_currentHR != null && _maxHR != null) _checkForOverlayTrigger(position);
-    debugPrint(widget.zoneId.toString());
-    debugPrint('Checking overlay trigger at: ${_formatDuration(position)}');
-    debugPrint('Current HR: $_currentHR');
+    _checkForOverlayTrigger(position);
   }
 
   void _checkForOverlayTrigger(Duration position) {
-    final hrPercentage = (_currentHR! / _maxHR!) * 100;
-    final overlayType = _determineOverlayType(hrPercentage);
-
     for (int i = 0; i < _timestamps.length; i++) {
       if (!_triggered[i] && _isInTimestampRange(position, _timestamps[i])) {
         _triggered[i] = true;
-        debugPrint('Triggered overlay at index $i');
-        _audioManager.playOverlay('audio/${overlayType}_$i.mp3');
-        debugPrint('Playing overlay: ${overlayType}_$i.mp3');
-        debugPrint('Timestamp: ${_timestamps[i]}');
-        debugPrint('Current Position: $position');
+        _audioManager.playOverlay('audio/A_$i.mp3');
+        debugPrint('Playing overlay: A_$i.mp3 at ${_formatDuration(position)}');
       }
-    }
-  }
-
-  String _determineOverlayType(double hrPercentage) {
-    if (hrPercentage > 50 && hrPercentage <= 60) {
-      return 'S';
-    } else if (hrPercentage > 60 && hrPercentage <= 70) {
-      return 'S';
-    } else if (hrPercentage > 70 && hrPercentage <= 80) {
-      return 'S';
-    } else {
-      return 'A';
     }
   }
 
@@ -187,10 +204,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
-        body: jsonEncode({
-          'challengeId': widget.id,
-          'status': true,
-        }),
+        body: jsonEncode({'challengeId': widget.id, 'status': true}),
       );
 
       if (response.statusCode != 200) {
@@ -209,6 +223,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
           storyName: widget.challengeName,
           backgroundImage: widget.image,
           storyId: widget.id,
+          zoneId: widget.zoneId,
         ),
       ),
     );
@@ -219,14 +234,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     return "${twoDigits(duration.inMinutes)}:${twoDigits(duration.inSeconds.remainder(60))}";
   }
 
-  void _togglePlayPause() {
-    if (_audioManager.isPlaying) {
-      _audioManager.pause();
-    } else {
-      _audioManager.resume();
-    }
-    setState(() {});
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -311,7 +318,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
               ),
               const Spacer(),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Column(
                   children: [
                     SliderTheme(
@@ -319,18 +326,39 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                         thumbColor: Colors.purple,
                         activeTrackColor: Colors.purple,
                         inactiveTrackColor: Colors.white30,
-                        trackHeight: 8.0,
+                        trackHeight: 12.0,
+                        thumbShape: RoundSliderThumbShape(
+                          enabledThumbRadius: _timestamps.any((timestamp) =>
+                                  (timestamp.inSeconds -
+                                          _currentPosition.inSeconds)
+                                      .abs() <=
+                                  1)
+                              ? 12.0
+                              : 0.0,
+                        ),
+                        trackShape: CustomSliderTrackShape(
+                          timestamps: _timestamps,
+                          totalDuration: _totalDuration,
+                        ),
+                        overlayColor: Colors.red.withOpacity(0.2),
+                        overlayShape: const RoundSliderOverlayShape(
+                          overlayRadius: 28.0,
+                        ),
+                        disabledThumbColor: Colors.black,
                       ),
-                      child: Slider(
-                        value: _currentPosition.inSeconds.toDouble(),
-                        min: 0,
-                        max: _totalDuration.inSeconds.toDouble() > 0
-                            ? _totalDuration.inSeconds.toDouble()
-                            : 1,
-                        onChanged: (value) async {
-                          final position = Duration(seconds: value.toInt());
-                          await _audioManager.audioPlayer.seek(position);
-                        },
+                      child: SizedBox(
+                        width: MediaQuery.of(context).size.width * 1,
+                        child: Slider(
+                          value: _currentPosition.inSeconds.toDouble(),
+                          min: 0,
+                          max: _totalDuration.inSeconds.toDouble() > 0
+                              ? _totalDuration.inSeconds.toDouble()
+                              : 1,
+                          onChanged: (value) async {
+                            final position = Duration(seconds: value.toInt());
+                            await _audioManager.audioPlayer.seek(position);
+                          },
+                        ),
                       ),
                     ),
                     Row(

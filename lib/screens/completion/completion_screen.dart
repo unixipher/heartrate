@@ -5,18 +5,22 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:confetti/confetti.dart';
-import 'package:testingheartrate/views/home_screen.dart';
+import 'package:testingheartrate/screens/home/home_screen.dart';
 
 class CompletionScreen extends StatefulWidget {
   final String storyName;
   final String backgroundImage;
   final int storyId;
+  final double? maxheartRate;
+  final int zoneId;
 
   const CompletionScreen({
     super.key,
     required this.storyName,
     required this.backgroundImage,
     required this.storyId,
+    this.maxheartRate,
+    required this.zoneId,
   });
 
   @override
@@ -33,7 +37,7 @@ class _CompletionScreenState extends State<CompletionScreen> {
         ConfettiController(duration: const Duration(seconds: 10));
     _confettiController.play();
 
-    Future.delayed(const Duration(seconds: 15), () {
+    Future.delayed(const Duration(seconds: 600), () {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const HomeScreen()),
@@ -70,6 +74,73 @@ class _CompletionScreenState extends State<CompletionScreen> {
       return challenge?['completedAt'];
     } else {
       throw Exception('Failed to load challenges');
+    }
+  }
+
+  Future<Map<String, dynamic>> analyseHeartRate() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    final url = Uri.parse('https://authcheck.co/analyse');
+
+    final response = await http.post(
+      url,
+      headers: {
+        'Accept': '*/*',
+        'User-Agent': 'Thunder Client (https://www.thunderclient.com)',
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: json.encode({
+        "challengeId": widget.storyId,
+        "zoneId": widget.zoneId,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      final heartRateData = data['heartRateData'] as List<dynamic>;
+      final zoneId = data['zoneId'];
+
+      double lowerBound, upperBound;
+      if (zoneId == 1) {
+        lowerBound = 0.5 * (widget.maxheartRate ?? 0);
+        upperBound = 0.6 * (widget.maxheartRate ?? 0);
+      } else if (zoneId == 2) {
+        lowerBound = 0.6 * (widget.maxheartRate ?? 0);
+        upperBound = 0.7 * (widget.maxheartRate ?? 0);
+      } else if (zoneId == 3) {
+        lowerBound = 0.7 * (widget.maxheartRate ?? 0);
+        upperBound = 0.8 * (widget.maxheartRate ?? 0);
+      } else {
+        throw Exception('Invalid zoneId');
+      }
+
+      int insideZone = 0;
+      int outsideZone = 0;
+      int totalHeartRate = 0;
+
+      for (var entry in heartRateData) {
+        final heartRate = entry['heartRate'] as int;
+        totalHeartRate += heartRate;
+        if (heartRate >= lowerBound && heartRate <= upperBound) {
+          insideZone++;
+        } else {
+          outsideZone++;
+        }
+      }
+
+      double averageHeartRate = heartRateData.isNotEmpty
+          ? totalHeartRate / heartRateData.length
+          : 0.0;
+      double percentageInsideZone = (insideZone / heartRateData.length) * 100;
+      return {
+        'insideZone': insideZone,
+        'outsideZone': outsideZone,
+        'averageHeartRate': averageHeartRate,
+        'percentageInsideZone': percentageInsideZone,
+      };
+    } else {
+      throw Exception('Failed to analyse heart rate');
     }
   }
 
@@ -200,7 +271,7 @@ class _CompletionScreenState extends State<CompletionScreen> {
                 children: [
                   TweenAnimationBuilder(
                     tween: Tween<double>(begin: 0, end: 1),
-                    duration: const Duration(seconds: 15),
+                    duration: const Duration(seconds: 600),
                     builder: (context, value, child) {
                       return SizedBox(
                         width: 100,
@@ -289,6 +360,74 @@ class _CompletionScreenState extends State<CompletionScreen> {
                     ),
                   ),
                 ],
+              ),
+            ),
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: FutureBuilder<Map<String, dynamic>>(
+                  future: analyseHeartRate(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      );
+                    } else if (snapshot.hasData) {
+                      final insideZone = snapshot.data!['insideZone']!;
+                      final outsideZone = snapshot.data!['outsideZone']!;
+                      final averageHeartRate =
+                          snapshot.data!['averageHeartRate'] as double;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 100.0),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Average Heart Rate: ${averageHeartRate.toStringAsFixed(1)} BPM',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 22,
+                                fontFamily: 'Battambang',
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'You got ${insideZone + outsideZone} nudges to stay in the zone You were in the zone for ${snapshot.data!['percentageInsideZone'].toStringAsFixed(1)}%',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 22,
+                                fontFamily: 'Battambang',
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Percentage Inside Zone: ${snapshot.data!['percentageInsideZone'].toStringAsFixed(1)}%',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 22,
+                                fontFamily: 'Battambang',
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    } else {
+                      return const Text(
+                        'Failed to analyse heart rate.',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontFamily: 'Battambang',
+                          color: Colors.white70,
+                        ),
+                      );
+                    }
+                  },
+                ),
               ),
             ),
             Align(

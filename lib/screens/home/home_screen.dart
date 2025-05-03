@@ -3,9 +3,9 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:testingheartrate/views/challenge_screen.dart';
-import 'package:testingheartrate/views/history_screen.dart';
-import 'package:testingheartrate/views/splash_screen.dart';
+import 'package:testingheartrate/screens/challenge/challenge_screen.dart';
+import 'package:testingheartrate/screens/history/history_screen.dart';
+import 'package:testingheartrate/screens/splash/splash_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});

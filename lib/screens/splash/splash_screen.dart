@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:testingheartrate/views/auth_screen.dart';
-import 'package:testingheartrate/views/home_screen.dart';
+import 'package:testingheartrate/screens/auth/auth_screen.dart';
+import 'package:testingheartrate/screens/home/home_screen.dart';
 import 'package:testingheartrate/providers/auth_provider.dart';
 
 class SplashScreen extends ConsumerWidget {
