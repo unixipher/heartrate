@@ -93,29 +93,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
   List<bool> _triggered = [];
   bool _hasMaxHR = false;
   final List<String> _pacingAudioFiles = [];
-  final List<Duration> _pacingTimestamps = [
-    const Duration(minutes: 0, seconds: 0),
-    const Duration(minutes: 1, seconds: 0),
-    const Duration(minutes: 2, seconds: 0),
-    const Duration(minutes: 3, seconds: 0),
-    const Duration(minutes: 4, seconds: 0),
-  ];
+  List<Duration> _pacingTimestamps = [];
   List<bool> _pacingTriggered = [];
   int _currentAudioIndex = 0;
 
-  // @override
-  // void initState() {
-  //   super.initState();
-  //   _pacingTriggered = List<bool>.filled(_pacingAudioFiles.length, false);
-  //   _fetchMaxHR();
-  //   _initializeTimestamps();
-  //   _initializeSocketService();
-  //   _initializeAudioListeners();
-  //   _playCurrentAudio();
-  //   _audioManager.audioPlayer.setVolume(0.4);
-  //   debugPrint(
-  //       'Main audio started: ${widget.audioData[_currentAudioIndex]['audioUrl']} at ${_formatDuration(Duration.zero)}');
-  // }
   @override
   void initState() {
     super.initState();
@@ -124,6 +105,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   Future<void> _initializePlayer() async {
     await _fetchMaxHR();
+    _calculatePacingTimestamps();
     _pacingTriggered = List<bool>.filled(_pacingAudioFiles.length, false);
     _initializeTimestamps();
     _initializeSocketService();
@@ -147,6 +129,17 @@ class _PlayerScreenState extends State<PlayerScreen> {
         _handleAudioCompletion();
       }
     }
+  }
+
+  void _calculatePacingTimestamps() {
+    final int numberOfAudios = widget.audioData.length;
+    final int totalDurationMinutes = numberOfAudios * 5;
+    final int segmentDurationMinutes = totalDurationMinutes ~/ 5;
+    _pacingTimestamps = List.generate(
+      5,
+      (index) => Duration(minutes: index * segmentDurationMinutes),
+    );
+    debugPrint('Pacing timestamps: $_pacingTimestamps');
   }
 
   void _initializeAudioListeners() {
@@ -382,13 +375,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   void _checkForPacingAudio(Duration position) {
+    final int previousAudiosDuration = _currentAudioIndex * 5;
+    final Duration globalPosition =
+        Duration(minutes: previousAudiosDuration) + position;
+
     for (int i = 0; i < _pacingTimestamps.length; i++) {
       if (!_pacingTriggered[i] &&
-          _isInTimestampRange(position, _pacingTimestamps[i])) {
+          _isInTimestampRange(globalPosition, _pacingTimestamps[i])) {
         _pacingTriggered[i] = true;
         final pacingAudioPath = 'audio/${_pacingAudioFiles[i]}';
         _audioManager.playPacing(pacingAudioPath);
-        debugPrint('Playing pacing audio: $pacingAudioPath');
+        debugPrint(
+            'Playing pacing audio: $pacingAudioPath at ${_formatDuration(globalPosition)}');
       }
     }
   }
