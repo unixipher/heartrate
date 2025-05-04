@@ -37,7 +37,7 @@ class _CompletionScreenState extends State<CompletionScreen> {
         ConfettiController(duration: const Duration(seconds: 10));
     _confettiController.play();
 
-    Future.delayed(const Duration(seconds: 6000), () {
+    Future.delayed(const Duration(seconds: 60), () {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const HomeScreen()),
@@ -271,7 +271,7 @@ class _CompletionScreenState extends State<CompletionScreen> {
                 children: [
                   TweenAnimationBuilder(
                     tween: Tween<double>(begin: 0, end: 1),
-                    duration: const Duration(seconds: 6000),
+                    duration: const Duration(seconds: 60),
                     builder: (context, value, child) {
                       return SizedBox(
                         width: 100,
@@ -395,7 +395,7 @@ class _CompletionScreenState extends State<CompletionScreen> {
                             ),
                             const SizedBox(height: 16),
                             Text(
-                              'You got ${insideZone + outsideZone} nudges to stay in the zone You were in the zone for ${snapshot.data!['percentageInsideZone'].toStringAsFixed(1)}%',
+                              'You got ${insideZone + outsideZone} nudges to stay in the zone.',
                               textAlign: TextAlign.center,
                               style: const TextStyle(
                                 fontSize: 22,
@@ -405,7 +405,7 @@ class _CompletionScreenState extends State<CompletionScreen> {
                             ),
                             const SizedBox(height: 16),
                             Text(
-                              'Percentage Inside Zone: ${snapshot.data!['percentageInsideZone'].toStringAsFixed(1)}%',
+                              'You were in the zone for ${snapshot.data!['percentageInsideZone'].toStringAsFixed(1)}% of the time',
                               textAlign: TextAlign.center,
                               style: const TextStyle(
                                 fontSize: 22,
