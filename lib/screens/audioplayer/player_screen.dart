@@ -348,9 +348,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
           _pacingAudioFiles.addAll([
             '${roundedLower}.mp3',
             '${roundedLower + 10}.mp3',
-            '${roundedUpper + 20}.mp3',
             '${roundedLower + 20}.mp3',
-            '${roundedLower}.mp3',
+            '${roundedLower + 20}.mp3',
+            '${roundedLower + 10}.mp3',
           ]);
         }
       } else {

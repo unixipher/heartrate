@@ -140,7 +140,6 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                 ],
               ),
             ),
-
             Expanded(
               flex: 5,
               child: Container(
@@ -621,6 +620,7 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                       final challengesToSend = (totalMinutes / 5).floor();
 
                       final audioData = filteredChallenges
+                          .skip(selectedChallenge)
                           .take(challengesToSend)
                           .map((challenge) {
                         return {
