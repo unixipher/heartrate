@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:testingheartrate/screens/audioplayer/player_screen.dart';
-import 'package:testingheartrate/screens/audioplayer/without_watch/without_watch_playing_screen.dart';
 
 class ChallengeScreen extends StatefulWidget {
   final String title;
@@ -142,7 +141,6 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
               ),
             ),
 
-            // Challenge List
             Expanded(
               flex: 5,
               child: Container(
@@ -380,25 +378,8 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                       minimumSize: const Size(150, 48),
                     ),
                     onPressed: () {
-                      final audioUrl = filteredChallenges[selectedChallenge]
-                              ['audiourl'] ??
-                          '';
-                      final challengeId =
-                          filteredChallenges[selectedChallenge]['id'] ?? '';
-                      final challengeName =
-                          filteredChallenges[selectedChallenge]['title'] ?? '';
-                      Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => WithoutWatchScreen(
-                              audioUrl: audioUrl,
-                              id: challengeId,
-                              challengeName: challengeName,
-                              image: widget.backgroundImagePath,
-                              zoneId: 3,
-                              indexid: selectedChallenge,
-                            ),
-                          ));
+                      Navigator.pop(context);
+                      _showZoneSelector(context);
                     },
                     child: const Text(
                       'No',
@@ -506,12 +487,14 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         IconButton(
-                          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+                          icon: const Icon(Icons.arrow_back_ios,
+                              color: Colors.white),
                           onPressed: () => Navigator.pop(context),
                         ),
                         const Text(
@@ -555,7 +538,8 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                               onSelectedItemChanged: (index) {
                                 setModalState(() {
                                   selectedHour = index;
-                                  if (selectedHour == 1 && selectedMinute > 30) {
+                                  if (selectedHour == 1 &&
+                                      selectedMinute > 30) {
                                     selectedMinute = 30;
                                   }
                                 });
@@ -567,7 +551,9 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                                       '$index hr',
                                       style: TextStyle(
                                         fontFamily: 'Thewitcher',
-                                        color: selectedHour == index ? Colors.white : Colors.grey,
+                                        color: selectedHour == index
+                                            ? Colors.white
+                                            : Colors.grey,
                                         fontSize: 22,
                                       ),
                                     ),
@@ -601,7 +587,9 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                                     '$minute min',
                                     style: TextStyle(
                                       fontFamily: 'Thewitcher',
-                                      color: selectedMinute == minute ? Colors.white : Colors.grey,
+                                      color: selectedMinute == minute
+                                          ? Colors.white
+                                          : Colors.grey,
                                       fontSize: 22,
                                     ),
                                   ),
@@ -646,7 +634,8 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                         };
                       }).toList();
 
-                      final challengeId = filteredChallenges[selectedChallenge]['id'] ?? '';
+                      final challengeId =
+                          filteredChallenges[selectedChallenge]['id'] ?? '';
                       final prefs = await SharedPreferences.getInstance();
                       final token = prefs.getString('token') ?? '';
 
@@ -657,7 +646,8 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                             'Accept': '*/*',
                             'Authorization': 'Bearer $token',
                             'Content-Type': 'application/json',
-                            'User-Agent': 'Thunder Client (https://www.thunderclient.com)',
+                            'User-Agent':
+                                'Thunder Client (https://www.thunderclient.com)',
                           },
                           body: jsonEncode({
                             'challengeId': challengeId,
@@ -668,7 +658,8 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                         if (response.statusCode == 200) {
                           debugPrint('Challenge started successfully');
                         } else {
-                          debugPrint('Failed to start challenge: ${response.statusCode}');
+                          debugPrint(
+                              'Failed to start challenge: ${response.statusCode}');
                         }
                       } else {
                         debugPrint('Token not found');

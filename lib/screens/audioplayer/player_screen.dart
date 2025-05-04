@@ -92,12 +92,39 @@ class _PlayerScreenState extends State<PlayerScreen> {
   List<Duration> _timestamps = [];
   List<bool> _triggered = [];
   bool _hasMaxHR = false;
-
+  final List<String> _pacingAudioFiles = [];
+  final List<Duration> _pacingTimestamps = [
+    const Duration(minutes: 0, seconds: 0),
+    const Duration(minutes: 1, seconds: 0),
+    const Duration(minutes: 2, seconds: 0),
+    const Duration(minutes: 3, seconds: 0),
+    const Duration(minutes: 4, seconds: 0),
+  ];
+  List<bool> _pacingTriggered = [];
   int _currentAudioIndex = 0;
 
+  // @override
+  // void initState() {
+  //   super.initState();
+  //   _pacingTriggered = List<bool>.filled(_pacingAudioFiles.length, false);
+  //   _fetchMaxHR();
+  //   _initializeTimestamps();
+  //   _initializeSocketService();
+  //   _initializeAudioListeners();
+  //   _playCurrentAudio();
+  //   _audioManager.audioPlayer.setVolume(0.4);
+  //   debugPrint(
+  //       'Main audio started: ${widget.audioData[_currentAudioIndex]['audioUrl']} at ${_formatDuration(Duration.zero)}');
+  // }
   @override
   void initState() {
     super.initState();
+    _initializePlayer();
+  }
+
+  Future<void> _initializePlayer() async {
+    await _fetchMaxHR();
+    _pacingTriggered = List<bool>.filled(_pacingAudioFiles.length, false);
     _initializeTimestamps();
     _initializeSocketService();
     _initializeAudioListeners();
@@ -125,7 +152,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
   void _initializeAudioListeners() {
     _audioManager.audioPlayer.onDurationChanged
         .listen((d) => setState(() => _totalDuration = d));
-    _audioManager.audioPlayer.onPositionChanged.listen(_handlePositionUpdate);
+    // _audioManager.audioPlayer.onPositionChanged.listen(_handlePositionUpdate);
+    _audioManager.audioPlayer.onPositionChanged.listen((position) {
+      if (_currentPosition == Duration.zero && position > Duration.zero) {
+        _checkForPacingAudio(position);
+      }
+      _handlePositionUpdate(position);
+    });
     _audioManager.audioPlayer.onPlayerComplete.listen((event) {
       _handleAudioCompletion();
     });
@@ -244,22 +277,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
     return 'A';
   }
 
-  // void _handleHeartRateUpdate(double? heartRate) async {
-  //   if (heartRate == null) return;
-
-  //   if (!_hasMaxHR) await _fetchMaxHR();
-
-  //   setState(() => _currentHR = heartRate.toInt());
-
-  //   if (_maxHR == null) return;
-
-  //   final currentHRPercent = (_currentHR! / _maxHR!) * 100;
-  //   final inValidRange = currentHRPercent >= 50 && currentHRPercent <= 80;
-
-  //   if (!inValidRange) return;
-
-  //   _checkForOverlayTrigger(_currentPosition);
-  // }
   void _handleHeartRateUpdate(double? heartRate) async {
     if (heartRate == null) return;
 
@@ -276,16 +293,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
     int lowerBound = 0, upperBound = 0;
     switch (zoneId) {
       case 1:
-        lowerBound = 50;
-        upperBound = 60;
-        break;
-      case 2:
-        lowerBound = 60;
+        lowerBound = 40;
         upperBound = 70;
         break;
-      case 3:
-        lowerBound = 70;
+      case 2:
+        lowerBound = 50;
         upperBound = 80;
+        break;
+      case 3:
+        lowerBound = 60;
+        upperBound = 90;
         break;
     }
 
@@ -326,9 +343,23 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        debugPrint('Max HR: $_maxHR');
         setState(() {
           _maxHR = data['user']['maxhr']?.toDouble();
         });
+        if (_maxHR != null) {
+          double lowerbound = 72 + (_maxHR! - 72) * 0.5;
+          double upperbound = 72 + (_maxHR! - 72) * 0.6;
+          int roundedLower = roundToNearest10(lowerbound);
+          int roundedUpper = roundToNearest10(upperbound);
+          _pacingAudioFiles.addAll([
+            '${roundedLower}.mp3',
+            '${roundedLower + 10}.mp3',
+            '${roundedUpper + 20}.mp3',
+            '${roundedLower + 20}.mp3',
+            '${roundedLower}.mp3',
+          ]);
+        }
       } else {
         debugPrint('Failed to fetch maxHR: ${response.statusCode}');
       }
@@ -338,26 +369,45 @@ class _PlayerScreenState extends State<PlayerScreen> {
     setState(() {
       _hasMaxHR = true;
     });
-    debugPrint('Max HR: $_maxHR');
+  }
+
+  int roundToNearest10(double value) {
+    return (value / 10).round() * 10;
   }
 
   void _handlePositionUpdate(Duration position) {
     setState(() => _currentPosition = position);
-    if (_currentHR != null && _maxHR != null) _checkForOverlayTrigger(position);
+    _checkForOverlayTrigger(position);
+    _checkForPacingAudio(position);
+  }
+
+  void _checkForPacingAudio(Duration position) {
+    for (int i = 0; i < _pacingTimestamps.length; i++) {
+      if (!_pacingTriggered[i] &&
+          _isInTimestampRange(position, _pacingTimestamps[i])) {
+        _pacingTriggered[i] = true;
+        final pacingAudioPath = 'audio/${_pacingAudioFiles[i]}';
+        _audioManager.playPacing(pacingAudioPath);
+        debugPrint('Playing pacing audio: $pacingAudioPath');
+      }
+    }
   }
 
   void _checkForOverlayTrigger(Duration position) {
     final currentAudio = widget.audioData[_currentAudioIndex];
-    final int zoneId = currentAudio['zoneId'];
     final int storyId = currentAudio['storyId'];
-    final double hrPercentage = (_currentHR! / _maxHR!) * 100;
-    final overlayType = _determineOverlayType(hrPercentage, zoneId);
+    String overlayType = 'A';
+
+    if (_currentHR != null && _maxHR != null) {
+      final int zoneId = currentAudio['zoneId'];
+      final double hrPercentage = (_currentHR! / _maxHR!) * 100;
+      overlayType = _determineOverlayType(hrPercentage, zoneId);
+    }
 
     for (int i = 0; i < _timestamps.length; i++) {
       if (!_triggered[i] && _isInTimestampRange(position, _timestamps[i])) {
         _triggered[i] = true;
-        String overlayPath =
-            'audio/${overlayType}_$i.mp3'; // Adjust path as needed
+        String overlayPath = 'audio/${overlayType}_$i.mp3';
         if (storyId == 1 || storyId == 2 || storyId == 3 || storyId == 4) {
           _audioManager.playOverlay(overlayPath);
           debugPrint('Playing overlay: $overlayPath');
@@ -403,11 +453,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
     return "${twoDigits(duration.inMinutes)}:${twoDigits(duration.inSeconds.remainder(60))}";
   }
 
-  void _togglePlayPause() {
+  void _togglePlayPause() async {
     if (_audioManager.isPlaying) {
-      _audioManager.pause();
+      await _audioManager.pause();
     } else {
-      _audioManager.resume();
+      await _audioManager.resume();
     }
     setState(() {});
   }
