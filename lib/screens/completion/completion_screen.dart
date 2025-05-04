@@ -37,7 +37,7 @@ class _CompletionScreenState extends State<CompletionScreen> {
         ConfettiController(duration: const Duration(seconds: 10));
     _confettiController.play();
 
-    Future.delayed(const Duration(seconds: 30), () {
+    Future.delayed(const Duration(seconds: 6000), () {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const HomeScreen()),
@@ -271,7 +271,7 @@ class _CompletionScreenState extends State<CompletionScreen> {
                 children: [
                   TweenAnimationBuilder(
                     tween: Tween<double>(begin: 0, end: 1),
-                    duration: const Duration(seconds: 30),
+                    duration: const Duration(seconds: 6000),
                     builder: (context, value, child) {
                       return SizedBox(
                         width: 100,

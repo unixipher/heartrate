@@ -10,8 +10,10 @@ class CustomSliderTrackShape extends RoundedRectSliderTrackShape {
   final List<Duration> timestamps;
   final Duration totalDuration;
 
-  CustomSliderTrackShape(
-      {required this.timestamps, required this.totalDuration});
+  CustomSliderTrackShape({
+    required this.timestamps,
+    required this.totalDuration,
+  });
 
   @override
   void paint(
@@ -68,27 +70,11 @@ class CustomSliderTrackShape extends RoundedRectSliderTrackShape {
 }
 
 class PlayerScreen extends StatefulWidget {
-  final String audioUrl;
-  final int id;
-  final String challengeName;
-  final String image;
-  final int zoneId;
-  final int indexid;
-  final String? duration;
-  final int storyId;
-  final List<String>? challengequeue;
+  final List<Map<String, dynamic>> audioData;
 
   const PlayerScreen({
     super.key,
-    required this.audioUrl,
-    required this.id,
-    required this.challengeName,
-    required this.image,
-    required this.zoneId,
-    required this.indexid,
-    this.duration,
-    required this.storyId,
-    this.challengequeue,
+    required this.audioData,
   });
 
   @override
@@ -107,23 +93,78 @@ class _PlayerScreenState extends State<PlayerScreen> {
   List<bool> _triggered = [];
   bool _hasMaxHR = false;
 
+  int _currentAudioIndex = 0;
+
   @override
   void initState() {
     super.initState();
     _initializeTimestamps();
     _initializeSocketService();
     _initializeAudioListeners();
-    _audioManager.play(widget.audioUrl);
+    _playCurrentAudio();
     _audioManager.audioPlayer.setVolume(0.4);
     debugPrint(
-        'Main audio started: ${widget.audioUrl} at ${_formatDuration(Duration.zero)}');
+        'Main audio started: ${widget.audioData[_currentAudioIndex]['audioUrl']} at ${_formatDuration(Duration.zero)}');
+  }
+
+  void _playCurrentAudio() async {
+    if (_currentAudioIndex < widget.audioData.length) {
+      try {
+        await _audioManager.stop();
+        _initializeTimestamps();
+        final currentAudio = widget.audioData[_currentAudioIndex];
+        await _audioManager.play(currentAudio['audioUrl']);
+        debugPrint('Now playing: ${currentAudio['challengeName']}');
+      } catch (e) {
+        debugPrint('Error playing audio: $e');
+        _handleAudioCompletion();
+      }
+    }
+  }
+
+  void _initializeAudioListeners() {
+    _audioManager.audioPlayer.onDurationChanged
+        .listen((d) => setState(() => _totalDuration = d));
+    _audioManager.audioPlayer.onPositionChanged.listen(_handlePositionUpdate);
+    _audioManager.audioPlayer.onPlayerComplete.listen((event) {
+      _handleAudioCompletion();
+    });
+  }
+
+  Future<void> _handleAudioCompletion() async {
+    await _updateChallengeStatus();
+    _currentAudioIndex++;
+    if (_currentAudioIndex < widget.audioData.length) {
+      setState(() {});
+      _playCurrentAudio();
+    } else {
+      _audioManager.stop();
+      _navigateToCompletionScreen();
+    }
+  }
+
+  void _navigateToCompletionScreen() {
+    final lastAudio = widget.audioData.last;
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CompletionScreen(
+          storyName: lastAudio['challengeName'],
+          backgroundImage: lastAudio['image'],
+          storyId: lastAudio['id'],
+          maxheartRate: _maxHR ?? 0.0,
+          zoneId: lastAudio['zoneId'],
+        ),
+      ),
+    );
   }
 
   void _initializeTimestamps() {
-    int adjustedIndexId = widget.indexid;
+    final currentAudio = widget.audioData[_currentAudioIndex];
+    int adjustedIndexId = currentAudio['indexid'];
 
-    if (widget.indexid >= 1) {
-      adjustedIndexId = ((widget.indexid - 1) % 5) + 1;
+    if (adjustedIndexId >= 1) {
+      adjustedIndexId = ((adjustedIndexId - 1) % 5) + 1;
     }
 
     List<String> timeStrings = [];
@@ -174,13 +215,51 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _socketService.fetechtoken();
   }
 
-  void _initializeAudioListeners() {
-    _audioManager.audioPlayer.onDurationChanged
-        .listen((d) => setState(() => _totalDuration = d));
-    _audioManager.audioPlayer.onPositionChanged.listen(_handlePositionUpdate);
-    _audioManager.audioPlayer.onPlayerComplete.listen(_handleAudioCompletion);
+  String _determineOverlayType(double hrPercentage, int zoneId) {
+    if (zoneId == 1) {
+      if (hrPercentage >= 50 && hrPercentage < 60) {
+        return 'A';
+      } else if (hrPercentage < 50) {
+        return 'A';
+      } else if (hrPercentage >= 60) {
+        return 'S';
+      }
+    } else if (zoneId == 2) {
+      if (hrPercentage >= 60 && hrPercentage < 70) {
+        return 'A';
+      } else if (hrPercentage < 60) {
+        return 'A';
+      } else if (hrPercentage >= 70) {
+        return 'S';
+      }
+    } else if (zoneId == 3) {
+      if (hrPercentage >= 70 && hrPercentage < 80) {
+        return 'A';
+      } else if (hrPercentage < 70) {
+        return 'A';
+      } else if (hrPercentage >= 80) {
+        return 'S';
+      }
+    }
+    return 'A';
   }
 
+  // void _handleHeartRateUpdate(double? heartRate) async {
+  //   if (heartRate == null) return;
+
+  //   if (!_hasMaxHR) await _fetchMaxHR();
+
+  //   setState(() => _currentHR = heartRate.toInt());
+
+  //   if (_maxHR == null) return;
+
+  //   final currentHRPercent = (_currentHR! / _maxHR!) * 100;
+  //   final inValidRange = currentHRPercent >= 50 && currentHRPercent <= 80;
+
+  //   if (!inValidRange) return;
+
+  //   _checkForOverlayTrigger(_currentPosition);
+  // }
   void _handleHeartRateUpdate(double? heartRate) async {
     if (heartRate == null) return;
 
@@ -191,19 +270,23 @@ class _PlayerScreenState extends State<PlayerScreen> {
     if (_maxHR == null) return;
 
     final currentHRPercent = (_currentHR! / _maxHR!) * 100;
-    final inValidRange = currentHRPercent >= 50 && currentHRPercent <= 80;
-    int lowerBound = 0;
-    int upperBound = 0;
+    final currentAudio = widget.audioData[_currentAudioIndex];
+    final int zoneId = currentAudio['zoneId'];
 
-    if (widget.zoneId == 1) {
-      lowerBound = 50;
-      upperBound = 60;
-    } else if (widget.zoneId == 2) {
-      lowerBound = 60;
-      upperBound = 70;
-    } else if (widget.zoneId == 3) {
-      lowerBound = 70;
-      upperBound = 80;
+    int lowerBound = 0, upperBound = 0;
+    switch (zoneId) {
+      case 1:
+        lowerBound = 50;
+        upperBound = 60;
+        break;
+      case 2:
+        lowerBound = 60;
+        upperBound = 70;
+        break;
+      case 3:
+        lowerBound = 70;
+        upperBound = 80;
+        break;
     }
 
     if (currentHRPercent < lowerBound || currentHRPercent > upperBound) {
@@ -211,22 +294,20 @@ class _PlayerScreenState extends State<PlayerScreen> {
         Future.delayed(const Duration(seconds: 10), () {
           if (currentHRPercent < lowerBound || currentHRPercent > upperBound) {
             _audioManager.pause();
-            debugPrint(
-                'Music paused due to HR out of range for 10 seconds: $currentHRPercent');
+            debugPrint('Music paused due to HR out of range for 10 seconds');
           }
         });
       }
-      return;
     } else {
       if (!_audioManager.isPlaying) {
         _audioManager.resume();
-        debugPrint('Music resumed: $currentHRPercent');
+        debugPrint('Music resumed');
       }
     }
 
-    if (!inValidRange) return;
-
-    _checkForOverlayTrigger(_currentPosition);
+    if (currentHRPercent >= 50 && currentHRPercent <= 80) {
+      _checkForOverlayTrigger(_currentPosition);
+    }
   }
 
   Future<void> _fetchMaxHR() async {
@@ -266,103 +347,23 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   void _checkForOverlayTrigger(Duration position) {
-    final hrPercentage = (_currentHR! / _maxHR!) * 100;
-    final overlayType = _determineOverlayType(hrPercentage);
-
-    // final pacingDurations = [
-    //   const Duration(minutes: 0, seconds: 0),
-    //   const Duration(minutes: 1, seconds: 0),
-    //   const Duration(minutes: 2, seconds: 0),
-    //   const Duration(minutes: 3, seconds: 0),
-    //   const Duration(minutes: 4, seconds: 0),
-    //   const Duration(minutes: 5, seconds: 0),
-    // ];
-    // int paceHRLowerBound = 0;
-    // int paceHRUpperBound = 0;
-
-    // if (widget.zoneId == 1) {
-    //   paceHRLowerBound = ((0.50 * _maxHR!) / 10).round() * 10;
-    //   paceHRUpperBound = ((0.60 * _maxHR!) / 10).round() * 10;
-    // } else if (widget.zoneId == 2) {
-    //   paceHRLowerBound = ((0.60 * _maxHR!) / 10).round() * 10;
-    //   paceHRUpperBound = ((0.70 * _maxHR!) / 10).round() * 10;
-    // } else if (widget.zoneId == 3) {
-    //   paceHRLowerBound = ((0.70 * _maxHR!) / 10).round() * 10;
-    //   paceHRUpperBound = ((0.80 * _maxHR!) / 10).round() * 10;
-    // }
-
-    // final pacingMusic = [
-    //   'audio/$paceHRLowerBound.mp3',
-    //   'audio/${paceHRLowerBound + 10}.mp3',
-    //   'audio/${paceHRLowerBound + 20}.mp3',
-    //   'audio/${paceHRLowerBound + 10}.mp3',
-    // ];
-
-    // debugPrint('Pace HR Range: $paceHRLowerBound - $paceHRUpperBound');
-
-    // for (int i = 0; i < pacingDurations.length - 1; i++) {
-    //   if (position >= pacingDurations[i] && position < pacingDurations[i + 1]) {
-    //     final musicFile = pacingMusic[i];
-    //     _audioManager.playOverlay(musicFile);
-    //     debugPrint('Playing pacing music: $musicFile');
-    //     break;
-    //   }
-    // }
+    final currentAudio = widget.audioData[_currentAudioIndex];
+    final int zoneId = currentAudio['zoneId'];
+    final int storyId = currentAudio['storyId'];
+    final double hrPercentage = (_currentHR! / _maxHR!) * 100;
+    final overlayType = _determineOverlayType(hrPercentage, zoneId);
 
     for (int i = 0; i < _timestamps.length; i++) {
       if (!_triggered[i] && _isInTimestampRange(position, _timestamps[i])) {
         _triggered[i] = true;
-        if (widget.storyId == 1) {
-          _audioManager.playOverlay('audio/${overlayType}_$i.mp3');
+        String overlayPath =
+            'audio/${overlayType}_$i.mp3'; // Adjust path as needed
+        if (storyId == 1 || storyId == 2 || storyId == 3 || storyId == 4) {
+          _audioManager.playOverlay(overlayPath);
+          debugPrint('Playing overlay: $overlayPath');
         }
-        //i have to change the audio path later for all the audios and stories based on.
-        else if (widget.storyId == 2) {
-          _audioManager.playOverlay('audio/${overlayType}_$i.mp3');
-        } else if (widget.storyId == 3) {
-          _audioManager.playOverlay('audio/${overlayType}_$i.mp3');
-        } else if (widget.storyId == 4) {
-          _audioManager.playOverlay('audio/${overlayType}_$i.mp3');
-        }
-        debugPrint(hrPercentage.toString());
-        debugPrint('Current HR: $_currentHR');
-        debugPrint('Max HR: $_maxHR');
-        debugPrint('Overlay Type: $overlayType');
-        debugPrint(widget.zoneId.toString());
-        debugPrint('Triggered overlay at index $i');
-        debugPrint('Playing overlay: ${overlayType}_$i.mp3');
-        debugPrint('Timestamp: ${_timestamps[i]}');
-        debugPrint('Current Position: $position');
       }
     }
-  }
-
-  String _determineOverlayType(double hrPercentage) {
-    if (widget.zoneId == 1) {
-      if (hrPercentage >= 50 && hrPercentage < 60) {
-        return 'A';
-      } else if (hrPercentage < 50) {
-        return 'A';
-      } else if (hrPercentage >= 60) {
-        return 'S';
-      }
-    } else if (widget.zoneId == 2) {
-      if (hrPercentage >= 60 && hrPercentage < 70) {
-        return 'A';
-      } else if (hrPercentage < 60) {
-        return 'A';
-      } else if (hrPercentage >= 70) {
-        return 'S';
-      }
-    } else if (widget.zoneId == 3) {
-      if (hrPercentage >= 70 && hrPercentage < 80) {
-        return 'A';
-      } else if (hrPercentage < 70) {
-        return 'A';
-      } else if (hrPercentage >= 80) {
-        return 'S';
-      }
-    }
-    return 'A';
   }
 
   bool _isInTimestampRange(Duration position, Duration target) {
@@ -371,17 +372,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
     return (positionMs >= targetMs - 1000 && positionMs <= targetMs + 1000);
   }
 
-  Future<void> _handleAudioCompletion(event) async {
-    _audioManager.stop();
-    await _updateChallengeStatus();
-    _navigateToCompletionScreen();
-  }
-
   Future<void> _updateChallengeStatus() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token') ?? '';
 
     try {
+      final currentAudio = widget.audioData[_currentAudioIndex];
       final response = await http.post(
         Uri.parse('https://authcheck.co/updatechallenge'),
         headers: {
@@ -389,7 +385,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           'Content-Type': 'application/json',
         },
         body: jsonEncode({
-          'challengeId': widget.id,
+          'challengeId': currentAudio['id'],
           'status': true,
         }),
       );
@@ -400,21 +396,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
     } catch (e) {
       debugPrint('Update challenge error: $e');
     }
-  }
-
-  void _navigateToCompletionScreen() {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => CompletionScreen(
-          storyName: widget.challengeName,
-          backgroundImage: widget.image,
-          storyId: widget.id,
-          maxheartRate: _maxHR ?? 0.0,
-          zoneId: widget.zoneId,
-        ),
-      ),
-    );
   }
 
   String _formatDuration(Duration duration) {
@@ -433,6 +414,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final currentAudio = widget.audioData[_currentAudioIndex];
     return Scaffold(
       extendBodyBehindAppBar: true,
       backgroundColor: Colors.black,
@@ -446,7 +428,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           },
         ),
         title: Text(
-          widget.challengeName,
+          currentAudio['challengeName'],
           style: const TextStyle(
             fontFamily: 'Thewitcher',
             fontSize: 24,
@@ -462,7 +444,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           Container(
             decoration: BoxDecoration(
               image: DecorationImage(
-                image: AssetImage(widget.image),
+                image: AssetImage(currentAudio['image']),
                 fit: BoxFit.cover,
               ),
             ),
@@ -524,6 +506,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                         inactiveTrackColor: Colors.white30,
                         trackHeight: 12.0,
                         thumbShape: RoundSliderThumbShape(
+                          // Enlarge thumb when near a timestamp
                           enabledThumbRadius: _timestamps.any((timestamp) =>
                                   (timestamp.inSeconds -
                                           _currentPosition.inSeconds)
@@ -536,25 +519,21 @@ class _PlayerScreenState extends State<PlayerScreen> {
                           timestamps: _timestamps,
                           totalDuration: _totalDuration,
                         ),
-                        overlayColor: Colors.red.withOpacity(0.2),
+                        overlayColor: Colors.purple.withOpacity(0.2),
                         overlayShape: const RoundSliderOverlayShape(
                           overlayRadius: 28.0,
                         ),
-                        disabledThumbColor: Colors.black,
                       ),
-                      child: SizedBox(
-                        width: MediaQuery.of(context).size.width * 1,
-                        child: Slider(
-                          value: _currentPosition.inSeconds.toDouble(),
-                          min: 0,
-                          max: _totalDuration.inSeconds.toDouble() > 0
-                              ? _totalDuration.inSeconds.toDouble()
-                              : 1,
-                          onChanged: (value) async {
-                            final position = Duration(seconds: value.toInt());
-                            await _audioManager.audioPlayer.seek(position);
-                          },
-                        ),
+                      child: Slider(
+                        value: _currentPosition.inSeconds.toDouble(),
+                        min: 0,
+                        max: _totalDuration.inSeconds.toDouble() > 0
+                            ? _totalDuration.inSeconds.toDouble()
+                            : 1,
+                        onChanged: (value) async {
+                          final position = Duration(seconds: value.toInt());
+                          await _audioManager.audioPlayer.seek(position);
+                        },
                       ),
                     ),
                     Row(

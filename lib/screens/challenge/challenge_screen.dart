@@ -184,7 +184,6 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                                         setState(() {
                                           selectedChallenge = index;
                                         });
-                                        // _showZoneSelector(context);
                                         _showConfirmationDialog(context);
                                       },
                                 borderRadius: BorderRadius.circular(12),
@@ -307,67 +306,16 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     _buildZoneButton('ZONE 1', 'WALK', zoneId: 1, onTap: () {
-                      final audioUrl = filteredChallenges[selectedChallenge]
-                              ['audiourl'] ??
-                          '';
-                      final challengeId =
-                          filteredChallenges[selectedChallenge]['id'] ?? '';
-                      final challengeName =
-                          filteredChallenges[selectedChallenge]['title'] ?? '';
-                      Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => PlayerScreen(
-                                    audioUrl: audioUrl,
-                                    id: challengeId,
-                                    challengeName: challengeName,
-                                    image: widget.backgroundImagePath,
-                                    zoneId: 1,
-                                    indexid: selectedChallenge,
-                                    storyId: widget.storyId,
-                                  )));
+                      Navigator.pop(context);
+                      _showWorkoutTenureSelector(context, 1);
                     }),
                     _buildZoneButton('ZONE 2', 'JOG', zoneId: 2, onTap: () {
-                      final audioUrl = filteredChallenges[selectedChallenge]
-                              ['audiourl'] ??
-                          '';
-                      final challengeId =
-                          filteredChallenges[selectedChallenge]['id'] ?? '';
-                      final challengeName =
-                          filteredChallenges[selectedChallenge]['title'] ?? '';
-                      Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => PlayerScreen(
-                                    audioUrl: audioUrl,
-                                    id: challengeId,
-                                    challengeName: challengeName,
-                                    image: widget.backgroundImagePath,
-                                    zoneId: 2,
-                                    indexid: selectedChallenge,
-                                    storyId: widget.storyId,
-                                  )));
+                      Navigator.pop(context);
+                      _showWorkoutTenureSelector(context, 2);
                     }),
                     _buildZoneButton('ZONE 3', 'RUN', zoneId: 3, onTap: () {
-                      final audioUrl = filteredChallenges[selectedChallenge]
-                              ['audiourl'] ??
-                          '';
-                      final challengeId =
-                          filteredChallenges[selectedChallenge]['id'] ?? '';
-                      final challengeName =
-                          filteredChallenges[selectedChallenge]['title'] ?? '';
-                      Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => PlayerScreen(
-                                    audioUrl: audioUrl,
-                                    id: challengeId,
-                                    challengeName: challengeName,
-                                    image: widget.backgroundImagePath,
-                                    zoneId: 3,
-                                    indexid: selectedChallenge,
-                                    storyId: widget.storyId,
-                                  )));
+                      Navigator.pop(context);
+                      _showWorkoutTenureSelector(context, 3);
                     }),
                   ],
                 ),
@@ -470,8 +418,7 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                     ),
                     onPressed: () {
                       Navigator.pop(context);
-                      // _showZoneSelector(context);
-                      _showWorkoutTenureSelector(context);
+                      _showZoneSelector(context);
                     },
                     child: const Text(
                       'Yes',
@@ -494,55 +441,7 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
   Widget _buildZoneButton(String title, String action,
       {VoidCallback? onTap, required int zoneId}) {
     return GestureDetector(
-      onTap: () async {
-        final audioUrl =
-            filteredChallenges[selectedChallenge]['audiourl'] ?? '';
-        final challengeId = filteredChallenges[selectedChallenge]['id'] ?? '';
-        final challengeName =
-            filteredChallenges[selectedChallenge]['title'] ?? '';
-
-        final prefs = await SharedPreferences.getInstance();
-        final token = prefs.getString('token') ?? '';
-
-        if (token.isNotEmpty) {
-          final response = await http.post(
-            Uri.parse('https://authcheck.co/startchallenge'),
-            headers: {
-              'Accept': '*/*',
-              'Authorization': 'Bearer $token',
-              'Content-Type': 'application/json',
-              'User-Agent': 'Thunder Client (https://www.thunderclient.com)',
-            },
-            body: jsonEncode({
-              'challengeId': challengeId,
-              'zoneId': zoneId,
-            }),
-          );
-
-          if (response.statusCode == 200) {
-            debugPrint('Challenge started successfully');
-          } else {
-            debugPrint('Failed to start challenge: ${response.statusCode}');
-          }
-        } else {
-          debugPrint('Token not found');
-        }
-
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => PlayerScreen(
-              audioUrl: audioUrl,
-              id: challengeId,
-              challengeName: challengeName,
-              image: widget.backgroundImagePath,
-              zoneId: zoneId,
-              indexid: selectedChallenge,
-              storyId: widget.storyId,
-            ),
-          ),
-        );
-      },
+      onTap: onTap,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -584,10 +483,11 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
     );
   }
 
-  void _showWorkoutTenureSelector(BuildContext context) {
-    int selectedHour = 1;
+  void _showWorkoutTenureSelector(BuildContext context, int zoneId) {
+    int selectedHour = 0;
     int selectedMinute = 5;
     int challengeCount = filteredChallenges.length;
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -606,14 +506,12 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         IconButton(
-                          icon: const Icon(Icons.arrow_back_ios,
-                              color: Colors.white),
+                          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
                           onPressed: () => Navigator.pop(context),
                         ),
                         const Text(
@@ -657,8 +555,7 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                               onSelectedItemChanged: (index) {
                                 setModalState(() {
                                   selectedHour = index;
-                                  if (selectedHour == 1 &&
-                                      selectedMinute > 30) {
+                                  if (selectedHour == 1 && selectedMinute > 30) {
                                     selectedMinute = 30;
                                   }
                                 });
@@ -670,9 +567,7 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                                       '$index hr',
                                       style: TextStyle(
                                         fontFamily: 'Thewitcher',
-                                        color: selectedHour == index
-                                            ? Colors.white
-                                            : Colors.grey,
+                                        color: selectedHour == index ? Colors.white : Colors.grey,
                                         fontSize: 22,
                                       ),
                                     ),
@@ -692,12 +587,12 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                             physics: const FixedExtentScrollPhysics(),
                             onSelectedItemChanged: (index) {
                               setModalState(() {
-                                selectedMinute = index * 5;
+                                selectedMinute = (index + 1) * 5;
                               });
                             },
                             childDelegate: ListWheelChildBuilderDelegate(
                               builder: (context, index) {
-                                final minute = index * 5;
+                                final minute = (index + 1) * 5;
                                 if (selectedHour == 1 && minute > 30) {
                                   return null;
                                 }
@@ -706,9 +601,7 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                                     '$minute min',
                                     style: TextStyle(
                                       fontFamily: 'Thewitcher',
-                                      color: selectedMinute == minute
-                                          ? Colors.white
-                                          : Colors.grey,
+                                      color: selectedMinute == minute ? Colors.white : Colors.grey,
                                       fontSize: 22,
                                     ),
                                   ),
@@ -730,14 +623,69 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                       ),
                       minimumSize: const Size(150, 48),
                     ),
-                    onPressed: () {
+                    onPressed: () async {
                       final duration = Duration(
                         hours: selectedHour,
                         minutes: selectedMinute,
                       );
+
+                      final totalMinutes = duration.inMinutes;
+                      final challengesToSend = (totalMinutes / 5).floor();
+
+                      final audioData = filteredChallenges
+                          .take(challengesToSend)
+                          .map((challenge) {
+                        return {
+                          'audioUrl': challenge['audiourl'] ?? '',
+                          'id': challenge['id'] ?? '',
+                          'challengeName': challenge['title'] ?? '',
+                          'image': widget.backgroundImagePath,
+                          'zoneId': zoneId,
+                          'indexid': filteredChallenges.indexOf(challenge),
+                          'storyId': widget.storyId,
+                        };
+                      }).toList();
+
+                      final challengeId = filteredChallenges[selectedChallenge]['id'] ?? '';
+                      final prefs = await SharedPreferences.getInstance();
+                      final token = prefs.getString('token') ?? '';
+
+                      if (token.isNotEmpty) {
+                        final response = await http.post(
+                          Uri.parse('https://authcheck.co/startchallenge'),
+                          headers: {
+                            'Accept': '*/*',
+                            'Authorization': 'Bearer $token',
+                            'Content-Type': 'application/json',
+                            'User-Agent': 'Thunder Client (https://www.thunderclient.com)',
+                          },
+                          body: jsonEncode({
+                            'challengeId': challengeId,
+                            'zoneId': zoneId,
+                          }),
+                        );
+
+                        if (response.statusCode == 200) {
+                          debugPrint('Challenge started successfully');
+                        } else {
+                          debugPrint('Failed to start challenge: ${response.statusCode}');
+                        }
+                      } else {
+                        debugPrint('Token not found');
+                      }
+
                       Navigator.pop(context);
-                      _showZoneSelector(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => PlayerScreen(
+                            audioData: audioData,
+                          ),
+                        ),
+                      );
+
                       debugPrint('Selected Duration: $duration');
+                      debugPrint('Challenges to send: $audioData');
                     },
                     child: const Text(
                       'Confirm',
