@@ -377,11 +377,68 @@ class _ProfileFormState extends State<ProfileForm> {
 
       if (response.statusCode == 200) {
         Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              'Profile updated successfully!',
+              style: TextStyle(
+                color: Colors.black,
+                fontFamily: 'Thewitcher',
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            backgroundColor: Colors.white,
+            elevation: 0,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+        );
         debugPrint('User data updated successfully');
       } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              'Failed to update profile. Please try again.',
+              style: TextStyle(
+                color: Colors.black,
+                fontFamily: 'Thewitcher',
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            backgroundColor: Colors.white,
+            elevation: 0,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+        );
         debugPrint('Failed to update user data: ${response.statusCode}');
       }
     } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Error updating profile. Please try again.',
+            style: TextStyle(
+              color: Colors.black,
+              fontFamily: 'Thewitcher',
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          backgroundColor: Colors.white,
+          elevation: 0,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+      );
       debugPrint('Error updating user data: $e');
     } finally {
       setState(() {
@@ -521,8 +578,8 @@ class _ProfileFormState extends State<ProfileForm> {
                         ),
                         child: _isSubmitting
                             ? const CircularProgressIndicator(
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                    Colors.white),
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.white),
                               )
                             : const Text(
                                 'Save',

@@ -47,6 +47,25 @@ class _HistoryScreenState extends State<HistoryScreen> {
       setState(() {
         isLoading = false;
       });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Failed to fetch challenges',
+            style: TextStyle(
+              color: Colors.black,
+              fontFamily: 'Thewitcher',
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          backgroundColor: Colors.white,
+          elevation: 0,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+      );
       debugPrint('Error fetching challenges: $e');
     }
   }
@@ -114,8 +133,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             ),
                           ],
                         ),
-                        trailing: const Icon(Icons.check_circle,
-                            color: Colors.white),
+                        trailing:
+                            const Icon(Icons.check_circle, color: Colors.white),
                       ),
                     ),
                   );

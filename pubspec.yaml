@@ -41,6 +41,14 @@ flutter:
     - assets/images/
     - assets/videos/
     - assets/audio/
+    - assets/audio/aradium/overlay/
+    - assets/audio/aradium/pacing/
+    - assets/audio/dare/overlay/
+    - assets/audio/dare/pacing/
+    - assets/audio/luther/overlay/
+    - assets/audio/luther/pacing/
+    - assets/audio/smm/overlay/
+    - assets/audio/smm/pacing/
   fonts:
     - family: Thewitcher
       fonts:

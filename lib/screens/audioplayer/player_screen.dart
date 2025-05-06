@@ -96,6 +96,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
   List<Duration> _pacingTimestamps = [];
   List<bool> _pacingTriggered = [];
   int _currentAudioIndex = 0;
+  int _currentPacingSegment = -1;
+  List<Duration> _pacingSegmentEnds = [];
 
   @override
   void initState() {
@@ -126,6 +128,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         debugPrint('Now playing: ${currentAudio['challengeName']}');
       } catch (e) {
         debugPrint('Error playing audio: $e');
+
         _handleAudioCompletion();
       }
     }
@@ -139,13 +142,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
       5,
       (index) => Duration(minutes: index * segmentDurationMinutes),
     );
+    _pacingSegmentEnds = List.generate(
+      5,
+      (index) => Duration(minutes: (index + 1) * segmentDurationMinutes),
+    );
     debugPrint('Pacing timestamps: $_pacingTimestamps');
   }
 
   void _initializeAudioListeners() {
     _audioManager.audioPlayer.onDurationChanged
         .listen((d) => setState(() => _totalDuration = d));
-    // _audioManager.audioPlayer.onPositionChanged.listen(_handlePositionUpdate);
     _audioManager.audioPlayer.onPositionChanged.listen((position) {
       if (_currentPosition == Duration.zero && position > Duration.zero) {
         _checkForPacingAudio(position);
@@ -304,6 +310,25 @@ class _PlayerScreenState extends State<PlayerScreen> {
         Future.delayed(const Duration(seconds: 10), () {
           if (currentHRPercent < lowerBound || currentHRPercent > upperBound) {
             _audioManager.pause();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text(
+                  'Music paused due to HR out of range',
+                  style: TextStyle(
+                    color: Colors.black,
+                    fontFamily: 'Thewitcher',
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                backgroundColor: Colors.white,
+                elevation: 0,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+            );
             debugPrint('Music paused due to HR out of range for 10 seconds');
           }
         });
@@ -311,6 +336,25 @@ class _PlayerScreenState extends State<PlayerScreen> {
     } else {
       if (!_audioManager.isPlaying) {
         _audioManager.resume();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              'Music resumed',
+              style: TextStyle(
+                color: Colors.black,
+                fontFamily: 'Thewitcher',
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            backgroundColor: Colors.white,
+            elevation: 0,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+        );
         debugPrint('Music resumed');
       }
     }
@@ -346,11 +390,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
           int roundedLower = roundToNearest10(lowerbound);
           int roundedUpper = roundToNearest10(upperbound);
           _pacingAudioFiles.addAll([
-            '${roundedLower}.mp3',
-            '${roundedLower + 10}.mp3',
-            '${roundedLower + 20}.mp3',
-            '${roundedLower + 20}.mp3',
-            '${roundedLower + 10}.mp3',
+            '${roundedLower}.wav',
+            '${roundedLower + 10}.wav',
+            '${roundedLower + 20}.wav',
+            '${roundedLower + 20}.wav',
+            '${roundedLower + 10}.wav',
           ]);
         }
       } else {
@@ -378,12 +422,72 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final int previousAudiosDuration = _currentAudioIndex * 5;
     final Duration globalPosition =
         Duration(minutes: previousAudiosDuration) + position;
+    int newSegment = -1;
+    for (int i = 0; i < _pacingTimestamps.length; i++) {
+      if (globalPosition >= _pacingTimestamps[i] &&
+          globalPosition < _pacingSegmentEnds[i]) {
+        newSegment = i;
+        break;
+      }
+    }
+    if (newSegment != _currentPacingSegment) {
+      _audioManager.stopPacing();
+      _currentPacingSegment = newSegment;
+
+      if (_currentPacingSegment != -1 &&
+          _currentPacingSegment < _pacingAudioFiles.length) {
+        final currentAudio = widget.audioData[_currentAudioIndex];
+        final int storyId = currentAudio['storyId'];
+        String pacingAudioPath;
+        switch (storyId) {
+          case 1:
+            pacingAudioPath =
+                'audio/aradium/pacing/${_pacingAudioFiles[_currentPacingSegment]}';
+            break;
+          case 2:
+            pacingAudioPath =
+                'audio/smm/pacing/${_pacingAudioFiles[_currentPacingSegment]}';
+            break;
+          case 3:
+            pacingAudioPath =
+                'audio/luther/pacing/${_pacingAudioFiles[_currentPacingSegment]}';
+            break;
+          case 4:
+            pacingAudioPath =
+                'audio/dare/pacing/${_pacingAudioFiles[_currentPacingSegment]}';
+            break;
+          default:
+            pacingAudioPath =
+                'audio/pacing/${_pacingAudioFiles[_currentPacingSegment]}';
+        }
+        _audioManager.playPacingLoop(pacingAudioPath);
+        debugPrint('Playing pacing audio: $pacingAudioPath');
+      }
+    }
 
     for (int i = 0; i < _pacingTimestamps.length; i++) {
       if (!_pacingTriggered[i] &&
           _isInTimestampRange(globalPosition, _pacingTimestamps[i])) {
         _pacingTriggered[i] = true;
-        final pacingAudioPath = 'audio/${_pacingAudioFiles[i]}';
+        final currentAudio = widget.audioData[_currentAudioIndex];
+        final int storyId = currentAudio['storyId'];
+        String pacingAudioPath;
+        switch (storyId) {
+          case 1:
+            pacingAudioPath = 'audio/aradium/pacing/${_pacingAudioFiles[i]}';
+            break;
+          case 2:
+            pacingAudioPath = 'audio/smm/pacing/${_pacingAudioFiles[i]}';
+            break;
+          case 3:
+            pacingAudioPath = 'audio/luther/pacing/${_pacingAudioFiles[i]}';
+            break;
+          case 4:
+            pacingAudioPath = 'audio/dare/pacing/${_pacingAudioFiles[i]}';
+            break;
+          default:
+            pacingAudioPath = 'audio/pacing/${_pacingAudioFiles[i]}';
+        }
         _audioManager.playPacing(pacingAudioPath);
         debugPrint(
             'Playing pacing audio: $pacingAudioPath at ${_formatDuration(globalPosition)}');
@@ -405,7 +509,30 @@ class _PlayerScreenState extends State<PlayerScreen> {
     for (int i = 0; i < _timestamps.length; i++) {
       if (!_triggered[i] && _isInTimestampRange(position, _timestamps[i])) {
         _triggered[i] = true;
-        String overlayPath = 'audio/${overlayType}_$i.mp3';
+        String overlayPath;
+        final filteredChallenges = widget.audioData;
+        final challengeId =
+            filteredChallenges.indexWhere((c) => c['id'] == currentAudio['id']);
+        switch (storyId) {
+          case 1:
+            overlayPath =
+                'audio/aradium/overlay/${challengeId}/${overlayType}_$i.wav';
+            break;
+          case 2:
+            overlayPath =
+                'audio/smm/overlay/${challengeId}/${overlayType}_$i.wav';
+            break;
+          case 3:
+            overlayPath =
+                'audio/luther/overlay/${challengeId}/${overlayType}_$i.wav';
+            break;
+          case 4:
+            overlayPath =
+                'audio/dare/overlay/${challengeId}/${overlayType}_$i.wav';
+            break;
+          default:
+            overlayPath = 'audio/overlay/${challengeId}/${overlayType}_$i.wav';
+        }
         if (storyId == 1 || storyId == 2 || storyId == 3 || storyId == 4) {
           _audioManager.playOverlay(overlayPath);
           debugPrint('Playing overlay: $overlayPath');
@@ -439,6 +566,25 @@ class _PlayerScreenState extends State<PlayerScreen> {
       );
 
       if (response.statusCode != 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              'Failed to update challenge status',
+              style: TextStyle(
+                color: Colors.black,
+                fontFamily: 'Thewitcher',
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            backgroundColor: Colors.white,
+            elevation: 0,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+        );
         debugPrint('Challenge update failed: ${response.statusCode}');
       }
     } catch (e) {

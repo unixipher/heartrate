@@ -5,7 +5,7 @@ class AudioManager {
   static final AudioManager _instance = AudioManager._internal();
   final AudioPlayer _mainPlayer = AudioPlayer();
   final AudioPlayer _overlayPlayer = AudioPlayer();
-  final AudioPlayer _pacingPlayer = AudioPlayer();
+  AudioPlayer _pacingPlayer = AudioPlayer();
   bool _isPlaying = false;
 
   factory AudioManager() => _instance;
@@ -30,13 +30,29 @@ class AudioManager {
       debugPrint('Error playing overlay: $e');
     }
   }
-    Future<void> playPacing(String assetPath) async {
+
+  Future<void> playPacing(String assetPath) async {
     try {
       await _pacingPlayer.stop();
       await _pacingPlayer.play(AssetSource(assetPath));
     } catch (e) {
       debugPrint('Error playing pacing: $e');
     }
+  }
+
+  void playPacingLoop(String path) async {
+    try {
+      await _pacingPlayer.stop();
+      _pacingPlayer = AudioPlayer();
+      await _pacingPlayer.setReleaseMode(ReleaseMode.loop);
+      await _pacingPlayer.play(AssetSource(path));
+    } catch (e) {
+      debugPrint('Error playing pacing loop: $e');
+    }
+  }
+
+  void stopPacing() async {
+    await _pacingPlayer.stop();
   }
 
   Future<void> pause() async {

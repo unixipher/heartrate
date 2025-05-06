@@ -656,8 +656,46 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                         );
 
                         if (response.statusCode == 200) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: const Text(
+                                'Challenge started successfully',
+                                style: TextStyle(
+                                  color: Colors.black,
+                                  fontFamily: 'Thewitcher',
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              backgroundColor: Colors.white,
+                              elevation: 0,
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                          );
                           debugPrint('Challenge started successfully');
                         } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: const Text(
+                                'Failed to start challenge',
+                                style: TextStyle(
+                                  color: Colors.black,
+                                  fontFamily: 'Thewitcher',
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              backgroundColor: Colors.white,
+                              elevation: 0,
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                          );
                           debugPrint(
                               'Failed to start challenge: ${response.statusCode}');
                         }
