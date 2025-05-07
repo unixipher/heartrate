@@ -537,9 +537,13 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                               onSelectedItemChanged: (index) {
                                 setModalState(() {
                                   selectedHour = index;
+                                  // If hour is 1 and minute > 30, reset to 30 or maxMinute
+                                  int maxMinute =
+                                      (challengeCount * 5).clamp(5, 55);
+                                  int upper = maxMinute < 30 ? maxMinute : 30;
                                   if (selectedHour == 1 &&
-                                      selectedMinute > 30) {
-                                    selectedMinute = 30;
+                                      selectedMinute > upper) {
+                                    selectedMinute = upper;
                                   }
                                 });
                               },
@@ -572,14 +576,30 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                             physics: const FixedExtentScrollPhysics(),
                             onSelectedItemChanged: (index) {
                               setModalState(() {
-                                selectedMinute = (index + 1) * 5;
+                                int maxMinute =
+                                    (challengeCount * 5).clamp(5, 55);
+                                if (selectedHour == 0) {
+                                  int count = (maxMinute ~/ 5);
+                                  selectedMinute = 5 + (index % count) * 5;
+                                } else {
+                                  int upper = maxMinute < 30 ? maxMinute : 30;
+                                  int count = (upper ~/ 5);
+                                  selectedMinute = 5 + (index % count) * 5;
+                                }
                               });
                             },
                             childDelegate: ListWheelChildBuilderDelegate(
                               builder: (context, index) {
-                                final minute = (index + 1) * 5;
-                                if (selectedHour == 1 && minute > 30) {
-                                  return null;
+                                int maxMinute =
+                                    (challengeCount * 5).clamp(5, 55);
+                                int minute;
+                                if (selectedHour == 0) {
+                                  int count = (maxMinute ~/ 5);
+                                  minute = 5 + (index % count) * 5;
+                                } else {
+                                  int upper = maxMinute < 30 ? maxMinute : 30;
+                                  int count = (upper ~/ 5);
+                                  minute = 5 + (index % count) * 5;
                                 }
                                 return Center(
                                   child: Text(
@@ -594,7 +614,7 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                                   ),
                                 );
                               },
-                              childCount: challengeCount,
+                              childCount: 100000,
                             ),
                           ),
                         ),
