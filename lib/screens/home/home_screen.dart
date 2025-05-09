@@ -49,21 +49,21 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundImagePath: 'assets/images/luther.png',
       ),
     ),
-    CharacterData(
-      name: 'Agent Scarn',
-      image: 'assets/images/nyc.png',
-      challengeCount: 6,
-      description:
-          'An undercover agent on a secret mission to deliver a package to 191 Bedford Hills. Agent Tokyo as his guide he must navigate the streets of NYC and board the bus in time',
-      page: const ChallengeScreen(
-        storyId: 4,
-        title: 'New York',
-        description:
-            'An undercover agent on a secret mission to deliver a package to 191 Bedford Hills. With Agent Tokyo as his only guide he must navigate the streets of New York and board the bus in time.',
-        jarekImagePath: 'assets/images/nyc.png',
-        backgroundImagePath: 'assets/images/nycbg.png',
-      ),
-    ),
+    // CharacterData(
+    //   name: 'Agent Scarn',
+    //   image: 'assets/images/nyc.png',
+    //   challengeCount: 6,
+    //   description:
+    //       'An undercover agent on a secret mission to deliver a package to 191 Bedford Hills. Agent Tokyo as his guide he must navigate the streets of NYC and board the bus in time',
+    //   page: const ChallengeScreen(
+    //     storyId: 4,
+    //     title: 'New York',
+    //     description:
+    //         'An undercover agent on a secret mission to deliver a package to 191 Bedford Hills. With Agent Tokyo as his only guide he must navigate the streets of New York and board the bus in time.',
+    //     jarekImagePath: 'assets/images/nyc.png',
+    //     backgroundImagePath: 'assets/images/nycbg.png',
+    //   ),
+    // ),
     CharacterData(
       name: 'Agent Seahorse',
       image: 'assets/images/horse.png',

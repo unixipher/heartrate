@@ -47,7 +47,12 @@ flutter:
     - assets/audio/dare/pacing/
     - assets/audio/luther/overlay/
     - assets/audio/luther/pacing/
-    - assets/audio/smm/overlay/
+    - assets/audio/smm/overlay/0/
+    - assets/audio/smm/overlay/1/
+    - assets/audio/smm/overlay/2/
+    - assets/audio/smm/overlay/3/
+    - assets/audio/smm/overlay/4/
+    - assets/audio/smm/overlay/5/
     - assets/audio/smm/pacing/
   fonts:
     - family: Thewitcher

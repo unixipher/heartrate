@@ -100,6 +100,17 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
               flex: 4,
               child: Stack(
                 children: [
+                  Align(
+                    alignment: Alignment.topLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 62.0, left: 12.0),
+                      child: IconButton(
+                        icon: const Icon(Icons.arrow_back_ios,
+                            color: Colors.white),
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                    ),
+                  ),
                   Positioned(
                     right: 0,
                     bottom: 0,
@@ -207,7 +218,8 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                                           child: isLocked
                                               ? const Icon(Icons.lock,
                                                   color: Colors.white, size: 28)
-                                              : const Icon(Icons.music_note,
+                                              : const Icon(
+                                                  Icons.play_arrow_rounded,
                                                   color: Colors.white,
                                                   size: 28),
                                         ),
@@ -679,7 +691,7 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: const Text(
-                                'Challenge started successfully',
+                                'Challenge started',
                                 style: TextStyle(
                                   color: Colors.black,
                                   fontFamily: 'Thewitcher',

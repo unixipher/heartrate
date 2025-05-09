@@ -13,6 +13,7 @@ class CompletionScreen extends StatefulWidget {
   final int storyId;
   final double? maxheartRate;
   final int zoneId;
+  final int timestampcount;
 
   const CompletionScreen({
     super.key,
@@ -21,6 +22,7 @@ class CompletionScreen extends StatefulWidget {
     required this.storyId,
     this.maxheartRate,
     required this.zoneId,
+    required this.timestampcount,
   });
 
   @override
@@ -68,7 +70,7 @@ class _CompletionScreenState extends State<CompletionScreen> {
     if (response.statusCode == 200) {
       final List<dynamic> challenges = json.decode(response.body);
       final challenge = challenges.firstWhere(
-        (challenge) => challenge['id'] == widget.storyId,
+        (challenge) => challenge['challengeId'] == widget.storyId,
         orElse: () => null,
       );
       return challenge?['completedAt'];
@@ -78,69 +80,76 @@ class _CompletionScreenState extends State<CompletionScreen> {
   }
 
   Future<Map<String, dynamic>> analyseHeartRate() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
-    final url = Uri.parse('https://authcheck.co/analyse');
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+      final url = Uri.parse('https://authcheck.co/analyse');
 
-    final response = await http.post(
-      url,
-      headers: {
-        'Accept': '*/*',
-        'User-Agent': 'Thunder Client (https://www.thunderclient.com)',
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-      body: json.encode({
-        "challengeId": widget.storyId,
-        "zoneId": widget.zoneId,
-      }),
-    );
+      final response = await http.post(
+        url,
+        headers: {
+          'Accept': '*/*',
+          'User-Agent': 'Thunder Client (https://www.thunderclient.com)',
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({
+          "challengeId": widget.storyId,
+          "zoneId": widget.zoneId,
+        }),
+      );
+      debugPrint('Story ID: ${widget.storyId}');
+      debugPrint('Zone ID: ${widget.zoneId}');
 
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      final heartRateData = data['heartRateData'] as List<dynamic>;
-      final zoneId = data['zoneId'];
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final heartRateData = data['heartRateData'] as List<dynamic>;
+        final zoneId = data['zoneId'];
 
-      double lowerBound, upperBound;
-      if (zoneId == 1) {
-        lowerBound = 0.5 * (widget.maxheartRate ?? 0);
-        upperBound = 0.6 * (widget.maxheartRate ?? 0);
-      } else if (zoneId == 2) {
-        lowerBound = 0.6 * (widget.maxheartRate ?? 0);
-        upperBound = 0.7 * (widget.maxheartRate ?? 0);
-      } else if (zoneId == 3) {
-        lowerBound = 0.7 * (widget.maxheartRate ?? 0);
-        upperBound = 0.8 * (widget.maxheartRate ?? 0);
-      } else {
-        throw Exception('Invalid zoneId');
-      }
-
-      int insideZone = 0;
-      int outsideZone = 0;
-      int totalHeartRate = 0;
-
-      for (var entry in heartRateData) {
-        final heartRate = entry['heartRate'] as int;
-        totalHeartRate += heartRate;
-        if (heartRate >= lowerBound && heartRate <= upperBound) {
-          insideZone++;
+        double lowerBound, upperBound;
+        if (zoneId == 1) {
+          lowerBound = 0.5 * (widget.maxheartRate ?? 0);
+          upperBound = 0.6 * (widget.maxheartRate ?? 0);
+        } else if (zoneId == 2) {
+          lowerBound = 0.6 * (widget.maxheartRate ?? 0);
+          upperBound = 0.7 * (widget.maxheartRate ?? 0);
+        } else if (zoneId == 3) {
+          lowerBound = 0.7 * (widget.maxheartRate ?? 0);
+          upperBound = 0.8 * (widget.maxheartRate ?? 0);
         } else {
-          outsideZone++;
+          throw Exception('Invalid zoneId');
         }
-      }
 
-      double averageHeartRate = heartRateData.isNotEmpty
-          ? totalHeartRate / heartRateData.length
-          : 0.0;
-      double percentageInsideZone = (insideZone / heartRateData.length) * 100;
-      return {
-        'insideZone': insideZone,
-        'outsideZone': outsideZone,
-        'averageHeartRate': averageHeartRate,
-        'percentageInsideZone': percentageInsideZone,
-      };
-    } else {
-      throw Exception('Failed to analyse heart rate');
+        int insideZone = 0;
+        int outsideZone = 0;
+        int totalHeartRate = 0;
+
+        for (var entry in heartRateData) {
+          final heartRate = entry['heartRate'] as int;
+          totalHeartRate += heartRate;
+          if (heartRate >= lowerBound && heartRate <= upperBound) {
+            insideZone++;
+          } else {
+            outsideZone++;
+          }
+        }
+
+        double averageHeartRate = heartRateData.isNotEmpty
+            ? totalHeartRate / heartRateData.length
+            : 0.0;
+        double percentageInsideZone = (insideZone / heartRateData.length) * 100;
+        return {
+          'insideZone': insideZone,
+          'outsideZone': outsideZone,
+          'averageHeartRate': averageHeartRate,
+          'percentageInsideZone': percentageInsideZone,
+        };
+      } else {
+        throw Exception('Failed to analyse heart rate');
+      }
+    } catch (e) {
+      debugPrint('Error in analyseHeartRate: $e');
+      rethrow;
     }
   }
 
@@ -377,6 +386,7 @@ class _CompletionScreenState extends State<CompletionScreen> {
                     } else if (snapshot.hasData) {
                       final insideZone = snapshot.data!['insideZone']!;
                       final outsideZone = snapshot.data!['outsideZone']!;
+                      final timestampCount = widget.timestampcount;
                       final averageHeartRate =
                           snapshot.data!['averageHeartRate'] as double;
                       return Padding(
@@ -395,7 +405,7 @@ class _CompletionScreenState extends State<CompletionScreen> {
                             ),
                             const SizedBox(height: 16),
                             Text(
-                              'You got ${insideZone + outsideZone} nudges to stay in the zone.',
+                              'You got $timestampCount nudges to stay in the zone.',
                               textAlign: TextAlign.center,
                               style: const TextStyle(
                                 fontSize: 22,
@@ -405,7 +415,7 @@ class _CompletionScreenState extends State<CompletionScreen> {
                             ),
                             const SizedBox(height: 16),
                             Text(
-                              'You were in the zone for ${snapshot.data!['percentageInsideZone'].toStringAsFixed(1)}% of the time',
+                              'You were in the zone for ${(insideZone / (insideZone + outsideZone)) * 100}% of the time',
                               textAlign: TextAlign.center,
                               style: const TextStyle(
                                 fontSize: 22,

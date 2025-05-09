@@ -31,20 +31,22 @@ class AudioManager {
     }
   }
 
-  Future<void> playPacing(String assetPath) async {
+  Future<void> playPacing(String assetPath, {double volume = 0.3}) async {
     try {
       await _pacingPlayer.stop();
+      await _pacingPlayer.setVolume(volume);
       await _pacingPlayer.play(AssetSource(assetPath));
     } catch (e) {
       debugPrint('Error playing pacing: $e');
     }
   }
 
-  void playPacingLoop(String path) async {
+  void playPacingLoop(String path, {double volume = 0.3}) async {
     try {
       await _pacingPlayer.stop();
       _pacingPlayer = AudioPlayer();
       await _pacingPlayer.setReleaseMode(ReleaseMode.loop);
+      await _pacingPlayer.setVolume(volume);
       await _pacingPlayer.play(AssetSource(path));
     } catch (e) {
       debugPrint('Error playing pacing loop: $e');
