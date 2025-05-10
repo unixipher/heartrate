@@ -549,7 +549,6 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                               onSelectedItemChanged: (index) {
                                 setModalState(() {
                                   selectedHour = index;
-                                  // If hour is 1 and minute > 30, reset to 30 or maxMinute
                                   int maxMinute =
                                       (challengeCount * 5).clamp(5, 55);
                                   int upper = maxMinute < 30 ? maxMinute : 30;
@@ -666,81 +665,18 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                         };
                       }).toList();
 
-                      final challengeId =
-                          filteredChallenges[selectedChallenge]['id'] ?? '';
-                      final prefs = await SharedPreferences.getInstance();
-                      final token = prefs.getString('token') ?? '';
-
-                      if (token.isNotEmpty) {
-                        final response = await http.post(
-                          Uri.parse('https://authcheck.co/startchallenge'),
-                          headers: {
-                            'Accept': '*/*',
-                            'Authorization': 'Bearer $token',
-                            'Content-Type': 'application/json',
-                            'User-Agent':
-                                'Thunder Client (https://www.thunderclient.com)',
-                          },
-                          body: jsonEncode({
-                            'challengeId': challengeId,
-                            'zoneId': zoneId,
-                          }),
-                        );
-
-                        if (response.statusCode == 200) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: const Text(
-                                'Challenge started',
-                                style: TextStyle(
-                                  color: Colors.black,
-                                  fontFamily: 'Thewitcher',
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              backgroundColor: Colors.white,
-                              elevation: 0,
-                              behavior: SnackBarBehavior.floating,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                            ),
-                          );
-                          debugPrint('Challenge started successfully');
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: const Text(
-                                'Failed to start challenge',
-                                style: TextStyle(
-                                  color: Colors.black,
-                                  fontFamily: 'Thewitcher',
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              backgroundColor: Colors.white,
-                              elevation: 0,
-                              behavior: SnackBarBehavior.floating,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                            ),
-                          );
-                          debugPrint(
-                              'Failed to start challenge: ${response.statusCode}');
-                        }
-                      } else {
-                        debugPrint('Token not found');
-                      }
-
                       Navigator.pop(context);
                       Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (_) => PlayerScreen(
-                            audioData: audioData,
+                            // audioData: audioData,
+                            audioData:
+                                List<Map<String, dynamic>>.from(audioData)
+                                  ..sort((a, b) =>
+                                      a['indexid'].compareTo(b['indexid'])),
+                                      challengeCount: challengeCount,
+                                      playingChallengeCount: challengesToSend,
                           ),
                         ),
                       );

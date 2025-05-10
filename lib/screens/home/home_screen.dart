@@ -380,13 +380,13 @@ class _ProfileFormState extends State<ProfileForm> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text(
-              'Profile updated successfully!',
+              'Profile updated',
               style: TextStyle(
                 color: Colors.black,
-                fontFamily: 'Thewitcher',
-                fontSize: 16,
+                fontSize: 12,
                 fontWeight: FontWeight.bold,
               ),
+              textAlign: TextAlign.center,
             ),
             backgroundColor: Colors.white,
             elevation: 0,
@@ -394,6 +394,7 @@ class _ProfileFormState extends State<ProfileForm> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
+            width: 180,
           ),
         );
         debugPrint('User data updated successfully');
@@ -401,13 +402,13 @@ class _ProfileFormState extends State<ProfileForm> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text(
-              'Failed to update profile. Please try again.',
+              'Profile update failed',
               style: TextStyle(
                 color: Colors.black,
-                fontFamily: 'Thewitcher',
-                fontSize: 16,
+                fontSize: 12,
                 fontWeight: FontWeight.bold,
               ),
+              textAlign: TextAlign.center,
             ),
             backgroundColor: Colors.white,
             elevation: 0,
@@ -415,6 +416,7 @@ class _ProfileFormState extends State<ProfileForm> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
+            width: 180,
           ),
         );
         debugPrint('Failed to update user data: ${response.statusCode}');
@@ -423,13 +425,13 @@ class _ProfileFormState extends State<ProfileForm> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text(
-            'Error updating profile. Please try again.',
+            'Error',
             style: TextStyle(
               color: Colors.black,
-              fontFamily: 'Thewitcher',
-              fontSize: 16,
+              fontSize: 12,
               fontWeight: FontWeight.bold,
             ),
+            textAlign: TextAlign.center,
           ),
           backgroundColor: Colors.white,
           elevation: 0,
@@ -437,6 +439,7 @@ class _ProfileFormState extends State<ProfileForm> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
+          width: 180,
         ),
       );
       debugPrint('Error updating user data: $e');

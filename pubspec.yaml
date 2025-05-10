@@ -26,6 +26,7 @@ dependencies:
   audio_service: ^0.18.0
   just_audio: ^0.10.0
   confetti: ^0.7.0
+  pie_chart: ^5.4.0
 
 dev_dependencies:
   flutter_test:

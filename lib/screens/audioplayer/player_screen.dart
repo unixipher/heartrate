@@ -6,75 +6,16 @@ import 'package:testingheartrate/screens/completion/completion_screen.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-// class CustomSliderTrackShape extends RoundedRectSliderTrackShape {
-//   final List<Duration> timestamps;
-//   final Duration totalDuration;
-
-//   CustomSliderTrackShape({
-//     required this.timestamps,
-//     required this.totalDuration,
-//   });
-
-//   @override
-//   void paint(
-//     PaintingContext context,
-//     Offset offset, {
-//     required RenderBox parentBox,
-//     required SliderThemeData sliderTheme,
-//     required Animation<double> enableAnimation,
-//     required TextDirection textDirection,
-//     required Offset thumbCenter,
-//     double additionalActiveTrackHeight = 0.0,
-//     Offset? secondaryOffset,
-//     bool isEnabled = false,
-//     bool isDiscrete = false,
-//   }) {
-//     super.paint(
-//       context,
-//       offset,
-//       parentBox: parentBox,
-//       sliderTheme: sliderTheme,
-//       enableAnimation: enableAnimation,
-//       textDirection: textDirection,
-//       thumbCenter: thumbCenter,
-//       isEnabled: isEnabled,
-//       isDiscrete: isDiscrete,
-//     );
-
-//     final Canvas canvas = context.canvas;
-//     final trackRect = getPreferredRect(
-//       parentBox: parentBox,
-//       offset: offset,
-//       sliderTheme: sliderTheme,
-//       isEnabled: isEnabled,
-//       isDiscrete: isDiscrete,
-//     );
-
-//     final markerPaint = Paint()
-//       ..color = Colors.white.withOpacity(0.5)
-//       ..strokeWidth = 4.0;
-
-//     for (final timestamp in timestamps) {
-//       final positionPercentage =
-//           timestamp.inMilliseconds / totalDuration.inMilliseconds;
-//       final markerX = trackRect.left + (trackRect.width * positionPercentage);
-//       final markerY = trackRect.center.dy;
-
-//       canvas.drawLine(
-//         Offset(markerX, markerY - 6),
-//         Offset(markerX, markerY + 6),
-//         markerPaint,
-//       );
-//     }
-//   }
-// }
-
 class PlayerScreen extends StatefulWidget {
   final List<Map<String, dynamic>> audioData;
+  final int challengeCount;
+  final int playingChallengeCount;
 
   const PlayerScreen({
     super.key,
+    required this.challengeCount,
     required this.audioData,
+    required this.playingChallengeCount,
   });
 
   @override
@@ -85,9 +26,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
   final AudioManager _audioManager = AudioManager();
   late final SocketService _socketService;
   bool _currentAudioStarted = false;
+  int totalNudges = 0;
 
   Duration _currentPosition = Duration.zero;
   Duration _totalDuration = Duration.zero;
+  Duration get _globalPosition {
+    return Duration(minutes: _currentAudioIndex * 5) + _currentPosition;
+  }
+
+  Duration get _globalTotalDuration {
+    return Duration(minutes: widget.audioData.length * 5);
+  }
+
   int? _currentHR;
   double? _maxHR;
   List<Duration> _timestamps = [];
@@ -105,6 +55,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     super.initState();
     _initializePlayer();
   }
+
 // Function to initialize the player
   Future<void> _initializePlayer() async {
     await _fetchMaxHR();
@@ -118,6 +69,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     debugPrint(
         'Main audio started: ${widget.audioData[_currentAudioIndex]['audioUrl']} at ${_formatDuration(Duration.zero)}');
   }
+
 // Function to play the current audio
   void _playCurrentAudio() async {
     setState(() => _currentAudioStarted = false);
@@ -154,6 +106,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     );
     debugPrint('Pacing timestamps: $_pacingTimestamps');
   }
+
 // Function to initialize audio listeners
   void _initializeAudioListeners() {
     _audioManager.audioPlayer.onDurationChanged
@@ -171,6 +124,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       _handleAudioCompletion();
     });
   }
+
 // Function to handle audio completion
   Future<void> _handleAudioCompletion() async {
     await _updateChallengeStatus();
@@ -183,6 +137,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       _navigateToCompletionScreen();
     }
   }
+
 // Function to navigate to the completion screen
   void _navigateToCompletionScreen() {
     final lastAudio = widget.audioData.last;
@@ -195,11 +150,15 @@ class _PlayerScreenState extends State<PlayerScreen> {
           storyId: lastAudio['id'],
           maxheartRate: _maxHR ?? 0.0,
           zoneId: lastAudio['zoneId'],
-          timestampcount: 1,
+          timestampcount: totalNudges,
+          audioData: widget.audioData,
+          challengeCount: widget.challengeCount,
+          playingChallengeCount: widget.playingChallengeCount,
         ),
       ),
     );
   }
+
 // Function to initialize timestamps main method
   void _initializeTimestamps() {
     final currentAudio = widget.audioData[_currentAudioIndex];
@@ -247,6 +206,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _triggered = List<bool>.filled(_timestamps.length, false);
     debugPrint('Timestamps: $_timestamps');
   }
+
 // Function to initialize socket service
   void _initializeSocketService() {
     _socketService = SocketService(
@@ -256,6 +216,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     );
     _socketService.fetechtoken();
   }
+
 // Function to determine overlay type based on heart rate percentage and zone ID
   String _determineOverlayType(double hrPercentage, int zoneId) {
     if (zoneId == 1) {
@@ -285,6 +246,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
     return 'A';
   }
+
 // Function to handle heart rate updates
   void _handleHeartRateUpdate(double? heartRate) async {
     if (heartRate == null) return;
@@ -323,20 +285,21 @@ class _PlayerScreenState extends State<PlayerScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: const Text(
-                  'Music paused due to HR out of range',
+                  'Music paused',
                   style: TextStyle(
                     color: Colors.black,
-                    fontFamily: 'Thewitcher',
-                    fontSize: 16,
+                    fontSize: 12,
                     fontWeight: FontWeight.bold,
                   ),
+                  textAlign: TextAlign.center,
                 ),
-                backgroundColor: Colors.white,
+                backgroundColor: Colors.white.withOpacity(0.5),
                 elevation: 0,
                 behavior: SnackBarBehavior.floating,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
+                width: 180,
               ),
             );
             debugPrint('Music paused due to HR out of range for 10 seconds');
@@ -352,17 +315,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
               'Music resumed',
               style: TextStyle(
                 color: Colors.black,
-                fontFamily: 'Thewitcher',
-                fontSize: 16,
+                fontSize: 12,
                 fontWeight: FontWeight.bold,
               ),
+              textAlign: TextAlign.center,
             ),
-            backgroundColor: Colors.white,
+            backgroundColor: Colors.white.withOpacity(0.5),
             elevation: 0,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
+            width: 180,
           ),
         );
         debugPrint('Music resumed');
@@ -373,6 +337,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       _checkForOverlayTrigger(_currentPosition);
     }
   }
+
 // Function to fetch maximum heart rate
   Future<void> _fetchMaxHR() async {
     final prefs = await SharedPreferences.getInstance();
@@ -394,11 +359,19 @@ class _PlayerScreenState extends State<PlayerScreen> {
         setState(() {
           _maxHR = data['user']['maxhr']?.toDouble();
         });
+        int zoneId = widget.audioData[_currentAudioIndex]['zoneId'];
         if (_maxHR != null) {
-          double lowerbound = 72 + (_maxHR! - 72) * 0.5;
-          double upperbound = 72 + (_maxHR! - 72) * 0.6;
+          double lowerbound = 0.0;
+          if (zoneId == 1) {
+            lowerbound = (72 + (_maxHR! - 72) * 0.5);
+          }
+          if (zoneId == 2) {
+            lowerbound = (72 + (_maxHR! - 72) * 0.6);
+          }
+          if (zoneId == 3) {
+            lowerbound = (72 + (_maxHR! - 72) * 0.7);
+          }
           int roundedLower = roundToNearest10(lowerbound);
-          int roundedUpper = roundToNearest10(upperbound);
           _pacingAudioFiles.addAll([
             '${roundedLower}.wav',
             '${roundedLower + 10}.wav',
@@ -421,12 +394,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
   int roundToNearest10(double value) {
     return (value / 10).round() * 10;
   }
+
 // Function to handle position updates
   void _handlePositionUpdate(Duration position) {
     setState(() => _currentPosition = position);
     _checkForOverlayTrigger(position);
     _checkForPacingAudio(position);
   }
+
 // Function to check for pacing audio
   void _checkForPacingAudio(Duration position) {
     final int previousAudiosDuration = _currentAudioIndex * 5;
@@ -505,6 +480,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       }
     }
   }
+
 // Function to check for overlay trigger
   void _checkForOverlayTrigger(Duration position) {
     final currentAudio = widget.audioData[_currentAudioIndex];
@@ -520,6 +496,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     for (int i = 0; i < _timestamps.length; i++) {
       if (!_triggered[i] && _isInTimestampRange(position, _timestamps[i])) {
         _triggered[i] = true;
+        totalNudges++;
         String overlayPath;
         final filteredChallenges = widget.audioData;
         final challengeId =
@@ -551,12 +528,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
       }
     }
   }
+
 // Function to check if the current position is within a timestamp range
   bool _isInTimestampRange(Duration position, Duration target) {
     final positionMs = position.inMilliseconds;
     final targetMs = target.inMilliseconds;
     return (positionMs >= targetMs - 1000 && positionMs <= targetMs + 1000);
   }
+
 // Function to start the challenge
   Future<void> _startChallenge() async {
     final prefs = await SharedPreferences.getInstance();
@@ -581,20 +560,21 @@ class _PlayerScreenState extends State<PlayerScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text(
-              'Challenge started!',
+              'Challenge started',
               style: TextStyle(
                 color: Colors.black,
-                fontFamily: 'Thewitcher',
-                fontSize: 16,
+                fontSize: 12,
                 fontWeight: FontWeight.bold,
               ),
+              textAlign: TextAlign.center,
             ),
-            backgroundColor: Colors.white,
+            backgroundColor: Colors.white.withOpacity(0.5),
             elevation: 0,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
+            width: 180,
           ),
         );
         debugPrint('Challenge started successfully: ${response.statusCode}');
@@ -603,6 +583,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       debugPrint('Start challenge error: $e');
     }
   }
+
 // Function to update the challenge status
   Future<void> _updateChallengeStatus() async {
     final prefs = await SharedPreferences.getInstance();
@@ -627,20 +608,21 @@ class _PlayerScreenState extends State<PlayerScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text(
-              'Challenge updated successfully',
+              'Challenge updated',
               style: TextStyle(
                 color: Colors.black,
-                fontFamily: 'Thewitcher',
-                fontSize: 16,
+                fontSize: 12,
                 fontWeight: FontWeight.bold,
               ),
+              textAlign: TextAlign.center,
             ),
-            backgroundColor: Colors.white,
+            backgroundColor: Colors.white.withOpacity(0.5),
             elevation: 0,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
+            width: 180,
           ),
         );
         debugPrint('Challenge updated successfully: ${response.statusCode}');
@@ -654,6 +636,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     String twoDigits(int n) => n.toString().padLeft(2, '0');
     return "${twoDigits(duration.inMinutes)}:${twoDigits(duration.inSeconds.remainder(60))}";
   }
+
 // Function to toggle play/pause
   void _togglePlayPause() async {
     if (_audioManager.isPlaying) {
@@ -746,12 +729,24 @@ class _PlayerScreenState extends State<PlayerScreen> {
                       ),
                     ],
                   ),
-                  child: Icon(
-                    _audioManager.isPlaying
-                        ? Icons.pause_rounded
-                        : Icons.play_arrow_rounded,
-                    color: Colors.white,
-                    size: 80,
+                  child: Center(
+                    child: _currentAudioStarted
+                        ? Icon(
+                            _audioManager.isPlaying
+                                ? Icons.pause_rounded
+                                : Icons.play_arrow_rounded,
+                            color: Colors.white,
+                            size: 80,
+                          )
+                        : const SizedBox(
+                            width: 60,
+                            height: 60,
+                            child: CircularProgressIndicator(
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(Colors.white),
+                              strokeWidth: 6,
+                            ),
+                          ),
                   ),
                 ),
               ),

@@ -344,6 +344,12 @@
       "languageVersion": "3.5"
     },
     {
+      "name": "pie_chart",
+      "rootUri": "file:///Users/mrinmoyhalder/.pub-cache/hosted/pub.dev/pie_chart-5.4.0",
+      "packageUri": "lib/",
+      "languageVersion": "2.12"
+    },
+    {
       "name": "platform",
       "rootUri": "file:///Users/mrinmoyhalder/.pub-cache/hosted/pub.dev/platform-3.1.6",
       "packageUri": "lib/",
@@ -626,7 +632,7 @@
       "languageVersion": "3.5"
     }
   ],
-  "generated": "2025-05-09T02:57:54.942147Z",
+  "generated": "2025-05-10T07:23:03.560298Z",
   "generator": "pub",
   "generatorVersion": "3.7.2",
   "flutterRoot": "file:///Users/mrinmoyhalder/development/flutter",
