@@ -28,8 +28,10 @@ class _HomeScreenState extends State<HomeScreen> {
       page: const ChallengeScreen(
         storyId: 1,
         title: 'Aradium',
+        characterName: 'Jarek',
         description:
             'Known for its vast sulphur reserves, Aradium is guarded by sacred, unscalable mountains. Jarek must survive the Chakravyuh, brave the enchanted forest, and reach the sulphur peaks to reclaim his legacy and avenge his father’s death',
+        storydescription: "Known for its vast sulphur reserves, Aradium is guarded by sacred, unscalable mountains. With only his father’s pocket watch to guide him, Jarek must survive the Chakravyuh, brave the enchanted forest, and reach the sulphur peaks to reclaim his legacy and avenge his father’s death.",
         jarekImagePath: 'assets/images/jarek.png',
         backgroundImagePath: 'assets/images/aradium.png',
       ),
@@ -43,8 +45,10 @@ class _HomeScreenState extends State<HomeScreen> {
       page: const ChallengeScreen(
         storyId: 3,
         title: 'Luther',
+        characterName: 'Maya',
         description:
             'The only survivor in a dystopian world taken over by bots. With only an AI agent Luther to guide her, Maya must take down the uprising before they exterminate the human race.',
+        storydescription: "The Earth is under siege by rogue bots, clearing entire areas to build factories for their GPUs. Maya and Luther race to stop them, only to uncover a dark secret—these bots are part of a sinister plan to eliminate low-IQ humans. With time running out, they must expose the conspiracy before it’s too late.",
         jarekImagePath: 'assets/images/maya.png',
         backgroundImagePath: 'assets/images/luther.png',
       ),
@@ -72,10 +76,12 @@ class _HomeScreenState extends State<HomeScreen> {
           'An undercover agent on a secret mission to take down the sand mafia. With Stingray and Starfish, Seahorse must find the mastermind before the operation turns deadly.',
       page: const ChallengeScreen(
         storyId: 2,
-        title: 'Project\nsmm',
+        title: 'Project SMM',
+        characterName: 'Agent\nSeahorse',
         description:
             'An undercover agent on a secret mission to take down the sand mafia. With Stingray and Starfish, Seahorse must find the mastermind before the operation turns deadly.',
         jarekImagePath: 'assets/images/horse.png',
+        storydescription: "The Sone River in Bihar is under the control of a powerful sand mafia. As the mafia heads prepare for a bloody power struggle, Agent Seahorse must expose the kingpins, uncover their allegiances, and take down the mastermind behind the operation before it descends into chaos.",
         backgroundImagePath: 'assets/images/smm.png',
       ),
     ),
@@ -608,6 +614,7 @@ class CharacterData {
   final int challengeCount;
   final String description;
   final Widget page;
+  final String? storydescription;
 
   CharacterData({
     required this.name,
@@ -615,5 +622,6 @@ class CharacterData {
     required this.challengeCount,
     required this.description,
     required this.page,
+    this.storydescription,
   });
 }

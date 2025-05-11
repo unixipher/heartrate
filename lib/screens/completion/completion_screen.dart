@@ -481,7 +481,7 @@ class _CompletionScreenState extends State<CompletionScreen> {
                           children: [
                             Text(
                               // "${widget.playingChallengeCount} Challenge Completed ",
-                              "Next story",
+                              "Home",
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontSize: 24,

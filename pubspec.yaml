@@ -42,7 +42,24 @@ flutter:
     - assets/images/
     - assets/videos/
     - assets/audio/
-    - assets/audio/aradium/overlay/
+    - assets/audio/aradium/overlay/0/
+    - assets/audio/aradium/overlay/1/
+    - assets/audio/aradium/overlay/2/
+    - assets/audio/aradium/overlay/3/
+    - assets/audio/aradium/overlay/4/
+    - assets/audio/aradium/overlay/5/
+    - assets/audio/aradium/overlay/6/
+    - assets/audio/aradium/overlay/7/
+    - assets/audio/aradium/overlay/8/
+    - assets/audio/aradium/overlay/9/
+    - assets/audio/aradium/overlay/10/
+    - assets/audio/aradium/overlay/11/
+    - assets/audio/aradium/overlay/12/
+    - assets/audio/aradium/overlay/13/
+    - assets/audio/aradium/overlay/14/
+    - assets/audio/aradium/overlay/15/
+    - assets/audio/aradium/overlay/16/
+    - assets/audio/aradium/overlay/17/
     - assets/audio/aradium/pacing/
     - assets/audio/dare/overlay/
     - assets/audio/dare/pacing/

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -10,7 +11,9 @@ class ChallengeScreen extends StatefulWidget {
   final String description;
   final String jarekImagePath;
   final String backgroundImagePath;
+  final String storydescription;
   final int storyId;
+  final String characterName;
 
   const ChallengeScreen({
     Key? key,
@@ -19,6 +22,8 @@ class ChallengeScreen extends StatefulWidget {
     required this.jarekImagePath,
     required this.backgroundImagePath,
     required this.storyId,
+    required this.storydescription,
+    required this.characterName,
   }) : super(key: key);
 
   @override
@@ -28,11 +33,53 @@ class ChallengeScreen extends StatefulWidget {
 class _ChallengeScreenState extends State<ChallengeScreen> {
   int selectedChallenge = 0;
   List<Map<String, dynamic>> filteredChallenges = [];
+  late String _displayedDescription;
+  int _descriptionIndex = 0;
+  Timer? _typewriterTimer;
+  final ScrollController _descScrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     fetchChallenges();
+    _displayedDescription = '';
+    _startTypewriter();
+  }
+
+  @override
+  void dispose() {
+    _typewriterTimer?.cancel();
+    _descScrollController.dispose();
+    super.dispose();
+  }
+
+  void _startTypewriter() {
+    final words = widget.storydescription.split(' ');
+    _displayedDescription = '';
+    _descriptionIndex = 0;
+    _typewriterTimer =
+        Timer.periodic(const Duration(milliseconds: 300), (timer) {
+      if (_descriptionIndex < words.length) {
+        setState(() {
+          if (_displayedDescription.isEmpty) {
+            _displayedDescription = words[_descriptionIndex];
+          } else {
+            _displayedDescription += ' ${words[_descriptionIndex]}';
+          }
+          _descriptionIndex++;
+        });
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_descScrollController.hasClients) {
+            _descScrollController.jumpTo(
+              _descScrollController.position.maxScrollExtent,
+            );
+          }
+        });
+      } else {
+        timer.cancel();
+        _typewriterTimer = null;
+      }
+    });
   }
 
   Future<void> fetchChallenges() async {
@@ -122,12 +169,40 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                   ),
                   Positioned(
                     left: 20,
-                    bottom: 170,
+                    bottom: 200,
                     child: Text(
                       widget.title,
                       style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 20,
+                        fontFamily: 'Battambang',
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 5,
+                      ),
+                    ),
+                  ),
+                  const Positioned(
+                    left: 20,
+                    bottom: 225,
+                    child: Text(
+                      "in",
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 16,
+                        fontFamily: 'Battambang',
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 5,
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: 20,
+                    bottom: 240,
+                    child: Text(
+                      widget.characterName,
+                      style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 42,
+                        fontSize: 34,
                         fontFamily: 'Thewitcher',
                         fontWeight: FontWeight.bold,
                         letterSpacing: 5,
@@ -136,23 +211,17 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                   ),
                   Positioned(
                     left: 20,
-                    right: 40,
-                    bottom: 20,
-                    child: Text(
-                      widget.description,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontFamily: 'Battambang',
-                        fontSize: 16,
-                        letterSpacing: 1,
-                      ),
+                    bottom: 10,
+                    child: SizedBox(
+                      width: MediaQuery.of(context).size.width / 3,
+                      child: _buildStoryDescription(),
                     ),
                   ),
                 ],
               ),
             ),
             Expanded(
-              flex: 5,
+              flex: 4,
               child: Container(
                 color: Colors.black.withOpacity(0.7),
                 child: filteredChallenges.isEmpty
@@ -430,6 +499,27 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
     );
   }
 
+  Widget _buildStoryDescription() {
+    const textStyle = TextStyle(
+      color: Colors.white70,
+      fontFamily: 'Battambang',
+      fontSize: 16,
+      letterSpacing: 1,
+    );
+
+    return SizedBox(
+      height: 180,
+      child: SingleChildScrollView(
+        controller: _descScrollController,
+        child: Text(
+          _displayedDescription,
+          style: textStyle,
+          textAlign: TextAlign.left,
+        ),
+      ),
+    );
+  }
+
   Widget _buildZoneButton(String title, String action,
       {VoidCallback? onTap, required int zoneId}) {
     return GestureDetector(
@@ -675,8 +765,8 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                                 List<Map<String, dynamic>>.from(audioData)
                                   ..sort((a, b) =>
                                       a['indexid'].compareTo(b['indexid'])),
-                                      challengeCount: challengeCount,
-                                      playingChallengeCount: challengesToSend,
+                            challengeCount: challengeCount,
+                            playingChallengeCount: challengesToSend,
                           ),
                         ),
                       );

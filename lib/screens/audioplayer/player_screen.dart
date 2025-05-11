@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:testingheartrate/services/audio_manager.dart';
@@ -50,13 +51,55 @@ class _PlayerScreenState extends State<PlayerScreen> {
   int _currentPacingSegment = -1;
   List<Duration> _pacingSegmentEnds = [];
 
+  // --- Notification state ---
+  String? _centerNotification;
+  Timer? _notificationTimer;
+
+  // --- Blinking state ---
+  bool _isPausedBlink = false;
+  Timer? _blinkTimer;
+
   @override
   void initState() {
     super.initState();
     _initializePlayer();
   }
 
-// Function to initialize the player
+  // --- Notification logic ---
+  void _showCenterNotification(String message, {int seconds = 2}) {
+    setState(() {
+      _centerNotification = message;
+    });
+    _notificationTimer?.cancel();
+    _notificationTimer = Timer(Duration(seconds: seconds), () {
+      if (mounted) {
+        setState(() {
+          _centerNotification = null;
+        });
+      }
+    });
+  }
+
+  // --- Blinking logic ---
+  void _startBlinking() {
+    _blinkTimer?.cancel();
+    _blinkTimer = Timer.periodic(const Duration(milliseconds: 1000), (_) {
+      if (mounted) {
+        setState(() {
+          _isPausedBlink = !_isPausedBlink;
+        });
+      }
+    });
+  }
+
+  void _stopBlinking() {
+    _blinkTimer?.cancel();
+    setState(() {
+      _isPausedBlink = false;
+    });
+  }
+
+  // Function to initialize the player
   Future<void> _initializePlayer() async {
     await _fetchMaxHR();
     _calculatePacingTimestamps();
@@ -70,7 +113,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         'Main audio started: ${widget.audioData[_currentAudioIndex]['audioUrl']} at ${_formatDuration(Duration.zero)}');
   }
 
-// Function to play the current audio
+  // Function to play the current audio
   void _playCurrentAudio() async {
     setState(() => _currentAudioStarted = false);
     if (_currentAudioIndex < widget.audioData.length) {
@@ -84,14 +127,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
         debugPrint('Now playing: ${currentAudio['challengeName']}');
       } catch (e) {
         debugPrint('Error playing audio: $e');
-
         _handleAudioCompletion();
       }
     }
   }
-// Function to calculate the total number of timestamps for completion.
 
-// Function to calculate pacing timestamps
+  // Function to calculate pacing timestamps
   void _calculatePacingTimestamps() {
     final int numberOfAudios = widget.audioData.length;
     final int totalDurationMinutes = numberOfAudios * 5;
@@ -107,7 +148,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     debugPrint('Pacing timestamps: $_pacingTimestamps');
   }
 
-// Function to initialize audio listeners
+  // Function to initialize audio listeners
   void _initializeAudioListeners() {
     _audioManager.audioPlayer.onDurationChanged
         .listen((d) => setState(() => _totalDuration = d));
@@ -125,7 +166,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     });
   }
 
-// Function to handle audio completion
+  // Function to handle audio completion
   Future<void> _handleAudioCompletion() async {
     await _updateChallengeStatus();
     _currentAudioIndex++;
@@ -138,7 +179,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
   }
 
-// Function to navigate to the completion screen
+  // Function to navigate to the completion screen
   void _navigateToCompletionScreen() {
     final lastAudio = widget.audioData.last;
     Navigator.pushReplacement(
@@ -159,7 +200,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     );
   }
 
-// Function to initialize timestamps main method
+  // Function to initialize timestamps main method
   void _initializeTimestamps() {
     final currentAudio = widget.audioData[_currentAudioIndex];
     int adjustedIndexId = currentAudio['indexid'];
@@ -207,7 +248,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     debugPrint('Timestamps: $_timestamps');
   }
 
-// Function to initialize socket service
+  // Function to initialize socket service
   void _initializeSocketService() {
     _socketService = SocketService(
       onLoadingChanged: (isLoading) => debugPrint('Loading: $isLoading'),
@@ -217,7 +258,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _socketService.fetechtoken();
   }
 
-// Function to determine overlay type based on heart rate percentage and zone ID
+  // Function to determine overlay type based on heart rate percentage and zone ID
   String _determineOverlayType(double hrPercentage, int zoneId) {
     if (zoneId == 1) {
       if (hrPercentage >= 50 && hrPercentage < 60) {
@@ -247,7 +288,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     return 'A';
   }
 
-// Function to handle heart rate updates
+  // Function to handle heart rate updates
   void _handleHeartRateUpdate(double? heartRate) async {
     if (heartRate == null) return;
 
@@ -282,26 +323,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         Future.delayed(const Duration(seconds: 10), () {
           if (currentHRPercent < lowerBound || currentHRPercent > upperBound) {
             _audioManager.pause();
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: const Text(
-                  'Music paused',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                backgroundColor: Colors.white.withOpacity(0.5),
-                elevation: 0,
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                width: 180,
-              ),
-            );
+            _showCenterNotification('Music paused');
             debugPrint('Music paused due to HR out of range for 10 seconds');
           }
         });
@@ -309,26 +331,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     } else {
       if (!_audioManager.isPlaying) {
         _audioManager.resume();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text(
-              'Music resumed',
-              style: TextStyle(
-                color: Colors.black,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            backgroundColor: Colors.white.withOpacity(0.5),
-            elevation: 0,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            width: 180,
-          ),
-        );
+        // _showCenterNotification('Music resumed');
         debugPrint('Music resumed');
       }
     }
@@ -338,7 +341,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
   }
 
-// Function to fetch maximum heart rate
+  // Function to fetch maximum heart rate
   Future<void> _fetchMaxHR() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token') ?? '';
@@ -395,14 +398,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
     return (value / 10).round() * 10;
   }
 
-// Function to handle position updates
+  // Function to handle position updates
   void _handlePositionUpdate(Duration position) {
     setState(() => _currentPosition = position);
     _checkForOverlayTrigger(position);
     _checkForPacingAudio(position);
   }
 
-// Function to check for pacing audio
+  // Function to check for pacing audio
   void _checkForPacingAudio(Duration position) {
     final int previousAudiosDuration = _currentAudioIndex * 5;
     final Duration globalPosition =
@@ -481,7 +484,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
   }
 
-// Function to check for overlay trigger
+  // Function to check for overlay trigger
   void _checkForOverlayTrigger(Duration position) {
     final currentAudio = widget.audioData[_currentAudioIndex];
     final int storyId = currentAudio['storyId'];
@@ -529,14 +532,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
   }
 
-// Function to check if the current position is within a timestamp range
+  // Function to check if the current position is within a timestamp range
   bool _isInTimestampRange(Duration position, Duration target) {
     final positionMs = position.inMilliseconds;
     final targetMs = target.inMilliseconds;
     return (positionMs >= targetMs - 1000 && positionMs <= targetMs + 1000);
   }
 
-// Function to start the challenge
+  // Function to start the challenge
   Future<void> _startChallenge() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token') ?? '';
@@ -557,26 +560,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       debugPrint('Start challenge id: ${currentAudio['id']}');
 
       if (response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text(
-              'Challenge started',
-              style: TextStyle(
-                color: Colors.black,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            backgroundColor: Colors.white.withOpacity(0.5),
-            elevation: 0,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            width: 180,
-          ),
-        );
+        _showCenterNotification('Challenge started');
         debugPrint('Challenge started successfully: ${response.statusCode}');
       }
     } catch (e) {
@@ -584,7 +568,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
   }
 
-// Function to update the challenge status
+  // Function to update the challenge status
   Future<void> _updateChallengeStatus() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token') ?? '';
@@ -605,26 +589,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       debugPrint('Current audio id: ${currentAudio['id']}');
 
       if (response.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text(
-              'Challenge updated',
-              style: TextStyle(
-                color: Colors.black,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            backgroundColor: Colors.white.withOpacity(0.5),
-            elevation: 0,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            width: 180,
-          ),
-        );
+        _showCenterNotification('Challenge updated');
         debugPrint('Challenge updated successfully: ${response.statusCode}');
       }
     } catch (e) {
@@ -637,18 +602,39 @@ class _PlayerScreenState extends State<PlayerScreen> {
     return "${twoDigits(duration.inMinutes)}:${twoDigits(duration.inSeconds.remainder(60))}";
   }
 
-// Function to toggle play/pause
+  // Function to toggle play/pause
   void _togglePlayPause() async {
     if (_audioManager.isPlaying) {
       await _audioManager.pause();
+      _startBlinking();
     } else {
       await _audioManager.resume();
+      _stopBlinking();
     }
     setState(() {});
   }
 
   @override
+  void dispose() {
+    _notificationTimer?.cancel();
+    _blinkTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (widget.audioData.isEmpty ||
+        _currentAudioIndex >= widget.audioData.length) {
+      return const Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: Text(
+            'No audio data available.',
+            style: TextStyle(color: Colors.transparent, fontSize: 18),
+          ),
+        ),
+      );
+    }
     final currentAudio = widget.audioData[_currentAudioIndex];
     final Duration remaining = _globalTotalDuration - _globalPosition;
     return Scaffold(
@@ -710,57 +696,94 @@ class _PlayerScreenState extends State<PlayerScreen> {
           Column(
             children: [
               const Spacer(flex: 4),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16.0),
-                child: Text(
-                  'Workout left: ${_formatDuration(remaining > Duration.zero ? remaining : Duration.zero)}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'Thewitcher',
-                    letterSpacing: 1.2,
-                  ),
-                ),
-              ),
               GestureDetector(
                 onTap: _togglePlayPause,
-                child: Container(
+                child: SizedBox(
                   width: 140,
                   height: 140,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF7B1FA2), Color(0xFFE040FB)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.purple.withOpacity(0.6),
-                        blurRadius: 20,
-                        spreadRadius: 5,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Container(
+                        width: 220,
+                        height: 220,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF7B1FA2), Color(0xFFE040FB)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.purple.withOpacity(0.6),
+                              blurRadius: 20,
+                              spreadRadius: 5,
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 300),
+                            child: _centerNotification != null
+                                ? Text(
+                                    _centerNotification!,
+                                    key: const ValueKey('notif'),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.bold,
+                                      fontFamily: 'Thewitcher',
+                                      letterSpacing: 2,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  )
+                                : (_audioManager.isPlaying
+                                    ? (_currentAudioStarted
+                                        ? Text(
+                                            _formatDuration(_globalPosition),
+                                            key: const ValueKey('timer'),
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 40,
+                                              fontWeight: FontWeight.normal,
+                                              fontFamily: 'Thewitcher',
+                                              letterSpacing: 2,
+                                            ),
+                                          )
+                                        : const SizedBox(
+                                            key: ValueKey('loading'),
+                                            width: 60,
+                                            height: 60,
+                                            child: CircularProgressIndicator(
+                                              valueColor:
+                                                  AlwaysStoppedAnimation<Color>(
+                                                      Colors.white),
+                                              strokeWidth: 6,
+                                            ),
+                                          ))
+                                    : (_isPausedBlink
+                                        ? Icon(
+                                            Icons.play_arrow_rounded,
+                                            key: const ValueKey('playicon'),
+                                            color: Colors.white,
+                                            size: 60,
+                                          )
+                                        : Text(
+                                            _formatDuration(_globalPosition),
+                                            key: const ValueKey('timer'),
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 40,
+                                              fontWeight: FontWeight.normal,
+                                              fontFamily: 'Thewitcher',
+                                              letterSpacing: 2,
+                                            ),
+                                          ))),
+                          ),
+                        ),
                       ),
                     ],
-                  ),
-                  child: Center(
-                    child: _currentAudioStarted
-                        ? Icon(
-                            _audioManager.isPlaying
-                                ? Icons.pause_rounded
-                                : Icons.play_arrow_rounded,
-                            color: Colors.white,
-                            size: 80,
-                          )
-                        : const SizedBox(
-                            width: 60,
-                            height: 60,
-                            child: CircularProgressIndicator(
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(Colors.white),
-                              strokeWidth: 6,
-                            ),
-                          ),
                   ),
                 ),
               ),
@@ -776,7 +799,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
                         inactiveTrackColor: Colors.white30,
                         trackHeight: 12.0,
                         thumbShape: RoundSliderThumbShape(
-                          // Enlarge thumb when near a timestamp
                           enabledThumbRadius: _timestamps.any((timestamp) =>
                                   (timestamp.inSeconds -
                                           _currentPosition.inSeconds)
@@ -785,10 +807,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
                               ? 12.0
                               : 0.0,
                         ),
-                        // trackShape: CustomSliderTrackShape(
-                        //   timestamps: _timestamps,
-                        //   totalDuration: _totalDuration,
-                        // ),
                         overlayColor: Colors.purple.withOpacity(0.2),
                         overlayShape: const RoundSliderOverlayShape(
                           overlayRadius: 28.0,
