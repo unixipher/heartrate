@@ -223,30 +223,94 @@ class _CompletionScreenState extends State<CompletionScreen> {
             Align(
               alignment: Alignment.topCenter,
               child: Padding(
-                padding: const EdgeInsets.only(top: 70.0),
-                child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  const Text(
-                    "Challenge Completed",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontFamily: 'TheWitcher',
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Completed ${widget.playingChallengeCount} out of ${widget.challengeCount} challenges',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontFamily: 'Battambang',
-                      color: Colors.white,
-                    ),
-                  ),
-                ]),
-              ),
+                  padding: const EdgeInsets.only(top: 70.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      FutureBuilder<Map<String, dynamic>>(
+                        future: analyseHeartRate(),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const CircularProgressIndicator(
+                              color: Colors.white,
+                            );
+                          } else if (snapshot.hasData &&
+                              snapshot.data != null) {
+                            final averageHeartRate =
+                                snapshot.data!['averageHeartRate'] ?? 0.0;
+                            final percentageInsideZone =
+                                snapshot.data!['percentageInsideZone'] ?? 0.0;
+                            return Column(
+                              children: [
+                                Text(
+                                  "Avg Heart Rate: ${averageHeartRate.toStringAsFixed(1)}",
+                                  style: const TextStyle(
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                    fontFamily: 'TheWitcher',
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  "You got ${widget.timestampcount} nudges to stay in the zone.",
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    color: Colors.white70,
+                                    fontFamily: 'Battambang',
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'You were in the zone for ${percentageInsideZone.toStringAsFixed(1)}% of the time',
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontFamily: 'Battambang',
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            );
+                          } else {
+                            return Column(
+                              children: [
+                                const Text(
+                                  "Avg Heart Rate: N/A",
+                                  style: TextStyle(
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                    fontFamily: 'TheWitcher',
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  "You got ${widget.timestampcount} nudges to stay in the zone.",
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    color: Colors.white70,
+                                    fontFamily: 'Battambang',
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                const Text(
+                                  'Could not calculate zone time.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 22,
+                                    fontFamily: 'Battambang',
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            );
+                          }
+                        },
+                      )
+                    ],
+                  )),
             ),
             Align(
               alignment: Alignment.center,
@@ -399,92 +463,46 @@ class _CompletionScreenState extends State<CompletionScreen> {
               alignment: Alignment.bottomCenter,
               child: Padding(
                 padding: const EdgeInsets.only(bottom: 40.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    FutureBuilder<Map<String, dynamic>>(
-                      future: analyseHeartRate(),
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return const CircularProgressIndicator(
-                            color: Colors.white,
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const HomeScreen(),
+                            ),
                           );
-                        } else if (snapshot.hasData && snapshot.data != null) {
-                          final averageHeartRate =
-                              snapshot.data!['averageHeartRate'] ?? 0.0;
-                          final percentageInsideZone =
-                              snapshot.data!['percentageInsideZone'] ?? 0.0;
-                          return Column(
-                            children: [
-                              Text(
-                                "Avg Heart Rate: ${averageHeartRate.toStringAsFixed(1)}",
-                                style: const TextStyle(
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                  fontFamily: 'TheWitcher',
-                                ),
+                        },
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              // "${widget.playingChallengeCount} Challenge Completed ",
+                              "Next story",
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontFamily: 'TheWitcher',
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
                               ),
-                              const SizedBox(height: 8),
-                              Text(
-                                "You got ${widget.timestampcount} nudges to stay in the zone.",
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  color: Colors.white70,
-                                  fontFamily: 'Battambang',
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'You were in the zone for ${percentageInsideZone.toStringAsFixed(1)}% of the time',
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontFamily: 'Battambang',
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          );
-                        } else {
-                          return Column(
-                            children: [
-                              const Text(
-                                "Avg Heart Rate: N/A",
-                                style: TextStyle(
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                  fontFamily: 'TheWitcher',
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                "You got ${widget.timestampcount} nudges to stay in the zone.",
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  color: Colors.white70,
-                                  fontFamily: 'Battambang',
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              const Text(
-                                'Could not calculate zone time.',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 22,
-                                  fontFamily: 'Battambang',
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          );
-                        }
-                      },
-                    )
-                  ],
-                ),
+                            ),
+                            Icon(
+                              Icons.arrow_forward,
+                              color: Colors.white,
+                              size: 28,
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(height: 8),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                ]),
               ),
             ),
           ],

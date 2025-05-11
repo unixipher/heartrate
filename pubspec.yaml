@@ -46,7 +46,24 @@ flutter:
     - assets/audio/aradium/pacing/
     - assets/audio/dare/overlay/
     - assets/audio/dare/pacing/
-    - assets/audio/luther/overlay/
+    - assets/audio/luther/overlay/0/
+    - assets/audio/luther/overlay/1/
+    - assets/audio/luther/overlay/2/
+    - assets/audio/luther/overlay/3/
+    - assets/audio/luther/overlay/4/
+    - assets/audio/luther/overlay/5/
+    - assets/audio/luther/overlay/6/
+    - assets/audio/luther/overlay/7/
+    - assets/audio/luther/overlay/8/
+    - assets/audio/luther/overlay/9/
+    - assets/audio/luther/overlay/10/
+    - assets/audio/luther/overlay/11/
+    - assets/audio/luther/overlay/12/
+    - assets/audio/luther/overlay/13/
+    - assets/audio/luther/overlay/14/
+    - assets/audio/luther/overlay/15/
+    - assets/audio/luther/overlay/16/
+    - assets/audio/luther/overlay/17/
     - assets/audio/luther/pacing/
     - assets/audio/smm/overlay/0/
     - assets/audio/smm/overlay/1/
@@ -54,6 +71,18 @@ flutter:
     - assets/audio/smm/overlay/3/
     - assets/audio/smm/overlay/4/
     - assets/audio/smm/overlay/5/
+    - assets/audio/smm/overlay/6/
+    - assets/audio/smm/overlay/7/
+    - assets/audio/smm/overlay/8/
+    - assets/audio/smm/overlay/9/
+    - assets/audio/smm/overlay/10/
+    - assets/audio/smm/overlay/11/
+    - assets/audio/smm/overlay/12/
+    - assets/audio/smm/overlay/13/
+    - assets/audio/smm/overlay/14/
+    - assets/audio/smm/overlay/15/
+    - assets/audio/smm/overlay/16/
+    - assets/audio/smm/overlay/17/
     - assets/audio/smm/pacing/
   fonts:
     - family: Thewitcher

@@ -650,6 +650,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   @override
   Widget build(BuildContext context) {
     final currentAudio = widget.audioData[_currentAudioIndex];
+    final Duration remaining = _globalTotalDuration - _globalPosition;
     return Scaffold(
       extendBodyBehindAppBar: true,
       backgroundColor: Colors.black,
@@ -663,7 +664,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           },
         ),
         title: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 12.0),
+          padding: const EdgeInsets.symmetric(vertical: 12.0),
           child: FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(
@@ -709,6 +710,19 @@ class _PlayerScreenState extends State<PlayerScreen> {
           Column(
             children: [
               const Spacer(flex: 4),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16.0),
+                child: Text(
+                  'Workout left: ${_formatDuration(remaining > Duration.zero ? remaining : Duration.zero)}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Thewitcher',
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ),
               GestureDetector(
                 onTap: _togglePlayPause,
                 child: Container(
