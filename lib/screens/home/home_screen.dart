@@ -22,7 +22,8 @@ class _HomeScreenState extends State<HomeScreen> {
     CharacterData(
       name: 'Jarek',
       image: 'assets/images/jarek.png',
-      challengeCount: 18,
+      challengeCount: 0,
+      storyId: 1,
       description:
           'The true heir to the throne of Aradium. With only his father’s pocket watch to guide him, Jarek must reach the mountain top before his treacherous cousin Kaelen’s coronation.',
       page: const ChallengeScreen(
@@ -31,7 +32,8 @@ class _HomeScreenState extends State<HomeScreen> {
         characterName: 'Jarek',
         description:
             'Known for its vast sulphur reserves, Aradium is guarded by sacred, unscalable mountains. Jarek must survive the Chakravyuh, brave the enchanted forest, and reach the sulphur peaks to reclaim his legacy and avenge his father’s death',
-        storydescription: "Known for its vast sulphur reserves, Aradium is guarded by sacred, unscalable mountains. With only his father’s pocket watch to guide him, Jarek must survive the Chakravyuh, brave the enchanted forest, and reach the sulphur peaks to reclaim his legacy and avenge his father’s death.",
+        storydescription:
+            "Known for its vast sulphur reserves, Aradium is guarded by sacred, unscalable mountains. With only his father’s pocket watch to guide him, Jarek must survive the Chakravyuh, brave the enchanted forest, and reach the sulphur peaks to reclaim his legacy and avenge his father’s death.",
         jarekImagePath: 'assets/images/jarek.png',
         backgroundImagePath: 'assets/images/aradium.png',
       ),
@@ -39,7 +41,8 @@ class _HomeScreenState extends State<HomeScreen> {
     CharacterData(
       name: 'Maya',
       image: 'assets/images/maya.png',
-      challengeCount: 30,
+      challengeCount: 0,
+      storyId: 3,
       description:
           'The only survivor in a dystopian world taken over by bots. With only an AI agent Luther to guide her, Maya must take down the uprising before they exterminate the human race.',
       page: const ChallengeScreen(
@@ -48,7 +51,8 @@ class _HomeScreenState extends State<HomeScreen> {
         characterName: 'Maya',
         description:
             'The only survivor in a dystopian world taken over by bots. With only an AI agent Luther to guide her, Maya must take down the uprising before they exterminate the human race.',
-        storydescription: "The Earth is under siege by rogue bots, clearing entire areas to build factories for their GPUs. Maya and Luther race to stop them, only to uncover a dark secret—these bots are part of a sinister plan to eliminate low-IQ humans. With time running out, they must expose the conspiracy before it’s too late.",
+        storydescription:
+            "The Earth is under siege by rogue bots, clearing entire areas to build factories for their GPUs. Maya and Luther race to stop them, only to uncover a dark secret—these bots are part of a sinister plan to eliminate low-IQ humans. With time running out, they must expose the conspiracy before it’s too late.",
         jarekImagePath: 'assets/images/maya.png',
         backgroundImagePath: 'assets/images/luther.png',
       ),
@@ -56,7 +60,8 @@ class _HomeScreenState extends State<HomeScreen> {
     // CharacterData(
     //   name: 'Agent Scarn',
     //   image: 'assets/images/nyc.png',
-    //   challengeCount: 6,
+    //   challengeCount: 0,
+    //   storyId: 4,
     //   description:
     //       'An undercover agent on a secret mission to deliver a package to 191 Bedford Hills. Agent Tokyo as his guide he must navigate the streets of NYC and board the bus in time',
     //   page: const ChallengeScreen(
@@ -71,9 +76,10 @@ class _HomeScreenState extends State<HomeScreen> {
     CharacterData(
       name: 'Agent Seahorse',
       image: 'assets/images/horse.png',
-      challengeCount: 30,
+      challengeCount: 0,
       description:
           'An undercover agent on a secret mission to take down the sand mafia. With Stingray and Starfish, Seahorse must find the mastermind before the operation turns deadly.',
+      storyId: 2,
       page: const ChallengeScreen(
         storyId: 2,
         title: 'Project SMM',
@@ -81,7 +87,8 @@ class _HomeScreenState extends State<HomeScreen> {
         description:
             'An undercover agent on a secret mission to take down the sand mafia. With Stingray and Starfish, Seahorse must find the mastermind before the operation turns deadly.',
         jarekImagePath: 'assets/images/horse.png',
-        storydescription: "The Sone River in Bihar is under the control of a powerful sand mafia. As the mafia heads prepare for a bloody power struggle, Agent Seahorse must expose the kingpins, uncover their allegiances, and take down the mastermind behind the operation before it descends into chaos.",
+        storydescription:
+            "The Sone River in Bihar is under the control of a powerful sand mafia. As the mafia heads prepare for a bloody power struggle, Agent Seahorse must expose the kingpins, uncover their allegiances, and take down the mastermind behind the operation before it descends into chaos.",
         backgroundImagePath: 'assets/images/smm.png',
       ),
     ),
@@ -91,6 +98,40 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _checkUserData();
+    _fetchChallenges();
+  }
+
+  Future<void> _fetchChallenges() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token') ?? '';
+
+      final response = await http.get(
+        Uri.parse('https://authcheck.co/getChallenges'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      if (response.statusCode == 200) {
+        List<dynamic> challenges = json.decode(response.body);
+        Map<int, int> counts = {};
+
+        for (var challenge in challenges) {
+          int storyId = challenge['storyId'];
+          if (_characters.any((character) => character.storyId == storyId)) {
+        counts[storyId] = (counts[storyId] ?? 0) + 1;
+          }
+        }
+
+        for (var character in _characters) {
+          int count = counts[character.storyId] ?? 0;
+          character.challengeCount = count;
+        }
+
+        setState(() {});
+      }
+    } catch (e) {
+      debugPrint('Error fetching challenges: $e');
+    }
   }
 
   Future<void> _checkUserData() async {
@@ -611,10 +652,11 @@ class _ProfileFormState extends State<ProfileForm> {
 class CharacterData {
   final String name;
   final String image;
-  final int challengeCount;
+  int challengeCount;
   final String description;
   final Widget page;
   final String? storydescription;
+  final int storyId;
 
   CharacterData({
     required this.name,
@@ -623,5 +665,6 @@ class CharacterData {
     required this.description,
     required this.page,
     this.storydescription,
+    required  this.storyId,
   });
 }

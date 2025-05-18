@@ -741,7 +741,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                                 : (_audioManager.isPlaying
                                     ? (_currentAudioStarted
                                         ? Text(
-                                            _formatDuration(_globalPosition),
+                                            _formatDuration(remaining),
                                             key: const ValueKey('timer'),
                                             style: const TextStyle(
                                               color: Colors.white,
@@ -770,7 +770,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                                             size: 60,
                                           )
                                         : Text(
-                                            _formatDuration(_globalPosition),
+                                            _formatDuration(remaining),
                                             key: const ValueKey('timer'),
                                             style: const TextStyle(
                                               color: Colors.white,
