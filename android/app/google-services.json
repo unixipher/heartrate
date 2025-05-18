@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1006716487773",
+    "project_id": "aexlrt-51362",
+    "storage_bucket": "aexlrt-51362.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1006716487773:android:c703392407adb196f065b4",
+        "android_client_info": {
+          "package_name": "com.example.heartrate.testingheartrate"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDMK3ikkxZooK5IbRpFxStOFU9zBvytctM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

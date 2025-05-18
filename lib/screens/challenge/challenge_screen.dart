@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -37,9 +37,11 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
   int _descriptionIndex = 0;
   Timer? _typewriterTimer;
   final ScrollController _descScrollController = ScrollController();
+  final FirebaseAnalytics analytics = FirebaseAnalytics.instance;
 
   @override
   void initState() {
+    analytics.setAnalyticsCollectionEnabled(true);
     super.initState();
     fetchChallenges();
     _displayedDescription = '';
@@ -257,7 +259,16 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                               child: InkWell(
                                 onTap: isLocked
                                     ? null
-                                    : () {
+                                    : () async {
+                                        await analytics.logEvent(
+                                          name: 'challenge_selected',
+                                          parameters: {
+                                            'challenge_id':
+                                                challenge['id'] ?? '',
+                                            'challenge_title':
+                                                challenge['title'] ?? '',
+                                          },
+                                        );
                                         setState(() {
                                           selectedChallenge = index;
                                         });
@@ -383,15 +394,36 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    _buildZoneButton('ZONE 1', 'WALK', zoneId: 1, onTap: () {
+                    _buildZoneButton('ZONE 1', 'WALK', zoneId: 1,
+                        onTap: () async {
+                      await analytics.logEvent(
+                        name: 'zone_1_selected',
+                        parameters: {
+                          'zone': 1,
+                        },
+                      );
                       Navigator.pop(context);
                       _showWorkoutTenureSelector(context, 1);
                     }),
-                    _buildZoneButton('ZONE 2', 'JOG', zoneId: 2, onTap: () {
+                    _buildZoneButton('ZONE 2', 'JOG', zoneId: 2,
+                        onTap: () async {
+                      await analytics.logEvent(
+                        name: 'zone_2_selected',
+                        parameters: {
+                          'zone': 2,
+                        },
+                      );
                       Navigator.pop(context);
                       _showWorkoutTenureSelector(context, 2);
                     }),
-                    _buildZoneButton('ZONE 3', 'RUN', zoneId: 3, onTap: () {
+                    _buildZoneButton('ZONE 3', 'RUN', zoneId: 3,
+                        onTap: () async {
+                      await analytics.logEvent(
+                        name: 'zone_3_selected',
+                        parameters: {
+                          'zone': 3,
+                        },
+                      );
                       Navigator.pop(context);
                       _showWorkoutTenureSelector(context, 3);
                     }),

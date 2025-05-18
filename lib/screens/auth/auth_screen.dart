@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:testingheartrate/screens/home/home_screen.dart';
 import 'package:video_player/video_player.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -18,9 +19,11 @@ class _AuthScreenState extends State<AuthScreen> {
   late VideoPlayerController _controller;
   bool _isAuthLoading = false;
   String error = '';
+  final FirebaseAnalytics analytics = FirebaseAnalytics.instance;
 
   @override
   void initState() {
+    analytics.setAnalyticsCollectionEnabled(true);
     super.initState();
     _controller = VideoPlayerController.asset('assets/videos/bg.mp4')
       ..initialize().then((_) {
@@ -121,7 +124,15 @@ class _AuthScreenState extends State<AuthScreen> {
                     )
                   else
                     GestureDetector(
-                      onTap: _handleAppleSignIn,
+                      onTap: () async {
+                        await analytics.logEvent(
+                          name: 'sign_in_success',
+                          parameters: {
+                            'method': 'apple',
+                          },
+                        );
+                        _handleAppleSignIn;
+                      },
                       child: SvgPicture.asset(
                         'assets/images/button.svg',
                       ),

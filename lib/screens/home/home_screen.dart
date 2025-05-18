@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:ui';
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -17,6 +18,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final PageController _pageController = PageController(viewportFraction: 0.8);
   int _currentPage = 0;
+  final FirebaseAnalytics analytics = FirebaseAnalytics.instance;
 
   final List<CharacterData> _characters = [
     CharacterData(
@@ -25,7 +27,7 @@ class _HomeScreenState extends State<HomeScreen> {
       challengeCount: 0,
       storyId: 1,
       description:
-          'The true heir to the throne of Aradium. With only his father’s pocket watch to guide him, Jarek must reach the mountain top before his treacherous cousin Kaelen’s coronation.',
+          'Jarek is the true heir to the throne of Aradium. He fights powerful enemies with great valour.',
       page: const ChallengeScreen(
         storyId: 1,
         title: 'Aradium',
@@ -44,7 +46,7 @@ class _HomeScreenState extends State<HomeScreen> {
       challengeCount: 0,
       storyId: 3,
       description:
-          'The only survivor in a dystopian world taken over by bots. With only an AI agent Luther to guide her, Maya must take down the uprising before they exterminate the human race.',
+          'Maya is the only survivor of a bot attack. She must stop the revolution with her quick wit',
       page: const ChallengeScreen(
         storyId: 3,
         title: 'Luther',
@@ -78,7 +80,7 @@ class _HomeScreenState extends State<HomeScreen> {
       image: 'assets/images/horse.png',
       challengeCount: 0,
       description:
-          'An undercover agent on a secret mission to take down the sand mafia. With Stingray and Starfish, Seahorse must find the mastermind before the operation turns deadly.',
+          'Seahorse is the only agent who can take down the sand mafia of Cutna.',
       storyId: 2,
       page: const ChallengeScreen(
         storyId: 2,
@@ -96,6 +98,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void initState() {
+    analytics.setAnalyticsCollectionEnabled(true);
     super.initState();
     _checkUserData();
     _fetchChallenges();
@@ -118,7 +121,7 @@ class _HomeScreenState extends State<HomeScreen> {
         for (var challenge in challenges) {
           int storyId = challenge['storyId'];
           if (_characters.any((character) => character.storyId == storyId)) {
-        counts[storyId] = (counts[storyId] ?? 0) + 1;
+            counts[storyId] = (counts[storyId] ?? 0) + 1;
           }
         }
 
@@ -233,7 +236,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       return Transform.scale(
                         scale: scale,
                         child: GestureDetector(
-                          onTap: () {
+                          onTap: () async {
+                            await analytics.logEvent(
+                              name: 'character_selected',
+                              parameters: {
+                                'character_name': character.name,
+                              },
+                            );
                             Navigator.push(
                               context,
                               MaterialPageRoute(builder: (_) => character.page),
@@ -335,14 +344,24 @@ class _HomeScreenState extends State<HomeScreen> {
         selectedItemColor: Colors.purple,
         unselectedItemColor: Colors.white70,
         currentIndex: 0,
-        onTap: (index) {
+        onTap: (index) async {
           if (index == 0) {
           } else if (index == 1) {
+            await analytics.logEvent(
+              name: 'history_screen_opened',
+              parameters: {},
+            );
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => HistoryScreen()),
             );
           } else if (index == 2) {
+            await analytics.logEvent(
+              name: 'logout_button_clicked',
+              parameters: {},
+            );
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.remove('token');
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (context) => const SplashScreen()),
@@ -665,6 +684,6 @@ class CharacterData {
     required this.description,
     required this.page,
     this.storydescription,
-    required  this.storyId,
+    required this.storyId,
   });
 }

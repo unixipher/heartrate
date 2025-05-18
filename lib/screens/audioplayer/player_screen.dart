@@ -6,6 +6,7 @@ import 'package:testingheartrate/services/socket_service.dart';
 import 'package:testingheartrate/screens/completion/completion_screen.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 
 class PlayerScreen extends StatefulWidget {
   final List<Map<String, dynamic>> audioData;
@@ -28,6 +29,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   late final SocketService _socketService;
   bool _currentAudioStarted = false;
   int totalNudges = 0;
+  final FirebaseAnalytics analytics = FirebaseAnalytics.instance;
 
   Duration _currentPosition = Duration.zero;
   Duration _totalDuration = Duration.zero;
@@ -61,6 +63,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   @override
   void initState() {
+    analytics.setAnalyticsCollectionEnabled(true);
     super.initState();
     _initializePlayer();
   }
@@ -376,11 +379,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
           }
           int roundedLower = roundToNearest10(lowerbound);
           _pacingAudioFiles.addAll([
-            '${roundedLower}.wav',
-            '${roundedLower + 10}.wav',
-            '${roundedLower + 20}.wav',
-            '${roundedLower + 20}.wav',
-            '${roundedLower + 10}.wav',
+            '${roundedLower}.mp3',
+            '${roundedLower + 10}.mp3',
+            '${roundedLower + 20}.mp3',
+            '${roundedLower + 20}.mp3',
+            '${roundedLower + 10}.mp3',
           ]);
         }
       } else {
