@@ -734,7 +734,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                                     key: const ValueKey('notif'),
                                     style: const TextStyle(
                                       color: Colors.white,
-                                      fontSize: 24,
+                                      fontSize: 20,
                                       fontWeight: FontWeight.bold,
                                       fontFamily: 'Thewitcher',
                                       letterSpacing: 2,

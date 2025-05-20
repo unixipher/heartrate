@@ -116,6 +116,7 @@ class _AuthScreenState extends State<AuthScreen> {
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
                     ),
+                    textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 20),
                   if (_isAuthLoading)
@@ -124,19 +125,40 @@ class _AuthScreenState extends State<AuthScreen> {
                     )
                   else
                     GestureDetector(
-                      onTap: () async {
-                        await analytics.logEvent(
-                          name: 'sign_in_success',
-                          parameters: {
-                            'method': 'apple',
-                          },
-                        );
-                        _handleAppleSignIn;
-                      },
+                      onTap: _handleAppleSignIn,
                       child: SvgPicture.asset(
                         'assets/images/button.svg',
                       ),
                     ),
+                  // const SizedBox(height: 16),
+                  // ElevatedButton(
+                  //   onPressed: () async {
+                  //     setState(() => _isAuthLoading = true);
+                  //     final prefs = await SharedPreferences.getInstance();
+                  //     await prefs.setString(
+                  //       'token',
+                  //       '001211.4840cf42',
+                  //     );
+                  //     setState(() => _isAuthLoading = false);
+                  //     Navigator.pushReplacement(
+                  //       context,
+                  //       MaterialPageRoute(
+                  //           builder: (context) => const HomeScreen()),
+                  //     );
+                  //   },
+                  //   child: const Text('Dummy Sign In'),
+                  //   style: ElevatedButton.styleFrom(
+                  //     backgroundColor: Colors.white,
+                  //     foregroundColor: Colors.black,
+                  //     padding: const EdgeInsets.symmetric(
+                  //       horizontal: 32,
+                  //       vertical: 16,
+                  //     ),
+                  //     shape: RoundedRectangleBorder(
+                  //       borderRadius: BorderRadius.circular(4),
+                  //     ),
+                  //   ),
+                  // ),
                   if (error.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.all(16.0),

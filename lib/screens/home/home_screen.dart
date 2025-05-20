@@ -193,7 +193,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 24),
             const Center(
               child: Text(
-                'Today I Want to Be',
+                'Today I Want to be',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 26,

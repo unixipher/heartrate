@@ -453,28 +453,19 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    IconButton(
-                      icon:
-                          const Icon(Icons.arrow_back_ios, color: Colors.white),
-                      onPressed: () => Navigator.pop(context),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Center(
+                  child: Text(
+                    'Continue with apple watch',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontFamily: 'Thewitcher',
+                      fontWeight: FontWeight.bold,
                     ),
-                    const Text(
-                      'Continue with apple watch?',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontFamily: 'Thewitcher',
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(width: 48),
-                  ],
+                    textAlign: TextAlign.center,
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
