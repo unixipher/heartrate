@@ -35,8 +35,18 @@ class CompletionScreen extends StatefulWidget {
   State<CompletionScreen> createState() => _CompletionScreenState();
 }
 
-class _CompletionScreenState extends State<CompletionScreen> {
+class _CompletionScreenState extends State<CompletionScreen>
+    with SingleTickerProviderStateMixin {
   late ConfettiController _confettiController;
+  late AnimationController _animationController;
+  late Animation<double> _heartRateAnimation;
+  late Animation<double> _zoneTimeAnimation;
+  late Animation<double> _nudgeAnimation;
+
+  // Values to animate to
+  double _averageHeartRate = 0.0;
+  double _percentageInsideZone = 0.0;
+  int _nudgeCount = 0;
 
   @override
   void initState() {
@@ -44,46 +54,62 @@ class _CompletionScreenState extends State<CompletionScreen> {
     _confettiController =
         ConfettiController(duration: const Duration(seconds: 10));
     _confettiController.play();
+    _nudgeCount = widget.timestampcount;
+    _animationController = AnimationController(
+      duration: const Duration(seconds: 3),
+      vsync: this,
+    );
+    _heartRateAnimation =
+        Tween<double>(begin: 0.0, end: 0.0).animate(_animationController);
+    _zoneTimeAnimation =
+        Tween<double>(begin: 0.0, end: 0.0).animate(_animationController);
+    _nudgeAnimation =
+        Tween<double>(begin: 0.0, end: 0.0).animate(_animationController);
+    _fetchDataAndAnimate();
 
-    Future.delayed(const Duration(seconds: 6000), () {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-      );
-    });
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const HomeScreen()),
+    );
+  }
+
+  Future<void> _fetchDataAndAnimate() async {
+    try {
+      final analysisData = await analyseHeartRate();
+      setState(() {
+        _averageHeartRate = analysisData['averageHeartRate'] ?? 0.0;
+        _percentageInsideZone = analysisData['percentageInsideZone'] ?? 0.0;
+      });
+      final maxHr = widget.maxheartRate ?? 200.0;
+      final hrProgress = _averageHeartRate / maxHr;
+      final zoneProgress = _percentageInsideZone / 100.0;
+      final nudgeProgress = _nudgeCount / 7.0;
+      _heartRateAnimation =
+          Tween<double>(begin: 0.0, end: hrProgress.clamp(0.0, 1.0)).animate(
+              CurvedAnimation(
+                  parent: _animationController, curve: Curves.easeOut));
+
+      _zoneTimeAnimation =
+          Tween<double>(begin: 0.0, end: zoneProgress.clamp(0.0, 1.0)).animate(
+              CurvedAnimation(
+                  parent: _animationController, curve: Curves.elasticOut));
+
+      _nudgeAnimation =
+          Tween<double>(begin: 0.0, end: nudgeProgress.clamp(0.0, 1.0)).animate(
+              CurvedAnimation(
+                  parent: _animationController, curve: Curves.bounceOut));
+
+      _animationController.forward();
+    } catch (e) {
+      debugPrint('Error fetching data: $e');
+    }
   }
 
   @override
   void dispose() {
     _confettiController.dispose();
+    _animationController.dispose();
     super.dispose();
-  }
-
-  Future<String?> fetchCompletedAt() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
-    final url = Uri.parse('https://authcheck.co/userchallenge');
-
-    final response = await http.get(
-      url,
-      headers: {
-        'Accept': '/',
-        'User-Agent': 'Thunder Client (https://www.thunderclient.com)',
-        'Authorization': 'Bearer $token',
-      },
-    );
-
-    if (response.statusCode == 200) {
-      final List<dynamic> challenges = json.decode(response.body);
-      final challenge = challenges.firstWhere(
-        (challenge) => challenge['challengeId'] == widget.storyId,
-        orElse: () => null,
-      );
-      debugPrint(widget.audioData.toString());
-      return challenge?['completedAt'];
-    } else {
-      throw Exception('Failed to load challenges');
-    }
   }
 
   Future<Map<String, dynamic>> analyseHeartRate() async {
@@ -201,6 +227,267 @@ class _CompletionScreenState extends State<CompletionScreen> {
     return path;
   }
 
+  // Custom progress bar widget
+  Widget _buildProgressBar({
+    required Animation<double> animation,
+    required String label,
+    required IconData icon,
+    Color progressColor = Colors.green,
+    Color backgroundColor = Colors.grey,
+    Color iconColor = Colors.white,
+    String? valueText,
+    double padding = 32.0,
+  }) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: padding, vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [Colors.purple.shade400, Colors.purple.shade700],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Center(
+                  child: Icon(
+                    icon,
+                    color: iconColor,
+                    size: 24,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontFamily: 'TheWitcher',
+                  color: Colors.white,
+                  shadows: [
+                    Shadow(
+                      color: Colors.black54,
+                      blurRadius: 2,
+                      offset: Offset(1, 1),
+                    ),
+                  ],
+                ),
+              ),
+              const Spacer(),
+              if (valueText != null)
+                Text(
+                  valueText,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'TheWitcher',
+                    color: Colors.white,
+                    shadows: [
+                      Shadow(
+                        color: Colors.black54,
+                        blurRadius: 2,
+                        offset: Offset(1, 1),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          AnimatedBuilder(
+            animation: animation,
+            builder: (context, child) {
+              return Container(
+                height: 24,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.blueGrey.withOpacity(0.7),
+                    width: 2,
+                  ),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Stack(
+                    children: [
+                      // Background
+                      Container(
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              backgroundColor.withOpacity(0.2),
+                              backgroundColor.withOpacity(0.1),
+                            ],
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                          ),
+                        ),
+                      ),
+                      // Progress
+                      FractionallySizedBox(
+                        widthFactor: animation.value,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                progressColor.withOpacity(0.8),
+                                progressColor.withOpacity(0.6),
+                              ],
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                            ),
+                          ),
+                        ),
+                      ),
+                      // Shine effect
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        height: 8,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.white.withOpacity(0.4),
+                                Colors.white.withOpacity(0.0),
+                              ],
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                            ),
+                          ),
+                        ),
+                      ),
+                      // Tick marks
+                      Row(
+                        children: List.generate(
+                          10,
+                          (index) => Expanded(
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 1),
+                              child: Container(
+                                height: double.infinity,
+                                width: 1,
+                                color: Colors.black12,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompletionContent() {
+    final zoneType = widget.zoneId == 1
+        ? 'Walk'
+        : widget.zoneId == 2
+            ? 'Jog'
+            : 'Run';
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ShaderMask(
+          shaderCallback: (bounds) {
+            return const LinearGradient(
+              colors: [Colors.white, Colors.white],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ).createShader(bounds);
+          },
+          child: const Text(
+            'CHALLENGE COMPLETE',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'TheWitcher',
+              color: Colors.white,
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+        AnimatedBuilder(
+          animation: _animationController,
+          builder: (context, child) {
+            return Column(
+              children: [
+                _buildProgressBar(
+                  animation: _heartRateAnimation,
+                  label: 'Heart Rate',
+                  icon: Icons.favorite_rounded,
+                  progressColor: Colors.purple,
+                  valueText: '${_averageHeartRate.toInt()} BPM',
+                ),
+                _buildProgressBar(
+                  animation: _zoneTimeAnimation,
+                  label: '$zoneType Zone Time',
+                  icon: Icons.access_time,
+                  progressColor: Colors.purple,
+                  valueText: '${_percentageInsideZone.toInt()}%',
+                ),
+                _buildProgressBar(
+                  animation: _nudgeAnimation,
+                  label: 'Zone Nudges',
+                  icon: Icons.notifications_active_rounded,
+                  progressColor: Colors.purple,
+                  valueText: '$_nudgeCount times',
+                ),
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Future<String?> fetchCompletedAt() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    final url = Uri.parse('https://authcheck.co/userchallenge');
+
+    final response = await http.get(
+      url,
+      headers: {
+        'Accept': '/',
+        'User-Agent': 'Thunder Client (https://www.thunderclient.com)',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> challenges = json.decode(response.body);
+      final challenge = challenges.firstWhere(
+        (challenge) => challenge['challengeId'] == widget.storyId,
+        orElse: () => null,
+      );
+      debugPrint(widget.audioData.toString());
+      return challenge?['completedAt'];
+    } else {
+      throw Exception('Failed to load challenges');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -216,150 +503,97 @@ class _CompletionScreenState extends State<CompletionScreen> {
                   fit: BoxFit.cover,
                 ),
                 Container(
-                  color: Colors.black.withOpacity(0.5),
+                  color: Colors.black.withOpacity(0.6),
                 ),
               ],
             ),
             Align(
               alignment: Alignment.topCenter,
-              child: Padding(
-                  padding: const EdgeInsets.only(top: 70.0),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      FutureBuilder<Map<String, dynamic>>(
-                        future: analyseHeartRate(),
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState ==
-                              ConnectionState.waiting) {
-                            return const CircularProgressIndicator(
-                              color: Colors.white,
-                            );
-                          } else if (snapshot.hasData &&
-                              snapshot.data != null) {
-                            final averageHeartRate =
-                                snapshot.data!['averageHeartRate'] ?? 0.0;
-                            final percentageInsideZone =
-                                snapshot.data!['percentageInsideZone'] ?? 0.0;
-                            return Column(
-                              children: [
-                                Text(
-                                  "Avg Heart Rate: ${averageHeartRate.toStringAsFixed(1)}",
-                                  style: const TextStyle(
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                    fontFamily: 'TheWitcher',
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  "You got ${widget.timestampcount} nudges to stay in the zone.",
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    color: Colors.white70,
-                                    fontFamily: 'Battambang',
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'You were in the zone for ${percentageInsideZone.toStringAsFixed(1)}% of the time',
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontFamily: 'Battambang',
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
-                            );
-                          } else {
-                            return Column(
-                              children: [
-                                const Text(
-                                  "Avg Heart Rate: N/A",
-                                  style: TextStyle(
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                    fontFamily: 'TheWitcher',
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  "You got ${widget.timestampcount} nudges to stay in the zone.",
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    color: Colors.white70,
-                                    fontFamily: 'Battambang',
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                const Text(
-                                  'Could not calculate zone time.',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontSize: 22,
-                                    fontFamily: 'Battambang',
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
-                            );
-                          }
-                        },
-                      )
-                    ],
-                  )),
+              child: ConfettiWidget(
+                confettiController: _confettiController,
+                blastDirection: pi / 2,
+                maxBlastForce: 5,
+                minBlastForce: 2,
+                emissionFrequency: 0.05,
+                numberOfParticles: 10,
+                gravity: 0.1,
+                colors: const [
+                  Colors.amber,
+                  Colors.red,
+                  Colors.green,
+                  Colors.blue,
+                  Colors.purple,
+                ],
+              ),
             ),
-            Align(
-              alignment: Alignment.center,
-              child: Padding(
-                padding: const EdgeInsets.only(top: 120.0, bottom: 150.0),
-                child: SizedBox(
-                  height: 500,
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: (widget.audioData as List).length,
-                    itemBuilder: (context, index) {
-                      final item = (widget.audioData as List)[index];
-                      return GestureDetector(
-                        onTap: () {
-                          debugPrint(
-                              'Tapped on item: ${item['challengeName']}');
-                        },
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(
-                              vertical: 8, horizontal: 28),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            gradient: LinearGradient(
-                              colors: [
-                                Colors.white.withOpacity(0.15),
-                                Colors.white.withOpacity(0.05),
-                              ],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            border: Border.all(
-                              color: Colors.white.withOpacity(0.2),
-                              width: 1.2,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.08),
-                                blurRadius: 8,
-                                offset: const Offset(0, 4),
+            Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 70.0),
+                  child: _buildCompletionContent(),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10.0),
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: (widget.audioData as List).length,
+                      itemBuilder: (context, index) {
+                        final item = (widget.audioData as List)[index];
+                        return GestureDetector(
+                          onTap: () {
+                            debugPrint(
+                                'Tapped on item: ${item['challengeName']}');
+                          },
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(
+                                vertical: 8, horizontal: 28),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              gradient: LinearGradient(
+                                colors: [
+                                  Colors.white.withOpacity(0.15),
+                                  Colors.white.withOpacity(0.05),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
                               ),
-                            ],
-                          ),
-                          child: ListTile(
-                            title: item['challengeName'] != null &&
-                                    item['challengeName'].length > 20
-                                ? SingleChildScrollView(
-                                    scrollDirection: Axis.horizontal,
-                                    child: Text(
-                                      item['challengeName'],
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.2),
+                                width: 1.2,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.08),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: ListTile(
+                              title: item['challengeName'] != null &&
+                                      item['challengeName'].length > 20
+                                  ? SingleChildScrollView(
+                                      scrollDirection: Axis.horizontal,
+                                      child: Text(
+                                        item['challengeName'],
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 20,
+                                          fontFamily: 'TheWitcher',
+                                          fontWeight: FontWeight.bold,
+                                          shadows: [
+                                            Shadow(
+                                              color: Colors.black26,
+                                              blurRadius: 2,
+                                              offset: Offset(1, 1),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    )
+                                  : Text(
+                                      item['challengeName'] ?? 'No Title',
                                       style: const TextStyle(
                                         color: Colors.white,
                                         fontSize: 20,
@@ -374,136 +608,181 @@ class _CompletionScreenState extends State<CompletionScreen> {
                                         ],
                                       ),
                                     ),
-                                  )
-                                : Text(
-                                    item['challengeName'] ?? 'No Title',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 20,
-                                      fontFamily: 'TheWitcher',
-                                      fontWeight: FontWeight.bold,
-                                      shadows: [
-                                        Shadow(
-                                          color: Colors.black26,
-                                          blurRadius: 2,
-                                          offset: Offset(1, 1),
-                                        ),
-                                      ],
+                              leading: Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  gradient: RadialGradient(
+                                    colors: [
+                                      Colors.purple.shade300,
+                                      Colors.purple.shade700
+                                    ],
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.3),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
                                     ),
-                                  ),
-                            leading: const Icon(
-                              Icons.check_circle,
-                              color: Colors.lightGreen,
-                              size: 30,
-                            ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Zone: ${item['zoneId'] == 1 ? 'Walk' : item['zoneId'] == 2 ? 'Jog' : item['zoneId'] == 3 ? 'Run' : 'No Zone'}',
-                                  style: const TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 16,
-                                    fontFamily: 'Battambang',
-                                  ),
+                                  ],
                                 ),
-                                const SizedBox(height: 4),
-                                FutureBuilder<String?>(
-                                  future: fetchCompletedAt(),
-                                  builder: (context, snapshot) {
-                                    if (snapshot.connectionState ==
-                                        ConnectionState.waiting) {
-                                      return const SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: CircularProgressIndicator(
-                                          color: Colors.white,
-                                          strokeWidth: 2,
-                                        ),
-                                      );
-                                    } else if (snapshot.hasData &&
-                                        snapshot.data != null) {
-                                      final completedAt =
-                                          DateTime.tryParse(snapshot.data!);
-                                      final formattedDate = completedAt != null
-                                          ? '${completedAt.year}-${completedAt.month.toString().padLeft(2, '0')}-${completedAt.day.toString().padLeft(2, '0')} '
-                                              '${completedAt.hour.toString().padLeft(2, '0')}:${completedAt.minute.toString().padLeft(2, '0')}'
-                                          : 'Not Found';
-                                      return Text(
-                                        'Completed at: $formattedDate',
-                                        style: const TextStyle(
-                                          fontSize: 16,
-                                          fontFamily: 'Battambang',
-                                          color: Colors.white70,
-                                        ),
-                                      );
-                                    } else {
-                                      return const Text(
-                                        'Completed at: Not Found',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          fontFamily: 'Battambang',
-                                          color: Colors.white54,
-                                        ),
-                                      );
-                                    }
-                                  },
+                                child: const Icon(
+                                  Icons.check,
+                                  color: Colors.white,
+                                  size: 24,
                                 ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ),
-            ),
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 40.0),
-                child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const HomeScreen(),
-                            ),
-                          );
-                        },
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              // "${widget.playingChallengeCount} Challenge Completed ",
-                              "Home",
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontFamily: 'TheWitcher',
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: item['zoneId'] == 1
+                                              ? Colors.purple.withOpacity(0.3)
+                                              : item['zoneId'] == 2
+                                                  ? Colors.purple
+                                                      .withOpacity(0.3)
+                                                  : Colors.purple
+                                                      .withOpacity(0.3),
+                                          borderRadius:
+                                              BorderRadius.circular(10),
+                                        ),
+                                        child: Text(
+                                          'Zone: ${item['zoneId'] == 1 ? 'Walk' : item['zoneId'] == 2 ? 'Jog' : item['zoneId'] == 3 ? 'Run' : 'No Zone'}',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 14,
+                                            fontFamily: 'Battambang',
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  FutureBuilder<String?>(
+                                    future: fetchCompletedAt(),
+                                    builder: (context, snapshot) {
+                                      if (snapshot.connectionState ==
+                                          ConnectionState.waiting) {
+                                        return const SizedBox(
+                                          width: 18,
+                                          height: 18,
+                                          child: CircularProgressIndicator(
+                                            color: Colors.white,
+                                            strokeWidth: 2,
+                                          ),
+                                        );
+                                      } else if (snapshot.hasData &&
+                                          snapshot.data != null) {
+                                        final completedAt =
+                                            DateTime.tryParse(snapshot.data!);
+                                        final formattedDate = completedAt !=
+                                                null
+                                            ? '${completedAt.year}-${completedAt.month.toString().padLeft(2, '0')}-${completedAt.day.toString().padLeft(2, '0')} '
+                                                '${completedAt.hour.toString().padLeft(2, '0')}:${completedAt.minute.toString().padLeft(2, '0')}'
+                                            : 'Not Found';
+                                        return Text(
+                                          'Completed: $formattedDate',
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            fontFamily: 'Battambang',
+                                            color: Colors.white70,
+                                          ),
+                                        );
+                                      } else {
+                                        return const Text(
+                                          'Completed: Not Found',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontFamily: 'Battambang',
+                                            color: Colors.white54,
+                                          ),
+                                        );
+                                      }
+                                    },
+                                  ),
+                                ],
+                              ),
+                              trailing: Container(
+                                width: 32,
+                                height: 32,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.white.withOpacity(0.1),
+                                ),
+                                child: const Icon(
+                                  Icons.arrow_forward_ios,
+                                  color: Colors.white54,
+                                  size: 16,
+                                ),
                               ),
                             ),
-                            Icon(
-                              Icons.arrow_forward,
-                              color: Colors.white,
-                              size: 28,
-                            ),
-                          ],
-                        ),
-                      ),
-                      SizedBox(height: 8),
-                    ],
+                          ),
+                        );
+                      },
+                    ),
                   ),
-                  const SizedBox(height: 8),
-                ]),
-              ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 40.0),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 12),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(30),
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.purple.withOpacity(0.7),
+                          Colors.purple.withOpacity(0.5),
+                        ],
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.purple.withOpacity(0.5),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(builder: (_) => const HomeScreen()),
+                        );
+                      },
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            "Return to Home",
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontFamily: 'TheWitcher',
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Icon(
+                            Icons.home,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),

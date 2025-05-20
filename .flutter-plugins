@@ -1,4 +1,7 @@
 # This is a generated file; do not edit or check into version control.
+app_links=/Users/mrinmoyhalder/.pub-cache/hosted/pub.dev/app_links-6.4.0/
+app_links_linux=/Users/mrinmoyhalder/.pub-cache/hosted/pub.dev/app_links_linux-1.0.3/
+app_links_web=/Users/mrinmoyhalder/.pub-cache/hosted/pub.dev/app_links_web-1.0.4/
 audio_service=/Users/mrinmoyhalder/.pub-cache/hosted/pub.dev/audio_service-0.18.18/
 audio_service_web=/Users/mrinmoyhalder/.pub-cache/hosted/pub.dev/audio_service_web-0.1.4/
 audio_session=/Users/mrinmoyhalder/.pub-cache/hosted/pub.dev/audio_session-0.2.1/
@@ -12,6 +15,7 @@ firebase_analytics=/Users/mrinmoyhalder/.pub-cache/hosted/pub.dev/firebase_analy
 firebase_analytics_web=/Users/mrinmoyhalder/.pub-cache/hosted/pub.dev/firebase_analytics_web-0.5.10+11/
 firebase_core=/Users/mrinmoyhalder/.pub-cache/hosted/pub.dev/firebase_core-3.13.0/
 firebase_core_web=/Users/mrinmoyhalder/.pub-cache/hosted/pub.dev/firebase_core_web-2.22.0/
+gtk=/Users/mrinmoyhalder/.pub-cache/hosted/pub.dev/gtk-2.1.0/
 just_audio=/Users/mrinmoyhalder/.pub-cache/hosted/pub.dev/just_audio-0.10.1/
 just_audio_web=/Users/mrinmoyhalder/.pub-cache/hosted/pub.dev/just_audio_web-0.4.15/
 path_provider=/Users/mrinmoyhalder/.pub-cache/hosted/pub.dev/path_provider-2.1.5/

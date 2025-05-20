@@ -421,6 +421,48 @@
 			remoteGlobalIDString = 071549DBDD4BFC0BD7D2715539015DC2;
 			remoteInfo = "sqflite_darwin-sqflite_darwin_privacy";
 		};
+		144E03702DDC8FD4001B9A7B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 14C1309E2DA0D5E6000F081E /* Pods.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 79FEBE6D236B0380466DE57B7E3ECE2E;
+			remoteInfo = app_links;
+		};
+		144E03722DDC8FD4001B9A7B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 14C1309E2DA0D5E6000F081E /* Pods.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = FB6636041994D9612D4143A77A726F3B;
+			remoteInfo = "app_links-app_links_ios_privacy";
+		};
+		144E03972DDC8FD4001B9A7B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 144E6BA02D9A78D2002DF943 /* Pods.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 79FEBE6D236B0380466DE57B7E3ECE2E;
+			remoteInfo = app_links;
+		};
+		144E03992DDC8FD4001B9A7B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 144E6BA02D9A78D2002DF943 /* Pods.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = FB6636041994D9612D4143A77A726F3B;
+			remoteInfo = "app_links-app_links_ios_privacy";
+		};
+		144E03BE2DDC8FD4001B9A7B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 147B76292DBA6AD500006787 /* Pods.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 79FEBE6D236B0380466DE57B7E3ECE2E;
+			remoteInfo = app_links;
+		};
+		144E03C02DDC8FD4001B9A7B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 147B76292DBA6AD500006787 /* Pods.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = FB6636041994D9612D4143A77A726F3B;
+			remoteInfo = "app_links-app_links_ios_privacy";
+		};
 		144E6BCC2D9A78D2002DF943 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 144E6BA02D9A78D2002DF943 /* Pods.xcodeproj */;
@@ -708,6 +750,8 @@
 		144E6BA12D9A78D2002DF943 /* Products */ = {
 			isa = PBXGroup;
 			children = (
+				144E03982DDC8FD4001B9A7B /* app_links.framework */,
+				144E039A2DDC8FD4001B9A7B /* app_links_ios_privacy.bundle */,
 				141E37902DC0976200C818BF /* audio_service.framework */,
 				141E37922DC0976200C818BF /* audio_session.framework */,
 				144E6BCD2D9A78D2002DF943 /* audioplayers_darwin.framework */,
@@ -744,6 +788,8 @@
 		147B762A2DBA6AD500006787 /* Products */ = {
 			isa = PBXGroup;
 			children = (
+				144E03BF2DDC8FD4001B9A7B /* app_links.framework */,
+				144E03C12DDC8FD4001B9A7B /* app_links_ios_privacy.bundle */,
 				141E37AA2DC0976200C818BF /* audio_service.framework */,
 				141E37AC2DC0976200C818BF /* audio_session.framework */,
 				147B76442DBA6AD500006787 /* audioplayers_darwin.framework */,
@@ -780,6 +826,8 @@
 		14C1309F2DA0D5E6000F081E /* Products */ = {
 			isa = PBXGroup;
 			children = (
+				144E03712DDC8FD4001B9A7B /* app_links.framework */,
+				144E03732DDC8FD4001B9A7B /* app_links_ios_privacy.bundle */,
 				141E37762DC0976200C818BF /* audio_service.framework */,
 				141E37782DC0976200C818BF /* audio_session.framework */,
 				14C130CB2DA0D5E6000F081E /* audioplayers_darwin.framework */,
@@ -1398,6 +1446,48 @@
 			fileType = wrapper.cfbundle;
 			path = sqflite_darwin_privacy.bundle;
 			remoteRef = 141E37B12DC0976200C818BF /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		144E03712DDC8FD4001B9A7B /* app_links.framework */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.framework;
+			path = app_links.framework;
+			remoteRef = 144E03702DDC8FD4001B9A7B /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		144E03732DDC8FD4001B9A7B /* app_links_ios_privacy.bundle */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.cfbundle;
+			path = app_links_ios_privacy.bundle;
+			remoteRef = 144E03722DDC8FD4001B9A7B /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		144E03982DDC8FD4001B9A7B /* app_links.framework */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.framework;
+			path = app_links.framework;
+			remoteRef = 144E03972DDC8FD4001B9A7B /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		144E039A2DDC8FD4001B9A7B /* app_links_ios_privacy.bundle */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.cfbundle;
+			path = app_links_ios_privacy.bundle;
+			remoteRef = 144E03992DDC8FD4001B9A7B /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		144E03BF2DDC8FD4001B9A7B /* app_links.framework */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.framework;
+			path = app_links.framework;
+			remoteRef = 144E03BE2DDC8FD4001B9A7B /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		144E03C12DDC8FD4001B9A7B /* app_links_ios_privacy.bundle */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.cfbundle;
+			path = app_links_ios_privacy.bundle;
+			remoteRef = 144E03C02DDC8FD4001B9A7B /* PBXContainerItemProxy */;
 			sourceTree = BUILT_PRODUCTS_DIR;
 		};
 		144E6BCD2D9A78D2002DF943 /* audioplayers_darwin.framework */ = {

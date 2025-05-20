@@ -130,35 +130,6 @@ class _AuthScreenState extends State<AuthScreen> {
                         'assets/images/button.svg',
                       ),
                     ),
-                  // const SizedBox(height: 16),
-                  // ElevatedButton(
-                  //   onPressed: () async {
-                  //     setState(() => _isAuthLoading = true);
-                  //     final prefs = await SharedPreferences.getInstance();
-                  //     await prefs.setString(
-                  //       'token',
-                  //       '001211.4840cf42',
-                  //     );
-                  //     setState(() => _isAuthLoading = false);
-                  //     Navigator.pushReplacement(
-                  //       context,
-                  //       MaterialPageRoute(
-                  //           builder: (context) => const HomeScreen()),
-                  //     );
-                  //   },
-                  //   child: const Text('Dummy Sign In'),
-                  //   style: ElevatedButton.styleFrom(
-                  //     backgroundColor: Colors.white,
-                  //     foregroundColor: Colors.black,
-                  //     padding: const EdgeInsets.symmetric(
-                  //       horizontal: 32,
-                  //       vertical: 16,
-                  //     ),
-                  //     shape: RoundedRectangleBorder(
-                  //       borderRadius: BorderRadius.circular(4),
-                  //     ),
-                  //   ),
-                  // ),
                   if (error.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.all(16.0),
