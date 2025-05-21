@@ -185,22 +185,24 @@ class _PlayerScreenState extends State<PlayerScreen> {
   // Function to navigate to the completion screen
   void _navigateToCompletionScreen() {
     final lastAudio = widget.audioData.last;
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => CompletionScreen(
-          storyName: lastAudio['challengeName'],
-          backgroundImage: lastAudio['image'],
-          storyId: lastAudio['id'],
-          maxheartRate: _maxHR ?? 0.0,
-          zoneId: lastAudio['zoneId'],
-          timestampcount: totalNudges,
-          audioData: widget.audioData,
-          challengeCount: widget.challengeCount,
-          playingChallengeCount: widget.playingChallengeCount,
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => CompletionScreen(
+            storyName: lastAudio['challengeName'],
+            backgroundImage: lastAudio['image'],
+            storyId: lastAudio['id'],
+            maxheartRate: _maxHR ?? 0.0,
+            zoneId: lastAudio['zoneId'],
+            timestampcount: totalNudges,
+            audioData: widget.audioData,
+            challengeCount: widget.challengeCount,
+            playingChallengeCount: widget.playingChallengeCount,
+          ),
         ),
-      ),
-    );
+      );
+    });
   }
 
   // Function to initialize timestamps main method

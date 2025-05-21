@@ -57,12 +57,17 @@ class _AuthScreenState extends State<AuthScreen> {
       final response = await http.post(
         Uri.parse('https://authcheck.co/auth'),
         headers: {'Accept': '*/*', 'Content-Type': 'application/json'},
-        body: json.encode({'token': userIdentifier}),
+        body: json.encode({
+          'token': userIdentifier,
+          'name': credential.givenName,
+          'email': credential.email,
+        }),
       );
 
       if (response.statusCode == 201) {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('token', userIdentifier);
+        debugPrint(credential.toString());
 
         Navigator.pushReplacement(
           context,
@@ -87,6 +92,7 @@ class _AuthScreenState extends State<AuthScreen> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       home: Scaffold(
         body: Stack(
           children: [

@@ -66,11 +66,6 @@ class _CompletionScreenState extends State<CompletionScreen>
     _nudgeAnimation =
         Tween<double>(begin: 0.0, end: 0.0).animate(_animationController);
     _fetchDataAndAnimate();
-
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const HomeScreen()),
-    );
   }
 
   Future<void> _fetchDataAndAnimate() async {
@@ -491,6 +486,7 @@ class _CompletionScreenState extends State<CompletionScreen>
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       home: Scaffold(
         body: Stack(
           fit: StackFit.expand,

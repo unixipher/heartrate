@@ -558,26 +558,26 @@ class _ProfileFormState extends State<ProfileForm> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 24),
-                    TextField(
-                      controller: _nameController,
-                      decoration: InputDecoration(
-                        labelText: 'Name',
-                        labelStyle: const TextStyle(
-                            fontFamily: 'Battambang', color: Colors.white70),
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: const BorderSide(color: Colors.white70),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: const BorderSide(color: Colors.white),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        filled: true,
-                        fillColor: const Color(0xFF1E1F2D),
-                      ),
-                      style: const TextStyle(color: Colors.white),
-                    ),
+                    // const SizedBox(height: 24),
+                    // TextField(
+                    //   controller: _nameController,
+                    //   decoration: InputDecoration(
+                    //     labelText: 'Name',
+                    //     labelStyle: const TextStyle(
+                    //         fontFamily: 'Battambang', color: Colors.white70),
+                    //     enabledBorder: OutlineInputBorder(
+                    //       borderSide: const BorderSide(color: Colors.white70),
+                    //       borderRadius: BorderRadius.circular(10),
+                    //     ),
+                    //     focusedBorder: OutlineInputBorder(
+                    //       borderSide: const BorderSide(color: Colors.white),
+                    //       borderRadius: BorderRadius.circular(10),
+                    //     ),
+                    //     filled: true,
+                    //     fillColor: const Color(0xFF1E1F2D),
+                    //   ),
+                    //   style: const TextStyle(color: Colors.white),
+                    // ),
                     const SizedBox(height: 16),
                     TextField(
                       controller: _ageController,
