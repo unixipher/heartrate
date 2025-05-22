@@ -6,7 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:testingheartrate/screens/challenge/challenge_screen.dart';
 import 'package:testingheartrate/screens/history/history_screen.dart';
-import 'package:testingheartrate/screens/splash/splash_screen.dart';
+import 'package:testingheartrate/screens/profile/profile_page.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -356,15 +356,13 @@ class _HomeScreenState extends State<HomeScreen> {
               MaterialPageRoute(builder: (context) => HistoryScreen()),
             );
           } else if (index == 2) {
-            await analytics.logEvent(
-              name: 'logout_button_clicked',
-              parameters: {},
-            );
-            final prefs = await SharedPreferences.getInstance();
-            await prefs.remove('token');
-            Navigator.pushReplacement(
+            // await analytics.logEvent(
+            //   name: 'logout_button_clicked',
+            //   parameters: {},
+            // );
+            Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const SplashScreen()),
+              MaterialPageRoute(builder: (context) => ProfilePage()),
             );
           }
         },
@@ -378,8 +376,8 @@ class _HomeScreenState extends State<HomeScreen> {
             label: 'History',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.logout),
-            label: 'Logout',
+            icon: Icon(Icons.person_rounded),
+            label: 'Profile',
           ),
         ],
       ),
