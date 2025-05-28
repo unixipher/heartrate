@@ -101,7 +101,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _profileItem('Name', name),
-                  _profileItem('Email', email),
+                  // _profileItem('Email', email),
                   _profileItem('Age', age),
                   _profileItem('Max HR', maxHr),
                   _profileItem('Gender', gender),
