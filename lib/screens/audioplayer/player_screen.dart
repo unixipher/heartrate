@@ -31,8 +31,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Duration _currentPosition = Duration.zero;
   Duration _totalDuration = Duration.zero;
 
+  int? _currentPlaylistIndex;
+  late StreamSubscription<int?> _currentIndexSubscription;
+
   Duration get _globalPosition {
-    return Duration(minutes: _currentAudioIndex * 5) + _currentPosition;
+    int completedTracks = _currentAudioIndex;
+    return Duration(minutes: completedTracks * 5) + _currentPosition;
   }
 
   Duration get _globalTotalDuration {
@@ -108,22 +112,27 @@ class _PlayerScreenState extends State<PlayerScreen> {
   // Function to initialize the player
   Future<void> _initializePlayer() async {
     try {
-      debugPrint('=== AUDIO DATA DEBUG ===');
+      debugPrint('=== INITIALIZING PLAYLIST ===');
       for (int i = 0; i < widget.audioData.length; i++) {
         final audio = widget.audioData[i];
         debugPrint(
             'Audio $i: ${audio['challengeName']} - URL: ${audio['audioUrl']}');
       }
-      debugPrint('=== END AUDIO DATA DEBUG ===');
+
       await _fetchMaxHR();
       _calculatePacingTimestamps();
       _pacingTriggered = List<bool>.filled(_pacingAudioFiles.length, false);
-      _initializeTimestamps();
+
+      // Initialize playlist instead of single audio
+      await _audioManager.initializePlaylist(widget.audioData);
       _initializeAudioListeners();
-      await _playCurrentAudio();
+
+      // Start playing from first track
+      await _audioManager.playFromIndex(0);
       await _audioManager.setVolume(0.4);
-      debugPrint(
-          'Main audio started: ${widget.audioData[_currentAudioIndex]['audioUrl']} at ${_formatDuration(Duration.zero)}');
+
+      _initializeTimestamps();
+      debugPrint('Playlist initialized and started');
     } catch (e) {
       debugPrint('Initialization error: $e');
       _showCenterNotification('Initialization failed');
@@ -197,23 +206,47 @@ class _PlayerScreenState extends State<PlayerScreen> {
       }
     });
 
+    // Listen to current index changes for automatic track switching
+    _currentIndexSubscription =
+        _audioManager.currentIndexStream.listen((index) {
+      if (index != null && index != _currentPlaylistIndex) {
+        setState(() {
+          _currentAudioIndex = index;
+          _currentPlaylistIndex = index;
+        });
+        _onTrackChanged();
+      }
+    });
+
     _playerStateSubscription = _audioManager.playerStateStream.listen((state) {
       debugPrint('Player state: ${state.processingState}');
-      if (state.processingState == ProcessingState.completed &&
-          _audioManager.isPlaying) {
-        debugPrint('Audio completed');
-        _handleAudioCompletion();
+
+      // Handle automatic progression to next track
+      if (state.processingState == ProcessingState.completed) {
+        if (_currentAudioIndex + 1 < widget.audioData.length) {
+          // The playlist will automatically move to next track
+          debugPrint('Moving to next track automatically');
+        } else {
+          // End of playlist reached
+          _navigateToCompletionScreen();
+        }
       }
       setState(() {});
     });
   }
 
+  void _onTrackChanged() {
+    debugPrint('Track changed to index: $_currentAudioIndex');
+    _initializeTimestamps();
+    _pacingTriggered = List.filled(_pacingAudioFiles.length, false);
+    _currentAudioStarted = false;
+    totalNudges = 0; // Reset or keep cumulative based on your needs
+  }
+
   Future<void> _handleAudioCompletion() async {
-    if (_currentAudioIndex + 1 < widget.audioData.length) {
-      _currentAudioIndex++;
-      await _playCurrentAudio();
-    } else {
-      _audioManager.stop();
+    // With playlist, this is handled automatically by just_audio
+    // Manual navigation only needed at the very end
+    if (_currentAudioIndex + 1 >= widget.audioData.length) {
       _navigateToCompletionScreen();
     }
   }
@@ -318,7 +351,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
     return 'A';
   }
-
 
   // Function to fetch maximum heart rate
   Future<void> _fetchMaxHR() async {
@@ -530,6 +562,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _positionSubscription.cancel();
     _durationSubscription.cancel();
     _playerStateSubscription.cancel();
+    _currentIndexSubscription.cancel();
     super.dispose();
   }
 

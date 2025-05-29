@@ -30,6 +30,13 @@
 <string>This app uses the microphone to enable audio playback features and ensure a better audio experience.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>UIRequiresPersistentWiFi</key>
+    <true/>
+	  <key>NSAppTransportSecurity</key>
+  <dict>
+    <key>NSAllowsArbitraryLoads</key>
+    <true/>
+  </dict>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>
