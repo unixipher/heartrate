@@ -136,6 +136,34 @@ class _AuthScreenState extends State<AuthScreen> {
                         'assets/images/button.svg',
                       ),
                     ),
+                  // const SizedBox(height: 16),
+                  // ElevatedButton(
+                  //   onPressed: () async {
+                  //     setState(() {
+                  //       _isAuthLoading = true;
+                  //       error = '';
+                  //     });
+                  //     try {
+                  //       final prefs = await SharedPreferences.getInstance();
+                  //       await prefs.setString('token', '001211.4840cf4265544dd58e4f17b364885e5a.0617');
+                  //       Navigator.pushReplacement(
+                  //         context,
+                  //         MaterialPageRoute(
+                  //             builder: (context) => const HomeScreen()),
+                  //       );
+                  //     } catch (e) {
+                  //       setState(() =>
+                  //           error = "Failed to set token: ${e.toString()}");
+                  //     } finally {
+                  //       setState(() => _isAuthLoading = false);
+                  //     }
+                  //   },
+                  //   child: const Text('Continue as Guest'),
+                  //   style: ElevatedButton.styleFrom(
+                  //     backgroundColor: Colors.white,
+                  //     foregroundColor: Colors.black,
+                  //   ),
+                  // ),
                   if (error.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.all(16.0),
