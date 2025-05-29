@@ -159,6 +159,12 @@ class _HomeScreenState extends State<HomeScreen> {
         if (user['age'] == null) {
           _showBottomSheet(user);
         }
+
+        if (user['maxhr'] != null) {
+          final maxHr = user['maxhr'];
+          await prefs.setInt('maxhr', maxHr.toInt());
+          debugPrint('MaxHR stored: $maxHr');
+        }
       } else {
         debugPrint('Failed to fetch user data: ${response.statusCode}');
       }

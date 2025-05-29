@@ -36,7 +36,7 @@ class CompletionScreen extends StatefulWidget {
 }
 
 class _CompletionScreenState extends State<CompletionScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late ConfettiController _confettiController;
   late AnimationController _animationController;
   late Animation<double> _heartRateAnimation;
@@ -48,12 +48,17 @@ class _CompletionScreenState extends State<CompletionScreen>
   double _percentageInsideZone = 0.0;
   int _nudgeCount = 0;
 
+  bool _isAppActive = true;
+  bool _isLoading = true;
+  bool _hasFetchedData = false;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _confettiController =
         ConfettiController(duration: const Duration(seconds: 10));
-    _confettiController.play();
+    // _confettiController.play();
     _nudgeCount = widget.timestampcount;
     _animationController = AnimationController(
       duration: const Duration(seconds: 3),
@@ -65,15 +70,107 @@ class _CompletionScreenState extends State<CompletionScreen>
         Tween<double>(begin: 0.0, end: 0.0).animate(_animationController);
     _nudgeAnimation =
         Tween<double>(begin: 0.0, end: 0.0).animate(_animationController);
-    _fetchDataAndAnimate();
+    if (_isAppActive) {
+      _fetchDataAndAnimate();
+    }
+    _startChallenge();
+    _updateChallengeStatus();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    setState(() {
+      _isAppActive = state == AppLifecycleState.resumed;
+    });
+
+    // Handle app coming to foreground
+    if (_isAppActive) {
+      if (!_hasFetchedData) {
+        // Show loader and fetch data if not already done
+        setState(() => _isLoading = true);
+        _fetchDataAndAnimate();
+      } else {
+        // Just show content if data already exists
+        setState(() => _isLoading = false);
+        if (!_animationController.isAnimating &&
+            !_animationController.isCompleted) {
+          _animationController.forward();
+        }
+      }
+      _confettiController.play();
+    } else {
+      // App went to background
+      _confettiController.stop();
+    }
+  }
+
+  Future<void> _updateChallengeStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token') ?? '';
+    final List<int> challengeIds =
+        (widget.audioData as List).map((item) => item['id'] as int).toList();
+
+    try {
+      final response = await http.post(
+        Uri.parse('https://authcheck.co/updatechallenge'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'challengeId': challengeIds,
+          'status': true,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        debugPrint('Challenge updated successfully: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('Update challenge error: $e');
+    }
+  }
+
+  Future<void> _startChallenge() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token') ?? '';
+
+    try {
+      final List<int> challengeIds =
+          (widget.audioData as List).map((item) => item['id'] as int).toList();
+
+      final response = await http.post(
+        Uri.parse('https://authcheck.co/startchallenge'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'challengeId': challengeIds,
+          'zoneId': widget.zoneId,
+        }),
+      );
+
+      debugPrint('Start challenge IDs: $challengeIds');
+
+      if (response.statusCode == 200) {
+        debugPrint('Challenge started successfully: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('Start challenge error: $e');
+    }
   }
 
   Future<void> _fetchDataAndAnimate() async {
     try {
       final analysisData = await analyseHeartRate();
+      if (!_isAppActive) return;
       setState(() {
         _averageHeartRate = analysisData['averageHeartRate'] ?? 0.0;
         _percentageInsideZone = analysisData['percentageInsideZone'] ?? 0.0;
+        _hasFetchedData = true;
       });
       final maxHr = widget.maxheartRate ?? 200.0;
       final hrProgress = _averageHeartRate / maxHr;
@@ -95,13 +192,18 @@ class _CompletionScreenState extends State<CompletionScreen>
                   parent: _animationController, curve: Curves.bounceOut));
 
       _animationController.forward();
+      setState(() => _isLoading = false);
     } catch (e) {
       debugPrint('Error fetching data: $e');
+      if (_isAppActive) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _confettiController.dispose();
     _animationController.dispose();
     super.dispose();
@@ -503,25 +605,36 @@ class _CompletionScreenState extends State<CompletionScreen>
                 ),
               ],
             ),
-            Align(
-              alignment: Alignment.topCenter,
-              child: ConfettiWidget(
-                confettiController: _confettiController,
-                blastDirection: pi / 2,
-                maxBlastForce: 5,
-                minBlastForce: 2,
-                emissionFrequency: 0.05,
-                numberOfParticles: 10,
-                gravity: 0.1,
-                colors: const [
-                  Colors.amber,
-                  Colors.red,
-                  Colors.green,
-                  Colors.blue,
-                  Colors.purple,
-                ],
+            if (_isAppActive)
+              Align(
+                alignment: Alignment.topCenter,
+                child: ConfettiWidget(
+                  confettiController: _confettiController,
+                  blastDirection: pi / 2,
+                  maxBlastForce: 5,
+                  minBlastForce: 2,
+                  emissionFrequency: 0.05,
+                  numberOfParticles: 10,
+                  gravity: 0.1,
+                  colors: const [
+                    Colors.amber,
+                    Colors.red,
+                    Colors.green,
+                    Colors.blue,
+                    Colors.purple,
+                  ],
+                ),
               ),
-            ),
+            if (_isLoading && _isAppActive)
+              Container(
+                color: Colors.black.withOpacity(0.7),
+                child: const Center(
+                  child: CircularProgressIndicator(
+                    color: Colors.purple,
+                    strokeWidth: 6,
+                  ),
+                ),
+              ),
             Column(
               children: [
                 Padding(
@@ -661,49 +774,6 @@ class _CompletionScreenState extends State<CompletionScreen>
                                         ),
                                       ),
                                     ],
-                                  ),
-                                  const SizedBox(height: 4),
-                                  FutureBuilder<String?>(
-                                    future: fetchCompletedAt(),
-                                    builder: (context, snapshot) {
-                                      if (snapshot.connectionState ==
-                                          ConnectionState.waiting) {
-                                        return const SizedBox(
-                                          width: 18,
-                                          height: 18,
-                                          child: CircularProgressIndicator(
-                                            color: Colors.white,
-                                            strokeWidth: 2,
-                                          ),
-                                        );
-                                      } else if (snapshot.hasData &&
-                                          snapshot.data != null) {
-                                        final completedAt =
-                                            DateTime.tryParse(snapshot.data!);
-                                        final formattedDate = completedAt !=
-                                                null
-                                            ? '${completedAt.year}-${completedAt.month.toString().padLeft(2, '0')}-${completedAt.day.toString().padLeft(2, '0')} '
-                                                '${completedAt.hour.toString().padLeft(2, '0')}:${completedAt.minute.toString().padLeft(2, '0')}'
-                                            : 'Not Found';
-                                        return Text(
-                                          'Completed: $formattedDate',
-                                          style: const TextStyle(
-                                            fontSize: 14,
-                                            fontFamily: 'Battambang',
-                                            color: Colors.white70,
-                                          ),
-                                        );
-                                      } else {
-                                        return const Text(
-                                          'Completed: Not Found',
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            fontFamily: 'Battambang',
-                                            color: Colors.white54,
-                                          ),
-                                        );
-                                      }
-                                    },
                                   ),
                                 ],
                               ),

@@ -308,6 +308,12 @@
       "languageVersion": "3.0"
     },
     {
+      "name": "just_audio_background",
+      "rootUri": "file:///Users/mrinmoyhalder/.pub-cache/hosted/pub.dev/just_audio_background-0.0.1-beta.17",
+      "packageUri": "lib/",
+      "languageVersion": "3.6"
+    },
+    {
       "name": "just_audio_cache",
       "rootUri": "file:///Users/mrinmoyhalder/.pub-cache/hosted/pub.dev/just_audio_cache-0.1.2",
       "packageUri": "lib/",
@@ -746,7 +752,7 @@
       "languageVersion": "3.5"
     }
   ],
-  "generated": "2025-05-29T02:01:30.179520Z",
+  "generated": "2025-05-29T07:06:45.482332Z",
   "generator": "pub",
   "generatorVersion": "3.7.2",
   "flutterRoot": "file:///Users/mrinmoyhalder/development/flutter",

@@ -1,12 +1,10 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:testingheartrate/services/audio_manager.dart';
-import 'package:testingheartrate/services/socket_service.dart';
 import 'package:testingheartrate/screens/completion/completion_screen.dart';
-import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:just_audio/just_audio.dart';
 
 class PlayerScreen extends StatefulWidget {
   final List<Map<String, dynamic>> audioData;
@@ -26,13 +24,13 @@ class PlayerScreen extends StatefulWidget {
 
 class _PlayerScreenState extends State<PlayerScreen> {
   final AudioManager _audioManager = AudioManager();
-  late final SocketService _socketService;
   bool _currentAudioStarted = false;
   int totalNudges = 0;
   final FirebaseAnalytics analytics = FirebaseAnalytics.instance;
 
   Duration _currentPosition = Duration.zero;
   Duration _totalDuration = Duration.zero;
+
   Duration get _globalPosition {
     return Duration(minutes: _currentAudioIndex * 5) + _currentPosition;
   }
@@ -52,6 +50,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
   int _currentAudioIndex = 0;
   int _currentPacingSegment = -1;
   List<Duration> _pacingSegmentEnds = [];
+
+  // Stream subscriptions
+  late StreamSubscription<Duration> _positionSubscription;
+  late StreamSubscription<Duration?> _durationSubscription;
+  late StreamSubscription<PlayerState> _playerStateSubscription;
 
   // --- Notification state ---
   String? _centerNotification;
@@ -104,34 +107,59 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   // Function to initialize the player
   Future<void> _initializePlayer() async {
-    await _fetchMaxHR();
-    _calculatePacingTimestamps();
-    _pacingTriggered = List<bool>.filled(_pacingAudioFiles.length, false);
-    _initializeTimestamps();
-    _initializeSocketService();
-    _initializeAudioListeners();
-    _playCurrentAudio();
-    _audioManager.audioPlayer.setVolume(0.4);
-    debugPrint(
-        'Main audio started: ${widget.audioData[_currentAudioIndex]['audioUrl']} at ${_formatDuration(Duration.zero)}');
+    try {
+      debugPrint('=== AUDIO DATA DEBUG ===');
+      for (int i = 0; i < widget.audioData.length; i++) {
+        final audio = widget.audioData[i];
+        debugPrint(
+            'Audio $i: ${audio['challengeName']} - URL: ${audio['audioUrl']}');
+      }
+      debugPrint('=== END AUDIO DATA DEBUG ===');
+      await _fetchMaxHR();
+      _calculatePacingTimestamps();
+      _pacingTriggered = List<bool>.filled(_pacingAudioFiles.length, false);
+      _initializeTimestamps();
+      _initializeAudioListeners();
+      await _playCurrentAudio();
+      await _audioManager.setVolume(0.4);
+      debugPrint(
+          'Main audio started: ${widget.audioData[_currentAudioIndex]['audioUrl']} at ${_formatDuration(Duration.zero)}');
+    } catch (e) {
+      debugPrint('Initialization error: $e');
+      _showCenterNotification('Initialization failed');
+      Future.delayed(const Duration(seconds: 2), _handleAudioCompletion);
+    }
   }
 
-  // Function to play the current audio
-  void _playCurrentAudio() async {
+// Function to play the current audio
+  Future<void> _playCurrentAudio() async {
+    if (_currentAudioIndex >= widget.audioData.length) {
+      _navigateToCompletionScreen();
+      return;
+    }
+
     setState(() => _currentAudioStarted = false);
-    if (_currentAudioIndex < widget.audioData.length) {
-      try {
-        await _audioManager.stop();
-        _audioManager.stopPacing();
-        _initializeTimestamps();
-        final currentAudio = widget.audioData[_currentAudioIndex];
-        await _audioManager.play(currentAudio['audioUrl']);
-        await _startChallenge();
-        debugPrint('Now playing: ${currentAudio['challengeName']}');
-      } catch (e) {
-        debugPrint('Error playing audio: $e');
-        _handleAudioCompletion();
-      }
+    final currentAudio = widget.audioData[_currentAudioIndex];
+    final audioUrl = currentAudio['audioUrl']?.toString() ?? '';
+
+    try {
+      // Clear previous state
+      await _audioManager.stop();
+      await _audioManager.stopPacing();
+
+      // Reset tracking states
+      _initializeTimestamps();
+      _pacingTriggered = List.filled(_pacingAudioFiles.length, false);
+      _currentAudioStarted = false;
+
+      // Play new audio
+      await _audioManager.play(currentAudio['audioUrl']);
+      // await _startChallenge();
+      debugPrint('Now playing: ${currentAudio['challengeName']}');
+    } catch (e) {
+      debugPrint('Error playing audio: $e');
+      // Handle error then proceed to next
+      Future.delayed(Duration(seconds: 2), _handleAudioCompletion);
     }
   }
 
@@ -151,31 +179,39 @@ class _PlayerScreenState extends State<PlayerScreen> {
     debugPrint('Pacing timestamps: $_pacingTimestamps');
   }
 
-  // Function to initialize audio listeners
+// Function to initialize audio listeners
   void _initializeAudioListeners() {
-    _audioManager.audioPlayer.onDurationChanged
-        .listen((d) => setState(() => _totalDuration = d));
-    _audioManager.audioPlayer.onPositionChanged.listen((position) {
+    _positionSubscription = _audioManager.positionStream.listen((position) {
       if (position > Duration.zero) {
-        setState(() => _currentAudioStarted = true);
+        setState(() {
+          _currentPosition = position;
+          _currentAudioStarted = true;
+        });
+        _handlePositionUpdate(position);
       }
-      if (_currentPosition == Duration.zero && position > Duration.zero) {
-        _checkForPacingAudio(position);
-      }
-      _handlePositionUpdate(position);
     });
-    _audioManager.audioPlayer.onPlayerComplete.listen((event) {
-      _handleAudioCompletion();
+
+    _durationSubscription = _audioManager.durationStream.listen((duration) {
+      if (duration != null) {
+        setState(() => _totalDuration = duration);
+      }
+    });
+
+    _playerStateSubscription = _audioManager.playerStateStream.listen((state) {
+      debugPrint('Player state: ${state.processingState}');
+      if (state.processingState == ProcessingState.completed &&
+          _audioManager.isPlaying) {
+        debugPrint('Audio completed');
+        _handleAudioCompletion();
+      }
+      setState(() {});
     });
   }
 
-  // Function to handle audio completion
   Future<void> _handleAudioCompletion() async {
-    await _updateChallengeStatus();
-    _currentAudioIndex++;
-    if (_currentAudioIndex < widget.audioData.length) {
-      setState(() {});
-      _playCurrentAudio();
+    if (_currentAudioIndex + 1 < widget.audioData.length) {
+      _currentAudioIndex++;
+      await _playCurrentAudio();
     } else {
       _audioManager.stop();
       _navigateToCompletionScreen();
@@ -253,16 +289,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
     debugPrint('Timestamps: $_timestamps');
   }
 
-  // Function to initialize socket service
-  void _initializeSocketService() {
-    _socketService = SocketService(
-      onLoadingChanged: (isLoading) => debugPrint('Loading: $isLoading'),
-      onErrorChanged: (error) => debugPrint('Error: $error'),
-      onHeartRateChanged: _handleHeartRateUpdate,
-    );
-    _socketService.fetechtoken();
-  }
-
   // Function to determine overlay type based on heart rate percentage and zone ID
   String _determineOverlayType(double hrPercentage, int zoneId) {
     if (zoneId == 1) {
@@ -293,106 +319,37 @@ class _PlayerScreenState extends State<PlayerScreen> {
     return 'A';
   }
 
-  // Function to handle heart rate updates
-  void _handleHeartRateUpdate(double? heartRate) async {
-    if (heartRate == null) return;
-
-    if (!_hasMaxHR) await _fetchMaxHR();
-
-    setState(() => _currentHR = heartRate.toInt());
-
-    if (_maxHR == null) return;
-
-    final currentHRPercent = (_currentHR! / _maxHR!) * 100;
-    final currentAudio = widget.audioData[_currentAudioIndex];
-    final int zoneId = currentAudio['zoneId'];
-
-    int lowerBound = 0, upperBound = 0;
-    switch (zoneId) {
-      case 1:
-        lowerBound = 40;
-        upperBound = 70;
-        break;
-      case 2:
-        lowerBound = 50;
-        upperBound = 80;
-        break;
-      case 3:
-        lowerBound = 60;
-        upperBound = 90;
-        break;
-    }
-
-    if (currentHRPercent < lowerBound || currentHRPercent > upperBound) {
-      if (_audioManager.isPlaying) {
-        Future.delayed(const Duration(seconds: 10), () {
-          if (currentHRPercent < lowerBound || currentHRPercent > upperBound) {
-            _audioManager.pause();
-            _showCenterNotification('Music paused');
-            debugPrint('Music paused due to HR out of range for 10 seconds');
-          }
-        });
-      }
-    } else {
-      if (!_audioManager.isPlaying) {
-        _audioManager.resume();
-        // _showCenterNotification('Music resumed');
-        debugPrint('Music resumed');
-      }
-    }
-
-    if (currentHRPercent >= 50 && currentHRPercent <= 80) {
-      _checkForOverlayTrigger(_currentPosition);
-    }
-  }
 
   // Function to fetch maximum heart rate
   Future<void> _fetchMaxHR() async {
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token') ?? '';
+    final maxHR = prefs.getInt('maxhr')?.toDouble();
 
-    try {
-      final response = await http.get(
-        Uri.parse('https://authcheck.co/getuser'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Accept': '*/*',
-          'User-Agent': 'Thunder Client (https://www.thunderclient.com)',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        debugPrint('Max HR: $_maxHR');
-        setState(() {
-          _maxHR = data['user']['maxhr']?.toDouble();
-        });
-        int zoneId = widget.audioData[_currentAudioIndex]['zoneId'];
-        if (_maxHR != null) {
-          double lowerbound = 0.0;
-          if (zoneId == 1) {
-            lowerbound = (72 + (_maxHR! - 72) * 0.5);
-          }
-          if (zoneId == 2) {
-            lowerbound = (72 + (_maxHR! - 72) * 0.6);
-          }
-          if (zoneId == 3) {
-            lowerbound = (72 + (_maxHR! - 72) * 0.7);
-          }
-          int roundedLower = roundToNearest10(lowerbound);
-          _pacingAudioFiles.addAll([
-            '${roundedLower}.mp3',
-            '${roundedLower + 10}.mp3',
-            '${roundedLower + 20}.mp3',
-            '${roundedLower + 20}.mp3',
-            '${roundedLower + 10}.mp3',
-          ]);
-        }
-      } else {
-        debugPrint('Failed to fetch maxHR: ${response.statusCode}');
+    if (maxHR != null) {
+      setState(() {
+        _maxHR = maxHR;
+      });
+      int zoneId = widget.audioData[_currentAudioIndex]['zoneId'];
+      double lowerbound = 0.0;
+      if (zoneId == 1) {
+        lowerbound = (72 + (_maxHR! - 72) * 0.5);
       }
-    } catch (e) {
-      debugPrint('Error fetching maxHR: $e');
+      if (zoneId == 2) {
+        lowerbound = (72 + (_maxHR! - 72) * 0.6);
+      }
+      if (zoneId == 3) {
+        lowerbound = (72 + (_maxHR! - 72) * 0.7);
+      }
+      int roundedLower = roundToNearest10(lowerbound);
+      _pacingAudioFiles.addAll([
+        '${roundedLower}.mp3',
+        '${roundedLower + 10}.mp3',
+        '${roundedLower + 20}.mp3',
+        '${roundedLower + 20}.mp3',
+        '${roundedLower + 10}.mp3',
+      ]);
+    } else {
+      debugPrint('Failed to fetch maxHR from SharedPreferences');
     }
     setState(() {
       _hasMaxHR = true;
@@ -436,23 +393,23 @@ class _PlayerScreenState extends State<PlayerScreen> {
         switch (storyId) {
           case 1:
             pacingAudioPath =
-                'audio/aradium/pacing/${_pacingAudioFiles[_currentPacingSegment]}';
+                'assets/audio/aradium/pacing/${_pacingAudioFiles[_currentPacingSegment]}';
             break;
           case 2:
             pacingAudioPath =
-                'audio/smm/pacing/${_pacingAudioFiles[_currentPacingSegment]}';
+                'assets/audio/smm/pacing/${_pacingAudioFiles[_currentPacingSegment]}';
             break;
           case 3:
             pacingAudioPath =
-                'audio/luther/pacing/${_pacingAudioFiles[_currentPacingSegment]}';
+                'assets/audio/luther/pacing/${_pacingAudioFiles[_currentPacingSegment]}';
             break;
           case 4:
             pacingAudioPath =
-                'audio/dare/pacing/${_pacingAudioFiles[_currentPacingSegment]}';
+                'assets/audio/dare/pacing/${_pacingAudioFiles[_currentPacingSegment]}';
             break;
           default:
             pacingAudioPath =
-                'audio/pacing/${_pacingAudioFiles[_currentPacingSegment]}';
+                'assets/audio/pacing/${_pacingAudioFiles[_currentPacingSegment]}';
         }
         _audioManager.playPacingLoop(pacingAudioPath);
         debugPrint('Playing pacing audio: $pacingAudioPath');
@@ -468,19 +425,22 @@ class _PlayerScreenState extends State<PlayerScreen> {
         String pacingAudioPath;
         switch (storyId) {
           case 1:
-            pacingAudioPath = 'audio/aradium/pacing/${_pacingAudioFiles[i]}';
+            pacingAudioPath =
+                'assets/audio/aradium/pacing/${_pacingAudioFiles[i]}';
             break;
           case 2:
-            pacingAudioPath = 'audio/smm/pacing/${_pacingAudioFiles[i]}';
+            pacingAudioPath = 'assets/audio/smm/pacing/${_pacingAudioFiles[i]}';
             break;
           case 3:
-            pacingAudioPath = 'audio/luther/pacing/${_pacingAudioFiles[i]}';
+            pacingAudioPath =
+                'assets/audio/luther/pacing/${_pacingAudioFiles[i]}';
             break;
           case 4:
-            pacingAudioPath = 'audio/dare/pacing/${_pacingAudioFiles[i]}';
+            pacingAudioPath =
+                'assets/audio/dare/pacing/${_pacingAudioFiles[i]}';
             break;
           default:
-            pacingAudioPath = 'audio/pacing/${_pacingAudioFiles[i]}';
+            pacingAudioPath = 'assets/audio/pacing/${_pacingAudioFiles[i]}';
         }
         _audioManager.playPacing(pacingAudioPath);
         debugPrint(
@@ -512,22 +472,23 @@ class _PlayerScreenState extends State<PlayerScreen> {
         switch (storyId) {
           case 1:
             overlayPath =
-                'audio/aradium/overlay/${challengeId}/${overlayType}_$i.wav';
+                'assets/audio/aradium/overlay/${challengeId}/${overlayType}_$i.wav';
             break;
           case 2:
             overlayPath =
-                'audio/smm/overlay/${challengeId}/${overlayType}_$i.wav';
+                'assets/audio/smm/overlay/${challengeId}/${overlayType}_$i.wav';
             break;
           case 3:
             overlayPath =
-                'audio/luther/overlay/${challengeId}/${overlayType}_$i.wav';
+                'assets/audio/luther/overlay/${challengeId}/${overlayType}_$i.wav';
             break;
           case 4:
             overlayPath =
-                'audio/dare/overlay/${challengeId}/${overlayType}_$i.wav';
+                'assets/audio/dare/overlay/${challengeId}/${overlayType}_$i.wav';
             break;
           default:
-            overlayPath = 'audio/overlay/${challengeId}/${overlayType}_$i.wav';
+            overlayPath =
+                'assets/audio/overlay/${challengeId}/${overlayType}_$i.wav';
         }
         if (storyId == 1 || storyId == 2 || storyId == 3 || storyId == 4) {
           _audioManager.playOverlay(overlayPath);
@@ -542,64 +503,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final positionMs = position.inMilliseconds;
     final targetMs = target.inMilliseconds;
     return (positionMs >= targetMs - 1000 && positionMs <= targetMs + 1000);
-  }
-
-  // Function to start the challenge
-  Future<void> _startChallenge() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token') ?? '';
-
-    try {
-      final currentAudio = widget.audioData[_currentAudioIndex];
-      final response = await http.post(
-        Uri.parse('https://authcheck.co/startchallenge'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'challengeId': currentAudio['id'],
-          'zoneId': currentAudio['zoneId'],
-        }),
-      );
-      debugPrint('Start challenge id: ${currentAudio['id']}');
-
-      if (response.statusCode == 200) {
-        _showCenterNotification('Challenge started');
-        debugPrint('Challenge started successfully: ${response.statusCode}');
-      }
-    } catch (e) {
-      debugPrint('Start challenge error: $e');
-    }
-  }
-
-  // Function to update the challenge status
-  Future<void> _updateChallengeStatus() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token') ?? '';
-
-    try {
-      final currentAudio = widget.audioData[_currentAudioIndex];
-      final response = await http.post(
-        Uri.parse('https://authcheck.co/updatechallenge'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'challengeId': currentAudio['id'],
-          'status': true,
-        }),
-      );
-      debugPrint('Current audio id: ${currentAudio['id']}');
-
-      if (response.statusCode == 200) {
-        _showCenterNotification('Challenge updated');
-        debugPrint('Challenge updated successfully: ${response.statusCode}');
-      }
-    } catch (e) {
-      debugPrint('Update challenge error: $e');
-    }
   }
 
   String _formatDuration(Duration duration) {
@@ -623,6 +526,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
   void dispose() {
     _notificationTimer?.cancel();
     _blinkTimer?.cancel();
+    _audioManager.dispose();
+    _positionSubscription.cancel();
+    _durationSubscription.cancel();
+    _playerStateSubscription.cancel();
     super.dispose();
   }
 
@@ -642,6 +549,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
     final currentAudio = widget.audioData[_currentAudioIndex];
     final Duration remaining = _globalTotalDuration - _globalPosition;
+
     return Scaffold(
       extendBodyBehindAppBar: true,
       backgroundColor: Colors.black,
