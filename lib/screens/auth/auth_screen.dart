@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:testingheartrate/screens/home/home_screen.dart';
@@ -20,6 +21,8 @@ class _AuthScreenState extends State<AuthScreen> {
   bool _isAuthLoading = false;
   String error = '';
   final FirebaseAnalytics analytics = FirebaseAnalytics.instance;
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
 
   @override
   void initState() {
@@ -83,8 +86,53 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
+  Future<void> _handleEmailSignIn(String email, String password) async {
+    setState(() {
+      _isAuthLoading = true;
+      error = '';
+    });
+    try {
+      final response = await http.post(
+        Uri.parse('https://authcheck.co/emailauth'),
+        headers: {
+          'Accept': '*/*',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({
+          'email': email,
+          'password': password,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        final token = responseData['token'];
+
+        if (token != null) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('token', token);
+
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
+          );
+        } else {
+          throw Exception('Token not found in response');
+        }
+      } else {
+        throw Exception('Failed to authenticate: ${response.body}');
+      }
+    } catch (e) {
+      setState(() => error = "Authentication failed: ${e.toString()}");
+    } finally {
+      setState(() => _isAuthLoading = false);
+    }
+  }
+
   @override
   void dispose() {
+    emailController.dispose();
+    passwordController.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -108,7 +156,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 ),
               ),
             Container(
-              color: Color(0xFF0A0D29).withOpacity(0.7),
+              color: const Color(0xFF0A0D29).withOpacity(0.7),
             ),
             Center(
               child: Column(
@@ -126,44 +174,94 @@ class _AuthScreenState extends State<AuthScreen> {
                   ),
                   const SizedBox(height: 20),
                   if (_isAuthLoading)
-                    const CircularProgressIndicator(
-                      color: Colors.white,
-                    )
-                  else
+                    const CircularProgressIndicator(color: Colors.white)
+                  else if (Platform.isIOS)
                     GestureDetector(
                       onTap: _handleAppleSignIn,
-                      child: SvgPicture.asset(
-                        'assets/images/button.svg',
+                      child: SvgPicture.asset('assets/images/button.svg'),
+                    )
+                  else if (Platform.isAndroid)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                      child: Column(
+                        children: [
+                          TextField(
+                            controller: emailController,
+                            decoration: InputDecoration(
+                              hintText: 'Email',
+                              hintStyle: const TextStyle(color: Colors.white54),
+                              filled: true,
+                              fillColor: Colors.white.withOpacity(0.1),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            style: const TextStyle(color: Colors.white54),
+                          ),
+                          const SizedBox(height: 16),
+                          TextField(
+                            controller: passwordController,
+                            obscureText: true,
+                            decoration: InputDecoration(
+                              hintText: 'Password',
+                              hintStyle: const TextStyle(color: Colors.white54),
+                              filled: true,
+                              fillColor: Colors.white.withOpacity(0.1),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            style: const TextStyle(color: Colors.white54),
+                          ),
+                          const SizedBox(height: 20),
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 40.0),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 24, vertical: 12),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(10),
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Colors.purple.withOpacity(0.7),
+                                    Colors.purple.withOpacity(0.5),
+                                  ],
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.purple.withOpacity(0.5),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: GestureDetector(
+                                onTap: () async {
+                                  await _handleEmailSignIn(
+                                    emailController.text,
+                                    passwordController.text,
+                                  );
+                                },
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      "Sign In",
+                                      style: TextStyle(
+                                        fontSize: 20,
+                                        fontFamily: 'TheWitcher',
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () async {
-                      setState(() {
-                        _isAuthLoading = true;
-                        error = '';
-                      });
-                      try {
-                        final prefs = await SharedPreferences.getInstance();
-                        await prefs.setString('token', '001211.4840cf4265544dd58e4f17b364885e5a.0617');
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const HomeScreen()),
-                        );
-                      } catch (e) {
-                        setState(() =>
-                            error = "Failed to set token: ${e.toString()}");
-                      } finally {
-                        setState(() => _isAuthLoading = false);
-                      }
-                    },
-                    child: const Text('Continue as Guest'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: Colors.black,
-                    ),
-                  ),
                   if (error.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.all(16.0),
