@@ -104,7 +104,7 @@ class _AuthScreenState extends State<AuthScreen> {
         }),
       );
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         final responseData = json.decode(response.body);
         final token = responseData['token'];
 
@@ -113,8 +113,8 @@ class _AuthScreenState extends State<AuthScreen> {
           await prefs.setString('token', token);
 
           Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const HomeScreen()),
+        context,
+        MaterialPageRoute(builder: (context) => const HomeScreen()),
           );
         } else {
           throw Exception('Token not found in response');
