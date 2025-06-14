@@ -73,7 +73,6 @@ class _CompletionScreenState extends State<CompletionScreen>
     if (_isAppActive) {
       _fetchDataAndAnimate();
     }
-    _startChallenge();
     _updateChallengeStatus();
   }
 
@@ -133,35 +132,6 @@ class _CompletionScreenState extends State<CompletionScreen>
     }
   }
 
-  Future<void> _startChallenge() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token') ?? '';
-
-    try {
-      final List<int> challengeIds =
-          (widget.audioData as List).map((item) => item['id'] as int).toList();
-
-      final response = await http.post(
-        Uri.parse('https://authcheck.co/startchallenge'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'challengeId': challengeIds,
-          'zoneId': widget.zoneId,
-        }),
-      );
-
-      debugPrint('Start challenge IDs: $challengeIds');
-
-      if (response.statusCode == 200) {
-        debugPrint('Challenge started successfully: ${response.statusCode}');
-      }
-    } catch (e) {
-      debugPrint('Start challenge error: $e');
-    }
-  }
 
   Future<void> _fetchDataAndAnimate() async {
     try {
