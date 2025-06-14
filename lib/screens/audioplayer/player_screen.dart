@@ -5,6 +5,9 @@ import 'package:testingheartrate/screens/completion/completion_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:testingheartrate/services/socket_service.dart';
+import 'package:screen_brightness/screen_brightness.dart';
+import 'package:flutter/services.dart';
 
 class PlayerScreen extends StatefulWidget {
   final List<Map<String, dynamic>> audioData;
@@ -24,6 +27,7 @@ class PlayerScreen extends StatefulWidget {
 
 class _PlayerScreenState extends State<PlayerScreen> {
   final AudioManager _audioManager = AudioManager();
+  late final SocketService _socketService;
   bool _currentAudioStarted = false;
   int totalNudges = 0;
   final FirebaseAnalytics analytics = FirebaseAnalytics.instance;
@@ -68,11 +72,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
   bool _isPausedBlink = false;
   Timer? _blinkTimer;
 
+  // --- Lock state ---
+  bool _isLocked = false;
+  double? _previousBrightness;
+  double _unlockProgress = 0.0;
+  Timer? _unlockTimer;
+
   @override
   void initState() {
     analytics.setAnalyticsCollectionEnabled(true);
     super.initState();
     _initializePlayer();
+    _initializeSocketService();
   }
 
   // --- Notification logic ---
@@ -109,9 +120,60 @@ class _PlayerScreenState extends State<PlayerScreen> {
     });
   }
 
+  // --- Lock/Unlock logic ---
+  Future<void> _lockScreen() async {
+    try {
+      _previousBrightness = await ScreenBrightness().current;
+      await ScreenBrightness().setScreenBrightness(0.01);
+    } catch (_) {}
+    await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    setState(() {
+      _isLocked = true;
+    });
+  }
+
+  Future<void> _unlockScreen() async {
+    if (_previousBrightness != null) {
+      try {
+        await ScreenBrightness().setScreenBrightness(_previousBrightness!);
+      } catch (_) {}
+    }
+    await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    setState(() {
+      _isLocked = false;
+      _unlockProgress = 0.0;
+    });
+  }
+
+  Future<bool> _onWillPop() async {
+    return !_isLocked;
+  }
+
+  void _startUnlockHold() {
+    _unlockTimer?.cancel();
+    _unlockProgress = 0.0;
+    _unlockTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
+      setState(() {
+        _unlockProgress += 0.01;
+        if (_unlockProgress >= 1.0) {
+          _unlockTimer?.cancel();
+          _unlockScreen();
+        }
+      });
+    });
+  }
+
+  void _cancelUnlockHold() {
+    _unlockTimer?.cancel();
+    setState(() {
+      _unlockProgress = 0.0;
+    });
+  }
+
   // Function to initialize the player
   Future<void> _initializePlayer() async {
     try {
+      await _audioManager.reset();
       debugPrint('=== INITIALIZING PLAYLIST ===');
       for (int i = 0; i < widget.audioData.length; i++) {
         final audio = widget.audioData[i];
@@ -140,7 +202,69 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
   }
 
-// Function to play the current audio
+  // --- SOCKET LOGIC START ---
+  void _initializeSocketService() {
+    _socketService = SocketService(
+      onLoadingChanged: (isLoading) => debugPrint('Socket loading: $isLoading'),
+      onErrorChanged: (error) => debugPrint('Socket error: $error'),
+      onHeartRateChanged: _handleHeartRateUpdate,
+    );
+    _socketService.fetechtoken();
+  }
+
+  void _handleHeartRateUpdate(double? heartRate) async {
+    if (heartRate == null) return;
+
+    if (!_hasMaxHR) await _fetchMaxHR();
+
+    setState(() => _currentHR = heartRate.toInt());
+
+    if (_maxHR == null) return;
+
+    final currentHRPercent = (_currentHR! / _maxHR!) * 100;
+    final currentAudio = widget.audioData[_currentAudioIndex];
+    final int zoneId = currentAudio['zoneId'];
+
+    int lowerBound = 0, upperBound = 0;
+    switch (zoneId) {
+      case 1:
+        lowerBound = 40;
+        upperBound = 70;
+        break;
+      case 2:
+        lowerBound = 50;
+        upperBound = 80;
+        break;
+      case 3:
+        lowerBound = 60;
+        upperBound = 90;
+        break;
+    }
+
+    if (currentHRPercent < lowerBound || currentHRPercent > upperBound) {
+      if (_audioManager.isPlaying) {
+        Future.delayed(const Duration(seconds: 10), () {
+          if (currentHRPercent < lowerBound || currentHRPercent > upperBound) {
+            _audioManager.pause();
+            _showCenterNotification('Music paused');
+            debugPrint('Music paused due to HR out of range for 10 seconds');
+          }
+        });
+      }
+    } else {
+      if (!_audioManager.isPlaying) {
+        _audioManager.resume();
+        debugPrint('Music resumed');
+      }
+    }
+
+    if (currentHRPercent >= 50 && currentHRPercent <= 80) {
+      _checkForOverlayTrigger(_currentPosition);
+    }
+  }
+  // --- SOCKET LOGIC END ---
+
+  // Function to play the current audio
   Future<void> _playCurrentAudio() async {
     if (_currentAudioIndex >= widget.audioData.length) {
       _navigateToCompletionScreen();
@@ -163,11 +287,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
       // Play new audio
       await _audioManager.play(currentAudio['audioUrl']);
-      // await _startChallenge();
       debugPrint('Now playing: ${currentAudio['challengeName']}');
     } catch (e) {
       debugPrint('Error playing audio: $e');
-      // Handle error then proceed to next
       Future.delayed(Duration(seconds: 2), _handleAudioCompletion);
     }
   }
@@ -188,7 +310,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     debugPrint('Pacing timestamps: $_pacingTimestamps');
   }
 
-// Function to initialize audio listeners
+  // Function to initialize audio listeners
   void _initializeAudioListeners() {
     _positionSubscription = _audioManager.positionStream.listen((position) {
       if (position > Duration.zero) {
@@ -206,7 +328,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
       }
     });
 
-    // Listen to current index changes for automatic track switching
     _currentIndexSubscription =
         _audioManager.currentIndexStream.listen((index) {
       if (index != null && index != _currentPlaylistIndex) {
@@ -220,14 +341,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
     _playerStateSubscription = _audioManager.playerStateStream.listen((state) {
       debugPrint('Player state: ${state.processingState}');
-
-      // Handle automatic progression to next track
       if (state.processingState == ProcessingState.completed) {
         if (_currentAudioIndex + 1 < widget.audioData.length) {
-          // The playlist will automatically move to next track
           debugPrint('Moving to next track automatically');
         } else {
-          // End of playlist reached
           _navigateToCompletionScreen();
         }
       }
@@ -240,18 +357,15 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _initializeTimestamps();
     _pacingTriggered = List.filled(_pacingAudioFiles.length, false);
     _currentAudioStarted = false;
-    totalNudges = 0; // Reset or keep cumulative based on your needs
+    totalNudges = 0;
   }
 
   Future<void> _handleAudioCompletion() async {
-    // With playlist, this is handled automatically by just_audio
-    // Manual navigation only needed at the very end
     if (_currentAudioIndex + 1 >= widget.audioData.length) {
       _navigateToCompletionScreen();
     }
   }
 
-  // Function to navigate to the completion screen
   void _navigateToCompletionScreen() {
     final lastAudio = widget.audioData.last;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -274,7 +388,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
     });
   }
 
-  // Function to initialize timestamps main method
   void _initializeTimestamps() {
     final currentAudio = widget.audioData[_currentAudioIndex];
     int adjustedIndexId = currentAudio['indexid'];
@@ -322,7 +435,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
     debugPrint('Timestamps: $_timestamps');
   }
 
-  // Function to determine overlay type based on heart rate percentage and zone ID
   String _determineOverlayType(double hrPercentage, int zoneId) {
     if (zoneId == 1) {
       if (hrPercentage >= 50 && hrPercentage < 60) {
@@ -352,7 +464,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
     return 'A';
   }
 
-  // Function to fetch maximum heart rate
   Future<void> _fetchMaxHR() async {
     final prefs = await SharedPreferences.getInstance();
     final maxHR = prefs.getInt('maxhr')?.toDouble();
@@ -392,14 +503,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
     return (value / 10).round() * 10;
   }
 
-  // Function to handle position updates
   void _handlePositionUpdate(Duration position) {
     setState(() => _currentPosition = position);
     _checkForOverlayTrigger(position);
     _checkForPacingAudio(position);
   }
 
-  // Function to check for pacing audio
   void _checkForPacingAudio(Duration position) {
     final int previousAudiosDuration = _currentAudioIndex * 5;
     final Duration globalPosition =
@@ -481,7 +590,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
   }
 
-  // Function to check for overlay trigger
   void _checkForOverlayTrigger(Duration position) {
     final currentAudio = widget.audioData[_currentAudioIndex];
     final int storyId = currentAudio['storyId'];
@@ -530,7 +638,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
   }
 
-  // Function to check if the current position is within a timestamp range
   bool _isInTimestampRange(Duration position, Duration target) {
     final positionMs = position.inMilliseconds;
     final targetMs = target.inMilliseconds;
@@ -542,7 +649,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
     return "${twoDigits(duration.inMinutes)}:${twoDigits(duration.inSeconds.remainder(60))}";
   }
 
-  // Function to toggle play/pause
   void _togglePlayPause() async {
     if (_audioManager.isPlaying) {
       await _audioManager.pause();
@@ -563,6 +669,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _durationSubscription.cancel();
     _playerStateSubscription.cancel();
     _currentIndexSubscription.cancel();
+    _unlockTimer?.cancel();
+    try {
+      _socketService.dispose();
+    } catch (_) {}
     super.dispose();
   }
 
@@ -583,215 +693,272 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final currentAudio = widget.audioData[_currentAudioIndex];
     final Duration remaining = _globalTotalDuration - _globalPosition;
 
-    return Scaffold(
-      extendBodyBehindAppBar: true,
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
-          onPressed: () {
-            Navigator.pop(context);
-          },
+    return WillPopScope(
+      onWillPop: _onWillPop,
+      child: Scaffold(
+        extendBodyBehindAppBar: true,
+        backgroundColor: Colors.black,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+            onPressed: () {
+              if (!_isLocked) Navigator.pop(context);
+            },
+          ),
+          title: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12.0),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                currentAudio['challengeName'],
+                style: const TextStyle(
+                  fontFamily: 'Thewitcher',
+                  fontSize: 24,
+                  letterSpacing: 2,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 3,
+                overflow: TextOverflow.clip,
+              ),
+            ),
+          ),
+          centerTitle: true,
+          actions: [
+            if (!_isLocked)
+              IconButton(
+                icon: const Icon(Icons.lock_outline, color: Colors.white),
+                tooltip: 'Lock',
+                onPressed: _lockScreen,
+              ),
+          ],
         ),
-        title: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12.0),
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              currentAudio['challengeName'],
-              style: const TextStyle(
-                fontFamily: 'Thewitcher',
-                fontSize: 24,
-                letterSpacing: 2,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-              textAlign: TextAlign.center,
-              maxLines: 3,
-              overflow: TextOverflow.clip,
-            ),
-          ),
-        ),
-        centerTitle: true,
-      ),
-      body: Stack(
-        children: [
-          Container(
-            decoration: BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage(currentAudio['image']),
-                fit: BoxFit.cover,
-              ),
-            ),
-          ),
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Colors.black.withOpacity(0.8),
-                  Colors.black.withOpacity(0.2),
-                  Colors.black.withOpacity(0.8),
-                ],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
-            ),
-          ),
-          Column(
-            children: [
-              const Spacer(flex: 4),
-              GestureDetector(
-                onTap: _togglePlayPause,
-                child: SizedBox(
-                  width: 140,
-                  height: 140,
+        body: Stack(
+          children: [
+            if (!_isLocked)
+              ...[
+                Container(
+                  decoration: BoxDecoration(
+                    image: DecorationImage(
+                      image: AssetImage(currentAudio['image']),
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.black.withOpacity(0.8),
+                        Colors.black.withOpacity(0.2),
+                        Colors.black.withOpacity(0.8),
+                      ],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ),
+                  ),
+                ),
+                Column(
+                  children: [
+                    const Spacer(flex: 4),
+                    GestureDetector(
+                      onTap: _togglePlayPause,
+                      child: SizedBox(
+                        width: 140,
+                        height: 140,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Container(
+                              width: 220,
+                              height: 220,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFF7B1FA2), Color(0xFFE040FB)],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.purple.withOpacity(0.6),
+                                    blurRadius: 20,
+                                    spreadRadius: 5,
+                                  ),
+                                ],
+                              ),
+                              child: Center(
+                                child: AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 300),
+                                  child: _centerNotification != null
+                                      ? Text(
+                                          _centerNotification!,
+                                          key: const ValueKey('notif'),
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.bold,
+                                            fontFamily: 'Thewitcher',
+                                            letterSpacing: 2,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        )
+                                      : (_audioManager.isPlaying
+                                          ? (_currentAudioStarted
+                                              ? Text(
+                                                  _formatDuration(remaining),
+                                                  key: const ValueKey('timer'),
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 40,
+                                                    fontWeight: FontWeight.normal,
+                                                    fontFamily: 'Thewitcher',
+                                                    letterSpacing: 2,
+                                                  ),
+                                                )
+                                              : const SizedBox(
+                                                  key: ValueKey('loading'),
+                                                  width: 60,
+                                                  height: 60,
+                                                  child: CircularProgressIndicator(
+                                                    valueColor:
+                                                        AlwaysStoppedAnimation<Color>(
+                                                            Colors.white),
+                                                    strokeWidth: 6,
+                                                  ),
+                                                ))
+                                          : (_isPausedBlink
+                                              ? Icon(
+                                                  Icons.play_arrow_rounded,
+                                                  key: const ValueKey('playicon'),
+                                                  color: Colors.white,
+                                                  size: 60,
+                                                )
+                                              : Text(
+                                                  _formatDuration(remaining),
+                                                  key: const ValueKey('timer'),
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 40,
+                                                    fontWeight: FontWeight.normal,
+                                                    fontFamily: 'Thewitcher',
+                                                    letterSpacing: 2,
+                                                  ),
+                                                ))),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const Spacer(flex: 2),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Column(
+                        children: [
+                          SliderTheme(
+                            data: SliderTheme.of(context).copyWith(
+                              thumbColor: Colors.purple,
+                              activeTrackColor: Colors.purple,
+                              inactiveTrackColor: Colors.white30,
+                              trackHeight: 12.0,
+                              thumbShape: RoundSliderThumbShape(
+                                enabledThumbRadius: _timestamps.any((timestamp) =>
+                                        (timestamp.inSeconds -
+                                                _currentPosition.inSeconds)
+                                            .abs() <=
+                                        1)
+                                    ? 12.0
+                                    : 0.0,
+                              ),
+                              overlayColor: Colors.purple.withOpacity(0.2),
+                              overlayShape: const RoundSliderOverlayShape(
+                                overlayRadius: 28.0,
+                              ),
+                            ),
+                            child: Slider(
+                              value: _currentPosition.inSeconds.toDouble(),
+                              min: 0,
+                              max: _totalDuration.inSeconds.toDouble() > 0
+                                  ? _totalDuration.inSeconds.toDouble()
+                                  : 1,
+                              onChanged: (value) async {
+                                final position = Duration(seconds: value.toInt());
+                                await _audioManager.audioPlayer.seek(position);
+                              },
+                            ),
+                          ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                _formatDuration(_currentPosition),
+                                style: const TextStyle(
+                                    color: Colors.white70, fontSize: 14),
+                              ),
+                              Text(
+                                _formatDuration(_totalDuration),
+                                style: const TextStyle(
+                                    color: Colors.white70, fontSize: 14),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Spacer(flex: 1),
+                  ],
+                ),
+              ]
+            else
+              // LOCKED UI
+              Container(
+                color: Colors.black,
+                alignment: Alignment.center,
+                child: GestureDetector(
+                  onLongPressStart: (_) => _startUnlockHold(),
+                  onLongPressEnd: (_) => _cancelUnlockHold(),
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
+                      SizedBox(
+                        width: 120,
+                        height: 120,
+                        child: CircularProgressIndicator(
+                          value: _unlockProgress,
+                          strokeWidth: 8,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.purple),
+                          backgroundColor: Colors.white12,
+                        ),
+                      ),
                       Container(
-                        width: 220,
-                        height: 220,
+                        width: 90,
+                        height: 90,
                         decoration: BoxDecoration(
+                          color: Colors.purple,
                           shape: BoxShape.circle,
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF7B1FA2), Color(0xFFE040FB)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.purple.withOpacity(0.6),
+                              color: Colors.purple.withOpacity(0.4),
                               blurRadius: 20,
                               spreadRadius: 5,
                             ),
                           ],
                         ),
-                        child: Center(
-                          child: AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 300),
-                            child: _centerNotification != null
-                                ? Text(
-                                    _centerNotification!,
-                                    key: const ValueKey('notif'),
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
-                                      fontFamily: 'Thewitcher',
-                                      letterSpacing: 2,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  )
-                                : (_audioManager.isPlaying
-                                    ? (_currentAudioStarted
-                                        ? Text(
-                                            _formatDuration(remaining),
-                                            key: const ValueKey('timer'),
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 40,
-                                              fontWeight: FontWeight.normal,
-                                              fontFamily: 'Thewitcher',
-                                              letterSpacing: 2,
-                                            ),
-                                          )
-                                        : const SizedBox(
-                                            key: ValueKey('loading'),
-                                            width: 60,
-                                            height: 60,
-                                            child: CircularProgressIndicator(
-                                              valueColor:
-                                                  AlwaysStoppedAnimation<Color>(
-                                                      Colors.white),
-                                              strokeWidth: 6,
-                                            ),
-                                          ))
-                                    : (_isPausedBlink
-                                        ? Icon(
-                                            Icons.play_arrow_rounded,
-                                            key: const ValueKey('playicon'),
-                                            color: Colors.white,
-                                            size: 60,
-                                          )
-                                        : Text(
-                                            _formatDuration(remaining),
-                                            key: const ValueKey('timer'),
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 40,
-                                              fontWeight: FontWeight.normal,
-                                              fontFamily: 'Thewitcher',
-                                              letterSpacing: 2,
-                                            ),
-                                          ))),
-                          ),
+                        child: const Center(
+                          child: Icon(Icons.lock_open, color: Colors.white, size: 48),
                         ),
                       ),
                     ],
                   ),
                 ),
               ),
-              const Spacer(flex: 2),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  children: [
-                    SliderTheme(
-                      data: SliderTheme.of(context).copyWith(
-                        thumbColor: Colors.purple,
-                        activeTrackColor: Colors.purple,
-                        inactiveTrackColor: Colors.white30,
-                        trackHeight: 12.0,
-                        thumbShape: RoundSliderThumbShape(
-                          enabledThumbRadius: _timestamps.any((timestamp) =>
-                                  (timestamp.inSeconds -
-                                          _currentPosition.inSeconds)
-                                      .abs() <=
-                                  1)
-                              ? 12.0
-                              : 0.0,
-                        ),
-                        overlayColor: Colors.purple.withOpacity(0.2),
-                        overlayShape: const RoundSliderOverlayShape(
-                          overlayRadius: 28.0,
-                        ),
-                      ),
-                      child: Slider(
-                        value: _currentPosition.inSeconds.toDouble(),
-                        min: 0,
-                        max: _totalDuration.inSeconds.toDouble() > 0
-                            ? _totalDuration.inSeconds.toDouble()
-                            : 1,
-                        onChanged: (value) async {
-                          final position = Duration(seconds: value.toInt());
-                          await _audioManager.audioPlayer.seek(position);
-                        },
-                      ),
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          _formatDuration(_currentPosition),
-                          style: const TextStyle(
-                              color: Colors.white70, fontSize: 14),
-                        ),
-                        Text(
-                          _formatDuration(_totalDuration),
-                          style: const TextStyle(
-                              color: Colors.white70, fontSize: 14),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const Spacer(flex: 1),
-            ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

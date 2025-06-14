@@ -154,6 +154,16 @@
 			<key>isShown</key>
 			<false/>
 		</dict>
+		<key>screen_brightness_ios-screen_brightness_ios_privacy.xcscheme</key>
+		<dict>
+			<key>isShown</key>
+			<false/>
+		</dict>
+		<key>screen_brightness_ios.xcscheme</key>
+		<dict>
+			<key>isShown</key>
+			<false/>
+		</dict>
 		<key>shared_preferences_foundation-shared_preferences_foundation_privacy.xcscheme</key>
 		<dict>
 			<key>isShown</key>

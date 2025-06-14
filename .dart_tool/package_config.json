@@ -476,6 +476,48 @@
       "languageVersion": "2.12"
     },
     {
+      "name": "screen_brightness",
+      "rootUri": "file:///Users/mrinmoyhalder/.pub-cache/hosted/pub.dev/screen_brightness-2.1.4",
+      "packageUri": "lib/",
+      "languageVersion": "3.0"
+    },
+    {
+      "name": "screen_brightness_android",
+      "rootUri": "file:///Users/mrinmoyhalder/.pub-cache/hosted/pub.dev/screen_brightness_android-2.1.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.0"
+    },
+    {
+      "name": "screen_brightness_ios",
+      "rootUri": "file:///Users/mrinmoyhalder/.pub-cache/hosted/pub.dev/screen_brightness_ios-2.1.2",
+      "packageUri": "lib/",
+      "languageVersion": "3.0"
+    },
+    {
+      "name": "screen_brightness_macos",
+      "rootUri": "file:///Users/mrinmoyhalder/.pub-cache/hosted/pub.dev/screen_brightness_macos-2.1.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.0"
+    },
+    {
+      "name": "screen_brightness_ohos",
+      "rootUri": "file:///Users/mrinmoyhalder/.pub-cache/hosted/pub.dev/screen_brightness_ohos-2.1.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.0"
+    },
+    {
+      "name": "screen_brightness_platform_interface",
+      "rootUri": "file:///Users/mrinmoyhalder/.pub-cache/hosted/pub.dev/screen_brightness_platform_interface-2.1.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.0"
+    },
+    {
+      "name": "screen_brightness_windows",
+      "rootUri": "file:///Users/mrinmoyhalder/.pub-cache/hosted/pub.dev/screen_brightness_windows-2.1.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.0"
+    },
+    {
       "name": "shared_preferences",
       "rootUri": "file:///Users/mrinmoyhalder/.pub-cache/hosted/pub.dev/shared_preferences-2.5.3",
       "packageUri": "lib/",
@@ -752,7 +794,7 @@
       "languageVersion": "3.5"
     }
   ],
-  "generated": "2025-06-11T07:22:58.065917Z",
+  "generated": "2025-06-14T06:50:05.788305Z",
   "generator": "pub",
   "generatorVersion": "3.7.2",
   "flutterRoot": "file:///Users/mrinmoyhalder/development/flutter",
