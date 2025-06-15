@@ -222,6 +222,17 @@ class AudioManager {
       debugPrint('AudioManager: Error stopping pacing: $e');
     }
   }
+    Future<void> resumePacing() async {
+    try {
+      if (_pacingPlayer.processingState != ProcessingState.idle &&
+          !_pacingPlayer.playing) {
+        await _pacingPlayer.play();
+        debugPrint('AudioManager: Resumed pacing audio');
+      }
+    } catch (e) {
+      debugPrint('AudioManager: Error resuming pacing: $e');
+    }
+  }
 
   Future<void> pause() async {
     try {

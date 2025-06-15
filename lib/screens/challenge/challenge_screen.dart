@@ -801,16 +801,18 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                                         ListWheelChildBuilderDelegate(
                                       builder: (context, index) {
                                         return Center(
-                                          child: Text(
-                                            '$index hr',
-                                            style: TextStyle(
-                                              fontFamily: 'Thewitcher',
-                                              color: selectedHour == index
+                                          child: index == 0 
+                                            ? const SizedBox.shrink()
+                                            : Text(
+                                              '$index hr',
+                                              style: TextStyle(
+                                                fontFamily: 'Thewitcher',
+                                                color: selectedHour == index
                                                   ? Colors.white
                                                   : Colors.grey,
-                                              fontSize: 22,
-                                            ),
-                                          ),
+                                                fontSize: 22,
+                                              ),
+                                              ),
                                         );
                                       },
                                       childCount: 2,

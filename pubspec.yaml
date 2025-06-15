@@ -111,6 +111,7 @@ flutter:
     - assets/audio/smm/overlay/16/
     - assets/audio/smm/overlay/17/
     - assets/audio/smm/pacing/
+    - assets/audio/stop/
     - shorebird.yaml
   fonts:
     - family: Thewitcher

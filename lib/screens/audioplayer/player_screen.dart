@@ -30,6 +30,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   late final SocketService _socketService;
   bool _currentAudioStarted = false;
   int totalNudges = 0;
+  int currentTrackNudges = 0;
   final FirebaseAnalytics analytics = FirebaseAnalytics.instance;
 
   Duration _currentPosition = Duration.zero;
@@ -221,45 +222,50 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
     if (_maxHR == null) return;
 
-    final currentHRPercent = (_currentHR! / _maxHR!) * 100;
+    final currentheartrate = _currentHR;
     final currentAudio = widget.audioData[_currentAudioIndex];
     final int zoneId = currentAudio['zoneId'];
 
     int lowerBound = 0, upperBound = 0;
     switch (zoneId) {
       case 1:
-        lowerBound = 40;
-        upperBound = 70;
+        lowerBound = (72 + (_maxHR! - 72) * 0.35).toInt();
+        upperBound = (72 + (_maxHR! - 72) * 0.75).toInt();
         break;
       case 2:
-        lowerBound = 50;
-        upperBound = 80;
+        lowerBound = (72 + (_maxHR! - 72) * 0.45).toInt();
+        upperBound = (72 + (_maxHR! - 72) * 0.85).toInt();
         break;
       case 3:
-        lowerBound = 60;
-        upperBound = 90;
+        lowerBound = (72 + (_maxHR! - 72) * 0.55).toInt();
+        upperBound = (72 + (_maxHR! - 72) * 0.95).toInt();
         break;
     }
 
-    if (currentHRPercent < lowerBound || currentHRPercent > upperBound) {
+    if (currentheartrate != null &&
+        (currentheartrate < lowerBound || currentheartrate > upperBound)) {
       if (_audioManager.isPlaying) {
         Future.delayed(const Duration(seconds: 10), () {
-          if (currentHRPercent < lowerBound || currentHRPercent > upperBound) {
+          if (currentheartrate < lowerBound) {
             _audioManager.pause();
+            _playlowerOutOfRangeAudio();
             _showCenterNotification('Music paused');
-            debugPrint('Music paused due to HR out of range for 10 seconds');
+            debugPrint('Playing out of range audio due to low HR');
+          }
+          if (currentheartrate > upperBound) {
+            _audioManager.pause();
+            _playupperOutOfRangeAudio();
+            _showCenterNotification('Music paused');
+            debugPrint('Playing out of range audio due to high HR');
           }
         });
       }
     } else {
       if (!_audioManager.isPlaying) {
         _audioManager.resume();
+        _audioManager.resumePacing();
         debugPrint('Music resumed');
       }
-    }
-
-    if (currentHRPercent >= 50 && currentHRPercent <= 80) {
-      _checkForOverlayTrigger(_currentPosition);
     }
   }
   // --- SOCKET LOGIC END ---
@@ -292,6 +298,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
       debugPrint('Error playing audio: $e');
       Future.delayed(Duration(seconds: 2), _handleAudioCompletion);
     }
+  }
+
+  void _playlowerOutOfRangeAudio() {
+    String outOfRangeAudioPath = 'assets/audio/stop/slow.wav';
+    _audioManager.playOverlay(outOfRangeAudioPath);
+    debugPrint('Playing out of range audio: $outOfRangeAudioPath');
+  }
+
+  void _playupperOutOfRangeAudio() {
+    String outOfRangeAudioPath = 'assets/audio/stop/fast.wav';
+    _audioManager.playOverlay(outOfRangeAudioPath);
+    debugPrint('Playing out of range audio: $outOfRangeAudioPath');
   }
 
   // Function to calculate pacing timestamps
@@ -357,7 +375,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _initializeTimestamps();
     _pacingTriggered = List.filled(_pacingAudioFiles.length, false);
     _currentAudioStarted = false;
-    totalNudges = 0;
+    currentTrackNudges = 0;
   }
 
   Future<void> _handleAudioCompletion() async {
@@ -435,29 +453,30 @@ class _PlayerScreenState extends State<PlayerScreen> {
     debugPrint('Timestamps: $_timestamps');
   }
 
-  String _determineOverlayType(double hrPercentage, int zoneId) {
+  String _determineOverlayType(
+      double hr, int lowerbound, int zoneId, int upperbound) {
     if (zoneId == 1) {
-      if (hrPercentage >= 50 && hrPercentage < 60) {
+      if (hr >= lowerbound && hr < upperbound) {
         return 'A';
-      } else if (hrPercentage < 50) {
+      } else if (hr < lowerbound) {
         return 'A';
-      } else if (hrPercentage >= 60) {
+      } else if (hr >= upperbound) {
         return 'S';
       }
     } else if (zoneId == 2) {
-      if (hrPercentage >= 60 && hrPercentage < 70) {
+      if (hr >= lowerbound && hr < upperbound) {
         return 'A';
-      } else if (hrPercentage < 60) {
+      } else if (hr < lowerbound) {
         return 'A';
-      } else if (hrPercentage >= 70) {
+      } else if (hr >= upperbound) {
         return 'S';
       }
     } else if (zoneId == 3) {
-      if (hrPercentage >= 70 && hrPercentage < 80) {
+      if (hr >= lowerbound && hr < upperbound) {
         return 'A';
-      } else if (hrPercentage < 70) {
+      } else if (hr < lowerbound) {
         return 'A';
-      } else if (hrPercentage >= 80) {
+      } else if (hr >= upperbound) {
         return 'S';
       }
     }
@@ -597,14 +616,27 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
     if (_currentHR != null && _maxHR != null) {
       final int zoneId = currentAudio['zoneId'];
-      final double hrPercentage = (_currentHR! / _maxHR!) * 100;
-      overlayType = _determineOverlayType(hrPercentage, zoneId);
+      final double hr = _currentHR!.toDouble();
+      int lowerbound = 0;
+      int upperbound = 0;
+      if (zoneId == 1) {
+        lowerbound = (72 + (_maxHR! - 72) * 0.5).toInt();
+        upperbound = (72 + (_maxHR! - 72) * 0.6).toInt();
+      } else if (zoneId == 2) {
+        lowerbound = (72 + (_maxHR! - 72) * 0.6).toInt();
+        upperbound = (72 + (_maxHR! - 72) * 0.7).toInt();
+      } else if (zoneId == 3) {
+        lowerbound = (72 + (_maxHR! - 72) * 0.7).toInt();
+        upperbound = (72 + (_maxHR! - 72) * 0.8).toInt();
+      }
+      overlayType = _determineOverlayType(hr, lowerbound, zoneId, upperbound);
     }
 
     for (int i = 0; i < _timestamps.length; i++) {
       if (!_triggered[i] && _isInTimestampRange(position, _timestamps[i])) {
         _triggered[i] = true;
         totalNudges++;
+        currentTrackNudges++;
         String overlayPath;
         final filteredChallenges = widget.audioData;
         final challengeId =
@@ -738,183 +770,182 @@ class _PlayerScreenState extends State<PlayerScreen> {
         ),
         body: Stack(
           children: [
-            if (!_isLocked)
-              ...[
-                Container(
-                  decoration: BoxDecoration(
-                    image: DecorationImage(
-                      image: AssetImage(currentAudio['image']),
-                      fit: BoxFit.cover,
-                    ),
+            if (!_isLocked) ...[
+              Container(
+                decoration: BoxDecoration(
+                  image: DecorationImage(
+                    image: AssetImage(currentAudio['image']),
+                    fit: BoxFit.cover,
                   ),
                 ),
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.black.withOpacity(0.8),
-                        Colors.black.withOpacity(0.2),
-                        Colors.black.withOpacity(0.8),
-                      ],
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                    ),
+              ),
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.black.withOpacity(0.8),
+                      Colors.black.withOpacity(0.2),
+                      Colors.black.withOpacity(0.8),
+                    ],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
                   ),
                 ),
-                Column(
-                  children: [
-                    const Spacer(flex: 4),
-                    GestureDetector(
-                      onTap: _togglePlayPause,
-                      child: SizedBox(
-                        width: 140,
-                        height: 140,
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            Container(
-                              width: 220,
-                              height: 220,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                gradient: const LinearGradient(
-                                  colors: [Color(0xFF7B1FA2), Color(0xFFE040FB)],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.purple.withOpacity(0.6),
-                                    blurRadius: 20,
-                                    spreadRadius: 5,
-                                  ),
-                                ],
-                              ),
-                              child: Center(
-                                child: AnimatedSwitcher(
-                                  duration: const Duration(milliseconds: 300),
-                                  child: _centerNotification != null
-                                      ? Text(
-                                          _centerNotification!,
-                                          key: const ValueKey('notif'),
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 20,
-                                            fontWeight: FontWeight.bold,
-                                            fontFamily: 'Thewitcher',
-                                            letterSpacing: 2,
-                                          ),
-                                          textAlign: TextAlign.center,
-                                        )
-                                      : (_audioManager.isPlaying
-                                          ? (_currentAudioStarted
-                                              ? Text(
-                                                  _formatDuration(remaining),
-                                                  key: const ValueKey('timer'),
-                                                  style: const TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 40,
-                                                    fontWeight: FontWeight.normal,
-                                                    fontFamily: 'Thewitcher',
-                                                    letterSpacing: 2,
-                                                  ),
-                                                )
-                                              : const SizedBox(
-                                                  key: ValueKey('loading'),
-                                                  width: 60,
-                                                  height: 60,
-                                                  child: CircularProgressIndicator(
-                                                    valueColor:
-                                                        AlwaysStoppedAnimation<Color>(
-                                                            Colors.white),
-                                                    strokeWidth: 6,
-                                                  ),
-                                                ))
-                                          : (_isPausedBlink
-                                              ? Icon(
-                                                  Icons.play_arrow_rounded,
-                                                  key: const ValueKey('playicon'),
-                                                  color: Colors.white,
-                                                  size: 60,
-                                                )
-                                              : Text(
-                                                  _formatDuration(remaining),
-                                                  key: const ValueKey('timer'),
-                                                  style: const TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 40,
-                                                    fontWeight: FontWeight.normal,
-                                                    fontFamily: 'Thewitcher',
-                                                    letterSpacing: 2,
-                                                  ),
-                                                ))),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const Spacer(flex: 2),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Column(
+              ),
+              Column(
+                children: [
+                  const Spacer(flex: 4),
+                  GestureDetector(
+                    onTap: _togglePlayPause,
+                    child: SizedBox(
+                      width: 140,
+                      height: 140,
+                      child: Stack(
+                        alignment: Alignment.center,
                         children: [
-                          SliderTheme(
-                            data: SliderTheme.of(context).copyWith(
-                              thumbColor: Colors.purple,
-                              activeTrackColor: Colors.purple,
-                              inactiveTrackColor: Colors.white30,
-                              trackHeight: 12.0,
-                              thumbShape: RoundSliderThumbShape(
-                                enabledThumbRadius: _timestamps.any((timestamp) =>
-                                        (timestamp.inSeconds -
-                                                _currentPosition.inSeconds)
-                                            .abs() <=
-                                        1)
-                                    ? 12.0
-                                    : 0.0,
+                          Container(
+                            width: 220,
+                            height: 220,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF7B1FA2), Color(0xFFE040FB)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
                               ),
-                              overlayColor: Colors.purple.withOpacity(0.2),
-                              overlayShape: const RoundSliderOverlayShape(
-                                overlayRadius: 28.0,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.purple.withOpacity(0.6),
+                                  blurRadius: 20,
+                                  spreadRadius: 5,
+                                ),
+                              ],
+                            ),
+                            child: Center(
+                              child: AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 300),
+                                child: _centerNotification != null
+                                    ? Text(
+                                        _centerNotification!,
+                                        key: const ValueKey('notif'),
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.bold,
+                                          fontFamily: 'Thewitcher',
+                                          letterSpacing: 2,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      )
+                                    : (_audioManager.isPlaying
+                                        ? (_currentAudioStarted
+                                            ? Text(
+                                                _formatDuration(remaining),
+                                                key: const ValueKey('timer'),
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 40,
+                                                  fontWeight: FontWeight.normal,
+                                                  fontFamily: 'Thewitcher',
+                                                  letterSpacing: 2,
+                                                ),
+                                              )
+                                            : const SizedBox(
+                                                key: ValueKey('loading'),
+                                                width: 60,
+                                                height: 60,
+                                                child:
+                                                    CircularProgressIndicator(
+                                                  valueColor:
+                                                      AlwaysStoppedAnimation<
+                                                          Color>(Colors.white),
+                                                  strokeWidth: 6,
+                                                ),
+                                              ))
+                                        : (_isPausedBlink
+                                            ? Icon(
+                                                Icons.play_arrow_rounded,
+                                                key: const ValueKey('playicon'),
+                                                color: Colors.white,
+                                                size: 60,
+                                              )
+                                            : Text(
+                                                _formatDuration(remaining),
+                                                key: const ValueKey('timer'),
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 40,
+                                                  fontWeight: FontWeight.normal,
+                                                  fontFamily: 'Thewitcher',
+                                                  letterSpacing: 2,
+                                                ),
+                                              ))),
                               ),
                             ),
-                            child: Slider(
-                              value: _currentPosition.inSeconds.toDouble(),
-                              min: 0,
-                              max: _totalDuration.inSeconds.toDouble() > 0
-                                  ? _totalDuration.inSeconds.toDouble()
-                                  : 1,
-                              onChanged: (value) async {
-                                final position = Duration(seconds: value.toInt());
-                                await _audioManager.audioPlayer.seek(position);
-                              },
-                            ),
-                          ),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                _formatDuration(_currentPosition),
-                                style: const TextStyle(
-                                    color: Colors.white70, fontSize: 14),
-                              ),
-                              Text(
-                                _formatDuration(_totalDuration),
-                                style: const TextStyle(
-                                    color: Colors.white70, fontSize: 14),
-                              ),
-                            ],
                           ),
                         ],
                       ),
                     ),
-                    const Spacer(flex: 1),
-                  ],
-                ),
-              ]
-            else
+                  ),
+                  const Spacer(flex: 2),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Column(
+                      children: [
+                        SliderTheme(
+                          data: SliderTheme.of(context).copyWith(
+                            thumbColor: Colors.purple,
+                            activeTrackColor: Colors.purple,
+                            inactiveTrackColor: Colors.white30,
+                            trackHeight: 12.0,
+                            thumbShape: RoundSliderThumbShape(
+                              enabledThumbRadius: _timestamps.any((timestamp) =>
+                                      (timestamp.inSeconds -
+                                              _currentPosition.inSeconds)
+                                          .abs() <=
+                                      1)
+                                  ? 12.0
+                                  : 0.0,
+                            ),
+                            overlayColor: Colors.purple.withOpacity(0.2),
+                            overlayShape: const RoundSliderOverlayShape(
+                              overlayRadius: 28.0,
+                            ),
+                          ),
+                          child: Slider(
+                            value: _currentPosition.inSeconds.toDouble(),
+                            min: 0,
+                            max: _totalDuration.inSeconds.toDouble() > 0
+                                ? _totalDuration.inSeconds.toDouble()
+                                : 1,
+                            onChanged: (value) async {
+                              final position = Duration(seconds: value.toInt());
+                              await _audioManager.audioPlayer.seek(position);
+                            },
+                          ),
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              _formatDuration(_currentPosition),
+                              style: const TextStyle(
+                                  color: Colors.white70, fontSize: 14),
+                            ),
+                            Text(
+                              _formatDuration(_totalDuration),
+                              style: const TextStyle(
+                                  color: Colors.white70, fontSize: 14),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Spacer(flex: 1),
+                ],
+              ),
+            ] else
               // LOCKED UI
               Container(
                 color: Colors.black,
@@ -931,7 +962,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
                         child: CircularProgressIndicator(
                           value: _unlockProgress,
                           strokeWidth: 8,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.purple),
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.purple),
                           backgroundColor: Colors.white12,
                         ),
                       ),
@@ -950,7 +982,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
                           ],
                         ),
                         child: const Center(
-                          child: Icon(Icons.lock_open, color: Colors.white, size: 48),
+                          child: Icon(Icons.lock_open,
+                              color: Colors.white, size: 48),
                         ),
                       ),
                     ],

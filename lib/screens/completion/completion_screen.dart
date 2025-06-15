@@ -71,10 +71,21 @@ class _CompletionScreenState extends State<CompletionScreen>
     _nudgeAnimation =
         Tween<double>(begin: 0.0, end: 0.0).animate(_animationController);
     if (_isAppActive) {
-      _fetchDataAndAnimate();
+      _updateChallengeAndFetchData();
     }
-    _updateChallengeStatus();
   }
+  Future<void> _updateChallengeAndFetchData() async {
+  // First update challenge status
+  await _updateChallengeStatus();
+  
+  // Wait for 2 seconds
+  await Future.delayed(const Duration(seconds: 2));
+  
+  // Then fetch data and animate
+  if (_isAppActive) {
+    _fetchDataAndAnimate();
+  }
+}
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -235,10 +246,10 @@ class _CompletionScreenState extends State<CompletionScreen>
 
         int insideZone = 0;
         int outsideZone = 0;
-        int totalHeartRate = 0;
+        double totalHeartRate = 0.0;
 
         for (var entry in allHeartRateEntries) {
-          final heartRate = entry['heartRate'] as int;
+          final heartRate = (entry['heartRate'] as num).toDouble(); // Fixed: handle both int and double
           totalHeartRate += heartRate;
           if (heartRate >= lowerBound && heartRate <= upperBound) {
             insideZone++;
