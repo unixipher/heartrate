@@ -409,7 +409,7 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                                                       size: 28,
                                                     )
                                                   : const Icon(
-                                                      Icons.download,
+                                                      Icons.lock,
                                                       color: Colors.white,
                                                       size: 28,
                                                     ),
@@ -491,7 +491,6 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 18,
-                        fontFamily: 'Thewitcher',
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -572,7 +571,6 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 18,
-                      fontFamily: 'Thewitcher',
                       fontWeight: FontWeight.bold,
                     ),
                     textAlign: TextAlign.center,
@@ -598,8 +596,8 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                     child: const Text(
                       'No',
                       style: TextStyle(
-                          fontFamily: 'Thewitcher',
                           color: Colors.white,
+                          fontFamily: 'Thewitcher',
                           fontSize: 18),
                     ),
                   ),
@@ -618,8 +616,8 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                     child: const Text(
                       'Yes',
                       style: TextStyle(
-                          fontFamily: 'Thewitcher',
                           color: Colors.white,
+                          fontFamily: 'Thewitcher',
                           fontSize: 18),
                     ),
                   ),
@@ -686,7 +684,6 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 20,
-                      fontFamily: 'Thewitcher',
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -747,7 +744,6 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 18,
-                                  fontFamily: 'Thewitcher',
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -763,7 +759,6 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                                   style: TextStyle(
                                     color: Colors.white,
                                     fontSize: 18,
-                                    fontFamily: 'Thewitcher',
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -772,115 +767,170 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            if (challengeCount > 11)
-                              Expanded(
-                                child: SizedBox(
-                                  height: 150,
-                                  child: ListWheelScrollView.useDelegate(
-                                    itemExtent: 40,
-                                    physics: const FixedExtentScrollPhysics(),
-                                    onSelectedItemChanged: (index) {
-                                      if (!isLoading) {
-                                        setModalState(() {
-                                          selectedHour = index;
-                                          int maxMinute =
-                                              (challengeCount * 5).clamp(5, 55);
-                                          int upper =
-                                              maxMinute < 30 ? maxMinute : 30;
-                                          if (selectedHour == 1 &&
-                                              selectedMinute > upper) {
-                                            selectedMinute = upper;
-                                          }
-                                        });
-                                      }
-                                    },
-                                    childDelegate:
-                                        ListWheelChildBuilderDelegate(
-                                      builder: (context, index) {
-                                        return Center(
-                                          child: index == 0 
-                                            ? const SizedBox.shrink()
-                                            : Text(
-                                              '$index hr',
-                                              style: TextStyle(
-                                                fontFamily: 'Thewitcher',
-                                                color: selectedHour == index
-                                                  ? Colors.white
-                                                  : Colors.grey,
-                                                fontSize: 22,
-                                              ),
-                                              ),
-                                        );
-                                      },
-                                      childCount: 2,
+                        // Time Selector with Selection Bar
+                        Container(
+                          height: 150,
+                          child: Stack(
+                            children: [
+                              // Selection Bar Background
+                              Positioned(
+                                top: 55, // Center of the wheel (150/2 - 40/2)
+                                left: 0,
+                                right: 0,
+                                child: Container(
+                                  height: 40,
+                                  margin: const EdgeInsets.symmetric(
+                                      horizontal: 20),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: Colors.white.withOpacity(0.3),
+                                      width: 1,
                                     ),
                                   ),
                                 ),
                               ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: SizedBox(
-                                height: 150,
-                                child: ListWheelScrollView.useDelegate(
-                                  itemExtent: 40,
-                                  physics: const FixedExtentScrollPhysics(),
-                                  onSelectedItemChanged: (index) {
-                                    if (!isLoading) {
-                                      setModalState(() {
-                                        int maxMinute =
-                                            (challengeCount * 5).clamp(5, 55);
-                                        if (selectedHour == 0) {
-                                          int count = (maxMinute ~/ 5);
-                                          selectedMinute =
-                                              5 + (index % count) * 5;
-                                        } else {
-                                          int upper =
-                                              maxMinute < 30 ? maxMinute : 30;
-                                          int count = (upper ~/ 5);
-                                          selectedMinute =
-                                              5 + (index % count) * 5;
-                                        }
-                                      });
-                                    }
-                                  },
-                                  childDelegate: ListWheelChildBuilderDelegate(
-                                    builder: (context, index) {
-                                      int maxMinute =
-                                          (challengeCount * 5).clamp(5, 55);
-                                      int minute;
-                                      if (selectedHour == 0) {
-                                        int count = (maxMinute ~/ 5);
-                                        minute = 5 + (index % count) * 5;
-                                      } else {
-                                        int upper =
-                                            maxMinute < 30 ? maxMinute : 30;
-                                        int count = (upper ~/ 5);
-                                        minute = 5 + (index % count) * 5;
-                                      }
-                                      return Center(
-                                        child: Text(
-                                          '$minute min',
-                                          style: TextStyle(
-                                            fontFamily: 'Thewitcher',
-                                            color: selectedMinute == minute
-                                                ? Colors.white
-                                                : Colors.grey,
-                                            fontSize: 22,
+                              // Time Selectors
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  // Hours Selector (only show if challenge count > 11)
+                                  if (challengeCount > 11)
+                                    SizedBox(
+                                      width: 120,
+                                      child: SizedBox(
+                                        height: 150,
+                                        child: ListWheelScrollView.useDelegate(
+                                          itemExtent: 40,
+                                          physics:
+                                              const FixedExtentScrollPhysics(),
+                                          onSelectedItemChanged: (index) {
+                                            if (!isLoading) {
+                                              setModalState(() {
+                                                selectedHour = index;
+                                                int maxMinute =
+                                                    (challengeCount * 5)
+                                                        .clamp(5, 55);
+                                                int upper = maxMinute < 30
+                                                    ? maxMinute
+                                                    : 30;
+                                                if (selectedHour == 1 &&
+                                                    selectedMinute > upper) {
+                                                  selectedMinute = upper;
+                                                }
+                                              });
+                                            }
+                                          },
+                                          childDelegate:
+                                              ListWheelChildBuilderDelegate(
+                                            builder: (context, index) {
+                                              return Center(
+                                                child: index == 0
+                                                    ? const SizedBox.shrink()
+                                                    : Text(
+                                                        '$index hr',
+                                                        style: TextStyle(
+                                                          color: selectedHour ==
+                                                                  index
+                                                              ? Colors.white
+                                                              : Colors.grey
+                                                                  .withOpacity(
+                                                                      0.6),
+                                                          fontSize: 22,
+                                                          fontWeight:
+                                                              selectedHour == index
+                                                                  ? FontWeight
+                                                                      .normal
+                                                                  : FontWeight
+                                                                      .normal,
+                                                        ),
+                                                      ),
+                                              );
+                                            },
+                                            childCount: 2,
                                           ),
                                         ),
-                                      );
-                                    },
-                                    childCount: 100000,
+                                      ),
+                                    ),
+                                  if (challengeCount > 11)
+                                    const SizedBox(width: 4),
+                                  // Minutes Selector
+                                  SizedBox(
+                                    width: 120,
+                                    child: SizedBox(
+                                      height: 150,
+                                      child: ListWheelScrollView.useDelegate(
+                                        itemExtent: 40,
+                                        physics:
+                                            const FixedExtentScrollPhysics(),
+                                        onSelectedItemChanged: (index) {
+                                          if (!isLoading) {
+                                            setModalState(() {
+                                              int maxMinute =
+                                                  (challengeCount * 5)
+                                                      .clamp(5, 55);
+                                              if (selectedHour == 0) {
+                                                int count = (maxMinute ~/ 5);
+                                                selectedMinute =
+                                                    5 + (index % count) * 5;
+                                              } else {
+                                                int upper = maxMinute < 30
+                                                    ? maxMinute
+                                                    : 30;
+                                                int count = (upper ~/ 5);
+                                                selectedMinute =
+                                                    5 + (index % count) * 5;
+                                              }
+                                            });
+                                          }
+                                        },
+                                        childDelegate:
+                                            ListWheelChildBuilderDelegate(
+                                          builder: (context, index) {
+                                            int maxMinute = (challengeCount * 5)
+                                                .clamp(5, 55);
+                                            int minute;
+                                            if (selectedHour == 0) {
+                                              int count = (maxMinute ~/ 5);
+                                              minute = 5 + (index % count) * 5;
+                                            } else {
+                                              int upper = maxMinute < 30
+                                                  ? maxMinute
+                                                  : 30;
+                                              int count = (upper ~/ 5);
+                                              minute = 5 + (index % count) * 5;
+                                            }
+                                            return Center(
+                                              child: Text(
+                                                '$minute min',
+                                                style: TextStyle(
+                                                  color:
+                                                      selectedMinute == minute
+                                                          ? Colors.white
+                                                          : Colors.grey
+                                                              .withOpacity(0.6),
+                                                  fontSize: 22,
+                                                  fontWeight:
+                                                      selectedMinute == minute
+                                                          ? FontWeight.normal
+                                                          : FontWeight.normal,
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                          childCount: 100000,
+                                        ),
+                                      ),
+                                    ),
                                   ),
-                                ),
+                                ],
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                         const SizedBox(height: 24),
+                        // Confirm Button
                         ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             backgroundColor:
@@ -1021,8 +1071,8 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                               : const Text(
                                   'Confirm',
                                   style: TextStyle(
-                                    fontFamily: 'Thewitcher',
                                     color: Colors.white,
+                                    fontFamily: 'Thewitcher',
                                     fontSize: 18,
                                   ),
                                 ),

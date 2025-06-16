@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:confetti/confetti.dart';
 import 'package:testingheartrate/screens/home/home_screen.dart';
+import 'package:path_provider/path_provider.dart';
 
 class CompletionScreen extends StatefulWidget {
   final String storyName;
@@ -74,18 +76,22 @@ class _CompletionScreenState extends State<CompletionScreen>
       _updateChallengeAndFetchData();
     }
   }
+
   Future<void> _updateChallengeAndFetchData() async {
-  // First update challenge status
-  await _updateChallengeStatus();
-  
-  // Wait for 2 seconds
-  await Future.delayed(const Duration(seconds: 2));
-  
-  // Then fetch data and animate
-  if (_isAppActive) {
-    _fetchDataAndAnimate();
+    // First update challenge status
+    await _updateChallengeStatus();
+
+    // Wait for 2 seconds
+    await Future.delayed(const Duration(seconds: 2));
+
+    // Then fetch data and animate
+    if (_isAppActive) {
+      await _fetchDataAndAnimate();
+      
+      // After all analysis is complete, delete audio files
+      await _deleteAudioFiles();
+    }
   }
-}
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -137,12 +143,12 @@ class _CompletionScreenState extends State<CompletionScreen>
 
       if (response.statusCode == 200) {
         debugPrint('Challenge updated successfully: ${response.statusCode}');
+        debugPrint(widget.audioData.toString());
       }
     } catch (e) {
       debugPrint('Update challenge error: $e');
     }
   }
-
 
   Future<void> _fetchDataAndAnimate() async {
     try {
@@ -179,6 +185,62 @@ class _CompletionScreenState extends State<CompletionScreen>
       if (_isAppActive) {
         setState(() => _isLoading = false);
       }
+    }
+  }
+
+  Future<void> _deleteAudioFiles() async {
+    try {
+      debugPrint('Starting audio file cleanup...');
+
+      final directory = await getApplicationDocumentsDirectory();
+      final prefs = await SharedPreferences.getInstance();
+
+      int deletedCount = 0;
+
+      // Iterate through audioData and delete files
+      for (var audioItem in (widget.audioData as List)) {
+        final int challengeId = audioItem['id'] as int;
+        final String audioUrl = audioItem['audioUrl'] as String? ?? '';
+
+        // Check if this is a local file (downloaded)
+        if (audioUrl.startsWith('file://')) {
+          final String filePath = audioUrl.replaceFirst('file://', '');
+          final File audioFile = File(filePath);
+
+          try {
+            if (await audioFile.exists()) {
+              await audioFile.delete();
+              deletedCount++;
+              debugPrint('Deleted audio file: $filePath');
+            }
+          } catch (e) {
+            debugPrint('Error deleting file $filePath: $e');
+          }
+        }
+
+        // Also try the standard naming convention used in challenge_screen
+        final String standardPath =
+            '${directory.path}/challenge_$challengeId.mp3';
+        final File standardFile = File(standardPath);
+
+        try {
+          if (await standardFile.exists()) {
+            await standardFile.delete();
+            deletedCount++;
+            debugPrint('Deleted standard audio file: $standardPath');
+          }
+        } catch (e) {
+          debugPrint('Error deleting standard file $standardPath: $e');
+        }
+
+        // Remove download status from SharedPreferences
+        await prefs.remove('downloaded_$challengeId');
+        debugPrint('Removed download status for challenge $challengeId');
+      }
+
+      debugPrint('Audio cleanup completed. Deleted $deletedCount files.');
+    } catch (e) {
+      debugPrint('Error during audio file cleanup: $e');
     }
   }
 
@@ -249,7 +311,8 @@ class _CompletionScreenState extends State<CompletionScreen>
         double totalHeartRate = 0.0;
 
         for (var entry in allHeartRateEntries) {
-          final heartRate = (entry['heartRate'] as num).toDouble(); // Fixed: handle both int and double
+          final heartRate = (entry['heartRate'] as num)
+              .toDouble(); // Fixed: handle both int and double
           totalHeartRate += heartRate;
           if (heartRate >= lowerBound && heartRate <= upperBound) {
             insideZone++;

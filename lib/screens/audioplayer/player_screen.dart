@@ -547,64 +547,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
       if (_currentPacingSegment != -1 &&
           _currentPacingSegment < _pacingAudioFiles.length) {
-        final currentAudio = widget.audioData[_currentAudioIndex];
-        final int storyId = currentAudio['storyId'];
-        String pacingAudioPath;
-        switch (storyId) {
-          case 1:
-            pacingAudioPath =
-                'assets/audio/aradium/pacing/${_pacingAudioFiles[_currentPacingSegment]}';
-            break;
-          case 2:
-            pacingAudioPath =
-                'assets/audio/smm/pacing/${_pacingAudioFiles[_currentPacingSegment]}';
-            break;
-          case 3:
-            pacingAudioPath =
-                'assets/audio/luther/pacing/${_pacingAudioFiles[_currentPacingSegment]}';
-            break;
-          case 4:
-            pacingAudioPath =
-                'assets/audio/dare/pacing/${_pacingAudioFiles[_currentPacingSegment]}';
-            break;
-          default:
-            pacingAudioPath =
-                'assets/audio/pacing/${_pacingAudioFiles[_currentPacingSegment]}';
-        }
+        String pacingAudioPath =
+            'assets/audio/pacing/${_pacingAudioFiles[_currentPacingSegment]}';
         _audioManager.playPacingLoop(pacingAudioPath);
         debugPrint('Playing pacing audio: $pacingAudioPath');
-      }
-    }
-
-    for (int i = 0; i < _pacingTimestamps.length; i++) {
-      if (!_pacingTriggered[i] &&
-          _isInTimestampRange(globalPosition, _pacingTimestamps[i])) {
-        _pacingTriggered[i] = true;
-        final currentAudio = widget.audioData[_currentAudioIndex];
-        final int storyId = currentAudio['storyId'];
-        String pacingAudioPath;
-        switch (storyId) {
-          case 1:
-            pacingAudioPath =
-                'assets/audio/aradium/pacing/${_pacingAudioFiles[i]}';
-            break;
-          case 2:
-            pacingAudioPath = 'assets/audio/smm/pacing/${_pacingAudioFiles[i]}';
-            break;
-          case 3:
-            pacingAudioPath =
-                'assets/audio/luther/pacing/${_pacingAudioFiles[i]}';
-            break;
-          case 4:
-            pacingAudioPath =
-                'assets/audio/dare/pacing/${_pacingAudioFiles[i]}';
-            break;
-          default:
-            pacingAudioPath = 'assets/audio/pacing/${_pacingAudioFiles[i]}';
-        }
-        _audioManager.playPacing(pacingAudioPath);
-        debugPrint(
-            'Playing pacing audio: $pacingAudioPath at ${_formatDuration(globalPosition)}');
       }
     }
   }
