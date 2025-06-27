@@ -1,0 +1,6 @@
+framework module cm_pedometer {
+  umbrella header "cm_pedometer-umbrella.h"
+
+  export *
+  module * { export * }
+}

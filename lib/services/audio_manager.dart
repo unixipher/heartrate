@@ -182,9 +182,10 @@ class AudioManager {
     }
   }
 
-  Future<void> playOverlay(String assetPath) async {
+  Future<void> playOverlay(String assetPath, {double volume = 1.5}) async {
     try {
       await _overlayPlayer.stop();
+      await _overlayPlayer.setVolume(volume);
       await _overlayPlayer.setAsset(assetPath);
       await _overlayPlayer.play();
     } catch (e) {
@@ -192,7 +193,7 @@ class AudioManager {
     }
   }
 
-  Future<void> playPacing(String assetPath, {double volume = 0.3}) async {
+  Future<void> playPacing(String assetPath, {double volume = 1}) async {
     try {
       await _pacingPlayer.stop();
       await _pacingPlayer.setVolume(volume);
@@ -203,7 +204,7 @@ class AudioManager {
     }
   }
 
-  Future<void> playPacingLoop(String path, {double volume = 0.3}) async {
+  Future<void> playPacingLoop(String path, {double volume = 1}) async {
     try {
       await _pacingPlayer.stop();
       await _pacingPlayer.setVolume(volume);
@@ -222,7 +223,8 @@ class AudioManager {
       debugPrint('AudioManager: Error stopping pacing: $e');
     }
   }
-    Future<void> resumePacing() async {
+
+  Future<void> resumePacing() async {
     try {
       if (_pacingPlayer.processingState != ProcessingState.idle &&
           !_pacingPlayer.playing) {

@@ -7,6 +7,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:testingheartrate/screens/challenge/challenge_screen.dart';
 import 'package:testingheartrate/screens/history/history_screen.dart';
 import 'package:testingheartrate/screens/profile/profile_page.dart';
+import 'package:testingheartrate/screens/speed/speed_screen.dart';
+import 'package:testingheartrate/services/time_tracking_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,6 +21,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final PageController _pageController = PageController(viewportFraction: 0.8);
   int _currentPage = 0;
   final FirebaseAnalytics analytics = FirebaseAnalytics.instance;
+  int _userScore = 0;
 
   final List<CharacterData> _characters = [
     CharacterData(
@@ -100,8 +103,18 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     analytics.setAnalyticsCollectionEnabled(true);
     super.initState();
+    _initializeTimeTracking();
     _checkUserData();
     _fetchChallenges();
+  }
+
+  Future<void> _initializeTimeTracking() async {
+    try {
+      await TimeTrackingService().initialize();
+      debugPrint('Time tracking service initialized successfully');
+    } catch (e) {
+      debugPrint('Error initializing time tracking service: $e');
+    }
   }
 
   Future<void> _fetchChallenges() async {
@@ -165,6 +178,13 @@ class _HomeScreenState extends State<HomeScreen> {
           await prefs.setInt('maxhr', maxHr.toInt());
           debugPrint('MaxHR stored: $maxHr');
         }
+
+        if (user['score'] != null) {
+          setState(() {
+            _userScore = user['score'];
+          });
+          debugPrint('Score fetched: $_userScore');
+        }
       } else {
         debugPrint('Failed to fetch user data: ${response.statusCode}');
       }
@@ -185,6 +205,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _pageController.dispose();
+    TimeTrackingService().dispose();
     super.dispose();
   }
 
@@ -196,7 +217,42 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 24),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.purple.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.emoji_events,
+                        color: Colors.white,
+                        size: 22,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '$_userScore',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.normal,
+                          fontFamily: 'Thewitcher',
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
             const Center(
               child: Text(
                 'Today I Want to be',
@@ -346,6 +402,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
       bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
         backgroundColor: const Color(0xFF0A0D29),
         selectedItemColor: Colors.purple,
         unselectedItemColor: Colors.white70,
@@ -362,13 +419,14 @@ class _HomeScreenState extends State<HomeScreen> {
               MaterialPageRoute(builder: (context) => HistoryScreen()),
             );
           } else if (index == 2) {
-            // await analytics.logEvent(
-            //   name: 'logout_button_clicked',
-            //   parameters: {},
-            // );
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => ProfilePage()),
+            );
+          } else if (index == 3) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => MyApp()),
             );
           }
         },
@@ -384,6 +442,10 @@ class _HomeScreenState extends State<HomeScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.person_rounded),
             label: 'Profile',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.run_circle_outlined),
+            label: 'Run',
           ),
         ],
       ),

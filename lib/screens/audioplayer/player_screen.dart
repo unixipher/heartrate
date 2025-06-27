@@ -192,7 +192,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
       // Start playing from first track
       await _audioManager.playFromIndex(0);
-      await _audioManager.setVolume(0.4);
+      await _audioManager.setVolume(1);
 
       _initializeTimestamps();
       debugPrint('Playlist initialized and started');
@@ -302,13 +302,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   void _playlowerOutOfRangeAudio() {
     String outOfRangeAudioPath = 'assets/audio/stop/slow.wav';
-    _audioManager.playOverlay(outOfRangeAudioPath);
+    _audioManager.playOverlay(outOfRangeAudioPath, volume: 2.0);
     debugPrint('Playing out of range audio: $outOfRangeAudioPath');
   }
 
   void _playupperOutOfRangeAudio() {
     String outOfRangeAudioPath = 'assets/audio/stop/fast.wav';
-    _audioManager.playOverlay(outOfRangeAudioPath);
+    _audioManager.playOverlay(outOfRangeAudioPath, volume: 2.0);
     debugPrint('Playing out of range audio: $outOfRangeAudioPath');
   }
 
@@ -609,7 +609,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 'assets/audio/overlay/${challengeId}/${overlayType}_$i.wav';
         }
         if (storyId == 1 || storyId == 2 || storyId == 3 || storyId == 4) {
-          _audioManager.playOverlay(overlayPath);
+          _audioManager.playOverlay(overlayPath, volume: 2.0);
           debugPrint('Playing overlay: $overlayPath');
         }
       }
@@ -632,8 +632,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
       await _audioManager.pause();
       _startBlinking();
     } else {
-      await _audioManager.resume();
-      _stopBlinking();
+      if (!_audioManager.isPlaying) {
+        _audioManager.resume();
+        _audioManager.resumePacing();
+        debugPrint('Music resumed');
+      }
     }
     setState(() {});
   }

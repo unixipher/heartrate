@@ -35,8 +35,16 @@
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
 	</dict>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>This app needs your location to measure speed and distance even in the background.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>This app needs your location to measure speed and distance even in the background.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>This app needs your location to measure speed and distance.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>This app uses the microphone to enable audio playback features and ensure a better audio experience.</string>
+	<key>NSMotionUsageDescription</key>
+	<string>This app needs to access motion data for step counting</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UIBackgroundModes</key>

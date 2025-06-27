@@ -3,7 +3,7 @@ description: "A new Flutter project."
 
 publish_to: 'none'
 
-version: 3.0.0+1
+version: 4.0.0+1
 
 environment:
   sdk: ^3.5.4
@@ -28,6 +28,7 @@ dependencies:
   just_audio: ^0.9.5
   confetti: ^0.7.0
   pie_chart: ^5.4.0
+  fl_chart: ^0.69.0
   firebase_analytics: ^11.4.5
   firebase_core: ^3.13.0
   app_links: ^6.4.0
@@ -37,6 +38,12 @@ dependencies:
   flutter_cache_manager: ^3.3.0
   path_provider: ^2.1.1
   screen_brightness: ^2.1.4
+  geolocator: ^14.0.1
+  permission_handler: ^12.0.0+1
+  pedometer_2: ^5.0.4
+  cm_pedometer: ^1.2.0
+  package_info_plus: ^8.3.0
+  device_info_plus: ^11.3.1  
 
 dev_dependencies:
   flutter_test:
@@ -109,6 +116,7 @@ flutter:
     - assets/audio/smm/overlay/17/
     - assets/audio/pacing/
     - assets/audio/stop/
+    - assets/audio/luther/
     - shorebird.yaml
   fonts:
     - family: Thewitcher
