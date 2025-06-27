@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:ui';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/material.dart';
@@ -7,8 +8,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:testingheartrate/screens/challenge/challenge_screen.dart';
 import 'package:testingheartrate/screens/history/history_screen.dart';
 import 'package:testingheartrate/screens/profile/profile_page.dart';
-import 'package:testingheartrate/screens/speed/speed_screen.dart';
 import 'package:testingheartrate/services/time_tracking_service.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -103,9 +104,20 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     analytics.setAnalyticsCollectionEnabled(true);
     super.initState();
+    _requestActivityRecognitionPermission();
+    _requestLocationPermissionIfAndroid();
     _initializeTimeTracking();
     _checkUserData();
     _fetchChallenges();
+  }
+
+  Future<void> _requestLocationPermissionIfAndroid() async {
+    if (Platform.isAndroid) {
+      bool granted = await Permission.location.isGranted;
+      if (!granted) {
+        await Permission.location.request();
+      }
+    }
   }
 
   Future<void> _initializeTimeTracking() async {
@@ -114,6 +126,15 @@ class _HomeScreenState extends State<HomeScreen> {
       debugPrint('Time tracking service initialized successfully');
     } catch (e) {
       debugPrint('Error initializing time tracking service: $e');
+    }
+  }
+
+  Future<void> _requestActivityRecognitionPermission() async {
+    if (Platform.isIOS) {
+      bool granted = await Permission.activityRecognition.isGranted;
+      if (!granted) {
+        await Permission.activityRecognition.request();
+      }
     }
   }
 
@@ -222,8 +243,10 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Align(
                 alignment: Alignment.centerRight,
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.purple.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(12),
@@ -301,9 +324,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           onTap: () async {
                             await analytics.logEvent(
                               name: 'character_selected',
-                              parameters: {
-                                'character_name': character.name,
-                              },
+                              parameters: {'character_name': character.name},
                             );
                             Navigator.push(
                               context,
@@ -314,8 +335,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             alignment: Alignment.center,
                             children: [
                               Container(
-                                margin:
-                                    const EdgeInsets.symmetric(horizontal: 8),
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                ),
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   border: Border.all(
@@ -323,15 +345,17 @@ class _HomeScreenState extends State<HomeScreen> {
                                     width: 2,
                                   ),
                                   image: const DecorationImage(
-                                    image:
-                                        AssetImage('assets/images/image.png'),
+                                    image: AssetImage(
+                                      'assets/images/image.png',
+                                    ),
                                     fit: BoxFit.cover,
                                   ),
                                 ),
                               ),
                               Container(
-                                margin:
-                                    const EdgeInsets.symmetric(horizontal: 8),
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                ),
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   border: Border.all(
@@ -423,29 +447,14 @@ class _HomeScreenState extends State<HomeScreen> {
               context,
               MaterialPageRoute(builder: (context) => ProfilePage()),
             );
-          } else if (index == 3) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => MyApp()),
-            );
           }
         },
         items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.history),
-            label: 'History',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.history), label: 'History'),
           BottomNavigationBarItem(
             icon: Icon(Icons.person_rounded),
             label: 'Profile',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.run_circle_outlined),
-            label: 'Run',
           ),
         ],
       ),
@@ -588,9 +597,7 @@ class _ProfileFormState extends State<ProfileForm> {
       children: [
         BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Container(
-            color: Colors.black.withOpacity(0.5),
-          ),
+          child: Container(color: Colors.black.withOpacity(0.5)),
         ),
         DraggableScrollableSheet(
           initialChildSize: 0.5,
@@ -651,7 +658,9 @@ class _ProfileFormState extends State<ProfileForm> {
                       decoration: InputDecoration(
                         labelText: 'Age',
                         labelStyle: const TextStyle(
-                            fontFamily: 'Battambang', color: Colors.white70),
+                          fontFamily: 'Battambang',
+                          color: Colors.white70,
+                        ),
                         enabledBorder: OutlineInputBorder(
                           borderSide: const BorderSide(color: Colors.white70),
                           borderRadius: BorderRadius.circular(10),
@@ -669,13 +678,15 @@ class _ProfileFormState extends State<ProfileForm> {
                     DropdownButtonFormField<String>(
                       value: _gender,
                       items: ['male', 'female']
-                          .map((g) => DropdownMenuItem(
-                                value: g,
-                                child: Text(
-                                  g[0].toUpperCase() + g.substring(1),
-                                  style: const TextStyle(color: Colors.white),
-                                ),
-                              ))
+                          .map(
+                            (g) => DropdownMenuItem(
+                              value: g,
+                              child: Text(
+                                g[0].toUpperCase() + g.substring(1),
+                                style: const TextStyle(color: Colors.white),
+                              ),
+                            ),
+                          )
                           .toList(),
                       onChanged: (value) {
                         setState(() {
@@ -685,7 +696,9 @@ class _ProfileFormState extends State<ProfileForm> {
                       decoration: InputDecoration(
                         labelText: 'Gender',
                         labelStyle: const TextStyle(
-                            fontFamily: 'Battambang', color: Colors.white70),
+                          fontFamily: 'Battambang',
+                          color: Colors.white70,
+                        ),
                         enabledBorder: OutlineInputBorder(
                           borderSide: const BorderSide(color: Colors.white70),
                           borderRadius: BorderRadius.circular(10),
@@ -707,19 +720,25 @@ class _ProfileFormState extends State<ProfileForm> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF7B1FA2),
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10)),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
                           padding: const EdgeInsets.symmetric(
-                              vertical: 12, horizontal: 24),
+                            vertical: 12,
+                            horizontal: 24,
+                          ),
                         ),
                         child: _isSubmitting
                             ? const CircularProgressIndicator(
-                                valueColor:
-                                    AlwaysStoppedAnimation<Color>(Colors.white),
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
                               )
                             : const Text(
                                 'Save',
                                 style: TextStyle(
-                                    color: Colors.white, fontSize: 16),
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                ),
                               ),
                       ),
                     ),
