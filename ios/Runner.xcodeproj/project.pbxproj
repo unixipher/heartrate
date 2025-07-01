@@ -421,6 +421,27 @@
 			remoteGlobalIDString = 071549DBDD4BFC0BD7D2715539015DC2;
 			remoteInfo = "sqflite_darwin-sqflite_darwin_privacy";
 		};
+		142DD4612E13DD8200C14D94 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 14C1309E2DA0D5E6000F081E /* Pods.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 1AE6D5DC44C8B4CA7FD4A2A132DD834C;
+			remoteInfo = sensors_plus;
+		};
+		142DD4952E13DD8200C14D94 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 144E6BA02D9A78D2002DF943 /* Pods.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 1AE6D5DC44C8B4CA7FD4A2A132DD834C;
+			remoteInfo = sensors_plus;
+		};
+		142DD4C92E13DD8200C14D94 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 147B76292DBA6AD500006787 /* Pods.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 1AE6D5DC44C8B4CA7FD4A2A132DD834C;
+			remoteInfo = sensors_plus;
+		};
 		144E03702DDC8FD4001B9A7B /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 14C1309E2DA0D5E6000F081E /* Pods.xcodeproj */;
@@ -1080,6 +1101,7 @@
 				14148AA42DDA405100C3DE63 /* FBLPromises_Privacy.bundle */,
 				149DB05B2DFD549400F0BCF5 /* screen_brightness_ios.framework */,
 				149DB05D2DFD549400F0BCF5 /* screen_brightness_ios_privacy.bundle */,
+				142DD4962E13DD8200C14D94 /* sensors_plus.framework */,
 				144E6C012D9A78D2002DF943 /* shared_preferences_foundation.framework */,
 				144E6C032D9A78D2002DF943 /* shared_preferences_foundation_privacy.bundle */,
 				144E6C052D9A78D2002DF943 /* sign_in_with_apple.framework */,
@@ -1132,6 +1154,7 @@
 				14148AE12DDA405100C3DE63 /* FBLPromises_Privacy.bundle */,
 				149DB0882DFD549400F0BCF5 /* screen_brightness_ios.framework */,
 				149DB08A2DFD549400F0BCF5 /* screen_brightness_ios_privacy.bundle */,
+				142DD4CA2E13DD8200C14D94 /* sensors_plus.framework */,
 				147B76562DBA6AD500006787 /* shared_preferences_foundation.framework */,
 				147B76582DBA6AD500006787 /* shared_preferences_foundation_privacy.bundle */,
 				147B765A2DBA6AD500006787 /* sign_in_with_apple.framework */,
@@ -1184,6 +1207,7 @@
 				14148A672DDA405100C3DE63 /* FBLPromises_Privacy.bundle */,
 				149DB02E2DFD549400F0BCF5 /* screen_brightness_ios.framework */,
 				149DB0302DFD549400F0BCF5 /* screen_brightness_ios_privacy.bundle */,
+				142DD4622E13DD8200C14D94 /* sensors_plus.framework */,
 				14C130F92DA0D5E6000F081E /* shared_preferences_foundation.framework */,
 				14C130FB2DA0D5E6000F081E /* shared_preferences_foundation_privacy.bundle */,
 				14C130FD2DA0D5E6000F081E /* sign_in_with_apple.framework */,
@@ -1783,6 +1807,27 @@
 			fileType = wrapper.cfbundle;
 			path = sqflite_darwin_privacy.bundle;
 			remoteRef = 141E37B12DC0976200C818BF /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		142DD4622E13DD8200C14D94 /* sensors_plus.framework */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.framework;
+			path = sensors_plus.framework;
+			remoteRef = 142DD4612E13DD8200C14D94 /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		142DD4962E13DD8200C14D94 /* sensors_plus.framework */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.framework;
+			path = sensors_plus.framework;
+			remoteRef = 142DD4952E13DD8200C14D94 /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		142DD4CA2E13DD8200C14D94 /* sensors_plus.framework */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.framework;
+			path = sensors_plus.framework;
+			remoteRef = 142DD4C92E13DD8200C14D94 /* PBXContainerItemProxy */;
 			sourceTree = BUILT_PRODUCTS_DIR;
 		};
 		144E03712DDC8FD4001B9A7B /* app_links.framework */ = {

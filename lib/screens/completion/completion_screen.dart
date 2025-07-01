@@ -160,15 +160,28 @@ class _CompletionScreenState extends State<CompletionScreen>
     try {
       final analysisData = await analyseHeartRate();
       if (!_isAppActive) return;
+
+      debugPrint('Setting state with analysis data: $analysisData');
+
       setState(() {
         _averageHeartRate = analysisData['averageHeartRate'] ?? 0.0;
         _percentageInsideZone = analysisData['percentageInsideZone'] ?? 0.0;
         _hasFetchedData = true;
       });
+
+      debugPrint(
+          'State updated - avgHR: $_averageHeartRate, zonePercentage: $_percentageInsideZone');
       final maxHr = widget.maxheartRate ?? 200.0;
       final hrProgress = _averageHeartRate / maxHr;
       final zoneProgress = _percentageInsideZone / 100.0;
       final nudgeProgress = _nudgeCount / 7.0;
+
+      debugPrint('Animation progress values:');
+      debugPrint('- HR Progress: $hrProgress (${_averageHeartRate}/$maxHr)');
+      debugPrint(
+          '- Zone Progress: $zoneProgress (${_percentageInsideZone}/100)');
+      debugPrint('- Nudge Progress: $nudgeProgress ($_nudgeCount/7)');
+
       _heartRateAnimation =
           Tween<double>(begin: 0.0, end: hrProgress.clamp(0.0, 1.0)).animate(
               CurvedAnimation(
@@ -290,42 +303,83 @@ class _CompletionScreenState extends State<CompletionScreen>
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
+        debugPrint('Analysis response data: $data');
 
         List<dynamic> allHeartRateEntries = [];
         int? zoneId;
         for (var challenge in data) {
+          debugPrint('Processing challenge: $challenge');
           if (zoneId == null && challenge['zoneId'] != null) {
             zoneId = challenge['zoneId'];
           }
           if (challenge['heartRateData'] != null) {
+            debugPrint('Heart rate data found: ${challenge['heartRateData']}');
             allHeartRateEntries.addAll(challenge['heartRateData']);
           }
         }
+        debugPrint('Total heart rate entries: ${allHeartRateEntries.length}');
 
-        double lowerBound, upperBound;
+        // Calculate zone boundaries for all zones using Karvonen method
+        final maxHR = widget.maxheartRate ?? 0;
+        final restingHR = 72.0;
+
+        double zone1Lower = (restingHR + (maxHR - restingHR) * 0.35)
+            .toDouble(); // 35% intensity
+        double zone1Upper = (restingHR + (maxHR - restingHR) * 0.75)
+            .toDouble(); // 75% intensity
+        double zone2Lower = (restingHR + (maxHR - restingHR) * 0.45)
+            .toDouble(); // 45% intensity
+        double zone2Upper = (restingHR + (maxHR - restingHR) * 0.85)
+            .toDouble(); // 85% intensity
+        double zone3Lower = (restingHR + (maxHR - restingHR) * 0.55)
+            .toDouble(); // 55% intensity
+        double zone3Upper = (restingHR + (maxHR - restingHR) * 0.95)
+            .toDouble(); // 95% intensity
+
+        debugPrint('Zone boundaries (Karvonen method):');
+        debugPrint(
+            '- Zone 1 (Walk): ${zone1Lower.toInt()}-${zone1Upper.toInt()} BPM');
+        debugPrint(
+            '- Zone 2 (Jog): ${zone2Lower.toInt()}-${zone2Upper.toInt()} BPM');
+        debugPrint(
+            '- Zone 3 (Run): ${zone3Lower.toInt()}-${zone3Upper.toInt()} BPM');
+
+        int insideTargetZone = 0;
+        int insideActualZone = 0;
+        int outsideZone = 0;
+        double totalHeartRate = 0.0;
+
+        // Determine target zone boundaries
+        double targetLowerBound, targetUpperBound;
         if (zoneId == 1) {
-          lowerBound = 0.5 * (widget.maxheartRate ?? 0);
-          upperBound = 0.6 * (widget.maxheartRate ?? 0);
+          targetLowerBound = zone1Lower;
+          targetUpperBound = zone1Upper;
         } else if (zoneId == 2) {
-          lowerBound = 0.6 * (widget.maxheartRate ?? 0);
-          upperBound = 0.7 * (widget.maxheartRate ?? 0);
+          targetLowerBound = zone2Lower;
+          targetUpperBound = zone2Upper;
         } else if (zoneId == 3) {
-          lowerBound = 0.7 * (widget.maxheartRate ?? 0);
-          upperBound = 0.8 * (widget.maxheartRate ?? 0);
+          targetLowerBound = zone3Lower;
+          targetUpperBound = zone3Upper;
         } else {
           throw Exception('Invalid zoneId');
         }
 
-        int insideZone = 0;
-        int outsideZone = 0;
-        double totalHeartRate = 0.0;
-
         for (var entry in allHeartRateEntries) {
-          final heartRate = (entry['heartRate'] as num)
-              .toDouble(); // Fixed: handle both int and double
+          final heartRate = (entry['heartRate'] as num).toDouble();
           totalHeartRate += heartRate;
-          if (heartRate >= lowerBound && heartRate <= upperBound) {
-            insideZone++;
+
+          // Check if in target zone
+          if (heartRate >= targetLowerBound && heartRate <= targetUpperBound) {
+            insideTargetZone++;
+          }
+
+          // Check which zone they were actually in
+          if (heartRate >= zone1Lower && heartRate <= zone1Upper) {
+            insideActualZone++; // Zone 1
+          } else if (heartRate >= zone2Lower && heartRate <= zone2Upper) {
+            insideActualZone++; // Zone 2
+          } else if (heartRate >= zone3Lower && heartRate <= zone3Upper) {
+            insideActualZone++; // Zone 3
           } else {
             outsideZone++;
           }
@@ -334,16 +388,38 @@ class _CompletionScreenState extends State<CompletionScreen>
         double averageHeartRate = allHeartRateEntries.isNotEmpty
             ? totalHeartRate / allHeartRateEntries.length
             : 0.0;
-        double percentageInsideZone = allHeartRateEntries.isNotEmpty
-            ? (insideZone / allHeartRateEntries.length) * 100
+
+        // Use the higher percentage between target zone and actual zone performance
+        double percentageInsideTargetZone = allHeartRateEntries.isNotEmpty
+            ? (insideTargetZone / allHeartRateEntries.length) * 100
             : 0.0;
+        double percentageInsideAnyZone = allHeartRateEntries.isNotEmpty
+            ? (insideActualZone / allHeartRateEntries.length) * 100
+            : 0.0;
+
+        // Use the better percentage to show user achievement
+        double displayPercentage = percentageInsideTargetZone > 0
+            ? percentageInsideTargetZone
+            : percentageInsideAnyZone;
+
+        debugPrint('Analysis results:');
+        debugPrint('- Average Heart Rate: $averageHeartRate');
+        debugPrint(
+            '- Percentage Inside Target Zone: $percentageInsideTargetZone');
+        debugPrint('- Percentage Inside Any Zone: $percentageInsideAnyZone');
+        debugPrint('- Display Percentage: $displayPercentage');
+        debugPrint(
+            '- Target Zone bounds: $targetLowerBound - $targetUpperBound');
+
         return {
-          'insideZone': insideZone,
+          'insideZone': insideTargetZone,
           'outsideZone': outsideZone,
           'averageHeartRate': averageHeartRate,
-          'percentageInsideZone': percentageInsideZone,
+          'percentageInsideZone': displayPercentage,
         };
       } else {
+        debugPrint('Analysis API error: ${response.statusCode}');
+        debugPrint('Response body: ${response.body}');
         throw Exception('Failed to analyse heart rate');
       }
     } catch (e) {
@@ -550,12 +626,6 @@ class _CompletionScreenState extends State<CompletionScreen>
   }
 
   Widget _buildCompletionContent() {
-    final zoneType = widget.zoneId == 1
-        ? 'Walk'
-        : widget.zoneId == 2
-            ? 'Jog'
-            : 'Run';
-
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -592,7 +662,7 @@ class _CompletionScreenState extends State<CompletionScreen>
                 ),
                 _buildProgressBar(
                   animation: _zoneTimeAnimation,
-                  label: '$zoneType Zone Time',
+                  label: 'Zone Time',
                   icon: Icons.access_time,
                   progressColor: Colors.purple,
                   valueText: '${_percentageInsideZone.toInt()}%',
