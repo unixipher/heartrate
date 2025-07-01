@@ -1,6 +1,6 @@
 {
   "name": "firebase_analytics",
-  "version": "11.4.5",
+  "version": "11.5.0",
   "summary": "Flutter plugin for Google Analytics for Firebase, an app measurement solution that provides insight on app usage and user engagement on Android and iOS.",
   "description": "Flutter plugin for Google Analytics for Firebase, an app measurement solution that provides insight on app usage and user engagement on Android and iOS.",
   "homepage": "https://firebase.google.com/docs/analytics",
@@ -11,8 +11,7 @@
   "source": {
     "path": "."
   },
-  "source_files": "firebase_analytics/Sources/firebase_analytics/**/*.{h,m}",
-  "public_header_files": "firebase_analytics/Sources/firebase_analytics/include/*.h",
+  "source_files": "firebase_analytics/Sources/firebase_analytics/**/*.swift",
   "platforms": {
     "ios": "13.0"
   },
@@ -24,12 +23,14 @@
 
     ],
     "Firebase/Analytics": [
-      "11.10.0"
+      "11.13.0"
     ]
   },
+  "swift_versions": "5.0",
   "static_framework": true,
   "pod_target_xcconfig": {
-    "GCC_PREPROCESSOR_DEFINITIONS": "LIBRARY_VERSION=\\\"11.4.5\\\" LIBRARY_NAME=\\\"flutter-fire-analytics\\\"",
+    "GCC_PREPROCESSOR_DEFINITIONS": "LIBRARY_VERSION=\\\"11.5.0\\\" LIBRARY_NAME=\\\"flutter-fire-analytics\\\"",
     "DEFINES_MODULE": "YES"
-  }
+  },
+  "swift_version": "5.0"
 }

@@ -10,7 +10,6 @@
 #endif
 #endif
 
-#import "AudioplayersDarwinPlugin.h"
 
 FOUNDATION_EXPORT double audioplayers_darwinVersionNumber;
 FOUNDATION_EXPORT const unsigned char audioplayers_darwinVersionString[];

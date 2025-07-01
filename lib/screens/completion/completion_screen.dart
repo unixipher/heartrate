@@ -19,6 +19,7 @@ class CompletionScreen extends StatefulWidget {
   final dynamic audioData;
   final int challengeCount;
   final int playingChallengeCount;
+  final int score; // Add score parameter
 
   const CompletionScreen({
     super.key,
@@ -31,6 +32,7 @@ class CompletionScreen extends StatefulWidget {
     required this.audioData,
     required this.challengeCount,
     required this.playingChallengeCount,
+    required this.score, // Add score parameter
   });
 
   @override
@@ -81,13 +83,16 @@ class _CompletionScreenState extends State<CompletionScreen>
     // First update challenge status
     await _updateChallengeStatus();
 
+    // Update user score
+    await _updateUserScore();
+
     // Wait for 2 seconds
     await Future.delayed(const Duration(seconds: 2));
 
     // Then fetch data and animate
     if (_isAppActive) {
       await _fetchDataAndAnimate();
-      
+
       // After all analysis is complete, delete audio files
       await _deleteAudioFiles();
     }
@@ -138,6 +143,7 @@ class _CompletionScreenState extends State<CompletionScreen>
         body: jsonEncode({
           'challengeId': challengeIds,
           'status': true,
+          'score': widget.score,
         }),
       );
 
@@ -242,6 +248,10 @@ class _CompletionScreenState extends State<CompletionScreen>
     } catch (e) {
       debugPrint('Error during audio file cleanup: $e');
     }
+  }
+
+  Future<void> _updateUserScore() async {
+    debugPrint("💯💯💯💯score: ${widget.score}");
   }
 
   @override

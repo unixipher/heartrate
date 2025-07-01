@@ -278,7 +278,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 16),
             const Center(
               child: Text(
-                'Today I Want to be',
+                'Choose Your Character \nyou want to be',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 26,
@@ -286,6 +286,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   fontWeight: FontWeight.bold,
                   letterSpacing: 1.5,
                 ),
+                textAlign: TextAlign.center,
               ),
             ),
             const SizedBox(height: 12),

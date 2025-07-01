@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:testingheartrate/services/audio_manager.dart';
 import 'package:testingheartrate/screens/completion/completion_screen.dart';
@@ -8,17 +9,21 @@ import 'package:just_audio/just_audio.dart';
 import 'package:testingheartrate/services/socket_service.dart';
 import 'package:screen_brightness/screen_brightness.dart';
 import 'package:flutter/services.dart';
+import 'package:testingheartrate/services/steps_service.dart';
+import 'package:testingheartrate/services/gps_service.dart';
 
 class PlayerScreen extends StatefulWidget {
   final List<Map<String, dynamic>> audioData;
   final int challengeCount;
   final int playingChallengeCount;
+  final bool useAppleWatch;
 
   const PlayerScreen({
     super.key,
     required this.challengeCount,
     required this.audioData,
     required this.playingChallengeCount,
+    required this.useAppleWatch,
   });
 
   @override
@@ -27,11 +32,16 @@ class PlayerScreen extends StatefulWidget {
 
 class _PlayerScreenState extends State<PlayerScreen> {
   final AudioManager _audioManager = AudioManager();
-  late final SocketService _socketService;
+  SocketService? _socketService;
   bool _currentAudioStarted = false;
   int totalNudges = 0;
   int currentTrackNudges = 0;
   final FirebaseAnalytics analytics = FirebaseAnalytics.instance;
+
+  // Scoring system variables
+  int _currentScore = 0;
+  int _consecutiveChallengeCompletions = 0;
+  List<int> _challengeScores = []; // Track score for each challenge
 
   Duration _currentPosition = Duration.zero;
   Duration _totalDuration = Duration.zero;
@@ -50,6 +60,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   int? _currentHR;
   double? _maxHR;
+  double? _currentSpeedKmph;
+  StreamSubscription? _dataSubscription;
   List<Duration> _timestamps = [];
   List<bool> _triggered = [];
   bool _hasMaxHR = false;
@@ -59,21 +71,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
   int _currentAudioIndex = 0;
   int _currentPacingSegment = -1;
   List<Duration> _pacingSegmentEnds = [];
+  bool _useSocket = false;
 
-  // Stream subscriptions
   late StreamSubscription<Duration> _positionSubscription;
   late StreamSubscription<Duration?> _durationSubscription;
   late StreamSubscription<PlayerState> _playerStateSubscription;
 
-  // --- Notification state ---
   String? _centerNotification;
   Timer? _notificationTimer;
 
-  // --- Blinking state ---
   bool _isPausedBlink = false;
   Timer? _blinkTimer;
 
-  // --- Lock state ---
   bool _isLocked = false;
   double? _previousBrightness;
   double _unlockProgress = 0.0;
@@ -83,11 +92,22 @@ class _PlayerScreenState extends State<PlayerScreen> {
   void initState() {
     analytics.setAnalyticsCollectionEnabled(true);
     super.initState();
+    debugPrint('=== INITIALIZING SCORING SYSTEM ===');
+    debugPrint('Initial Score: $_currentScore');
+    debugPrint(
+        'Initial Challenge Completions: $_consecutiveChallengeCompletions');
+    debugPrint('===================================');
     _initializePlayer();
-    _initializeSocketService();
+    _initializeService();
   }
 
-  // --- Notification logic ---
+  String get _activeServiceLabel {
+    if (_useSocket) return "Apple Watch (Socket)";
+    if (Platform.isAndroid) return "GPS";
+    if (Platform.isIOS && !widget.useAppleWatch) return "Pedometer";
+    return "Unknown";
+  }
+
   void _showCenterNotification(String message, {int seconds = 2}) {
     setState(() {
       _centerNotification = message;
@@ -102,7 +122,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
     });
   }
 
-  // --- Blinking logic ---
   void _startBlinking() {
     _blinkTimer?.cancel();
     _blinkTimer = Timer.periodic(const Duration(milliseconds: 1000), (_) {
@@ -121,7 +140,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
     });
   }
 
-  // --- Lock/Unlock logic ---
   Future<void> _lockScreen() async {
     try {
       _previousBrightness = await ScreenBrightness().current;
@@ -171,7 +189,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
     });
   }
 
-  // Function to initialize the player
   Future<void> _initializePlayer() async {
     try {
       await _audioManager.reset();
@@ -186,11 +203,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
       _calculatePacingTimestamps();
       _pacingTriggered = List<bool>.filled(_pacingAudioFiles.length, false);
 
-      // Initialize playlist instead of single audio
       await _audioManager.initializePlaylist(widget.audioData);
       _initializeAudioListeners();
 
-      // Start playing from first track
       await _audioManager.playFromIndex(0);
       await _audioManager.setVolume(1);
 
@@ -203,14 +218,38 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
   }
 
-  // --- SOCKET LOGIC START ---
-  void _initializeSocketService() {
-    _socketService = SocketService(
-      onLoadingChanged: (isLoading) => debugPrint('Socket loading: $isLoading'),
-      onErrorChanged: (error) => debugPrint('Socket error: $error'),
-      onHeartRateChanged: _handleHeartRateUpdate,
-    );
-    _socketService.fetechtoken();
+  void _initializeService() async {
+    if (Platform.isAndroid) {
+      _useSocket = false;
+      await GeolocationSpeedService().initialize();
+      GeolocationSpeedService().startTracking();
+      _dataSubscription =
+          GeolocationSpeedService().speedStream.listen((speedMs) {
+        double speedKmph = speedMs * 3.6;
+        _handleSpeedUpdate(speedKmph);
+      });
+    } else if (Platform.isIOS) {
+      if (widget.useAppleWatch) {
+        _useSocket = true;
+        _socketService = SocketService(
+          onLoadingChanged: (isLoading) =>
+              debugPrint('Socket loading: $isLoading'),
+          onErrorChanged: (error) => debugPrint('Socket error: $error'),
+          onHeartRateChanged: _handleHeartRateUpdate,
+        );
+        _socketService!.fetechtoken();
+      } else {
+        _useSocket = false;
+        await PedometerService().initialize();
+        _dataSubscription =
+            PedometerService().pedometerDataStream.listen((data) {
+          // Use the service's helper method for safe pace conversion
+          double speedMs = PedometerService().getCurrentPaceInMeterPerSecond();
+          double speedKmph = speedMs * 3.6;
+          _handleSpeedUpdate(speedKmph);
+        });
+      }
+    }
   }
 
   void _handleHeartRateUpdate(double? heartRate) async {
@@ -222,7 +261,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
     if (_maxHR == null) return;
 
-    final currentheartrate = _currentHR;
+    final currentHeartRate = _currentHR;
     final currentAudio = widget.audioData[_currentAudioIndex];
     final int zoneId = currentAudio['zoneId'];
 
@@ -242,21 +281,20 @@ class _PlayerScreenState extends State<PlayerScreen> {
         break;
     }
 
-    if (currentheartrate != null &&
-        (currentheartrate < lowerBound || currentheartrate > upperBound)) {
+    if (currentHeartRate != null &&
+        (currentHeartRate < lowerBound || currentHeartRate > upperBound)) {
       if (_audioManager.isPlaying) {
         Future.delayed(const Duration(seconds: 10), () {
-          if (currentheartrate < lowerBound) {
+          if (_currentHR != null &&
+              (_currentHR! < lowerBound || _currentHR! > upperBound)) {
             _audioManager.pause();
-            _playlowerOutOfRangeAudio();
+            if (_currentHR! < lowerBound) {
+              _playLowerOutOfRangeAudio('heart');
+            } else {
+              _playUpperOutOfRangeAudio('heart');
+            }
             _showCenterNotification('Music paused');
-            debugPrint('Playing out of range audio due to low HR');
-          }
-          if (currentheartrate > upperBound) {
-            _audioManager.pause();
-            _playupperOutOfRangeAudio();
-            _showCenterNotification('Music paused');
-            debugPrint('Playing out of range audio due to high HR');
+            debugPrint('Music paused due to heart rate out of range');
           }
         });
       }
@@ -264,13 +302,64 @@ class _PlayerScreenState extends State<PlayerScreen> {
       if (!_audioManager.isPlaying) {
         _audioManager.resume();
         _audioManager.resumePacing();
-        debugPrint('Music resumed');
+        debugPrint('Music resumed due to heart rate in range');
       }
     }
   }
-  // --- SOCKET LOGIC END ---
 
-  // Function to play the current audio
+  void _handleSpeedUpdate(double? speedKmph) {
+    if (speedKmph == null) return;
+
+    setState(() => _currentSpeedKmph = speedKmph);
+
+    final currentAudio = widget.audioData[_currentAudioIndex];
+    final int zoneId = currentAudio['zoneId'];
+
+    double lowerBound, upperBound;
+    switch (zoneId) {
+      case 1:
+        lowerBound = 4.0;
+        upperBound = 6.0;
+        break;
+      case 2:
+        lowerBound = 6.0;
+        upperBound = 8.0;
+        break;
+      case 3:
+        lowerBound = 8.0;
+        upperBound = 12.0;
+        break;
+      default:
+        lowerBound = 0.0;
+        upperBound = 0.0;
+    }
+
+    if (speedKmph >= lowerBound && speedKmph <= upperBound) {
+      if (!_audioManager.isPlaying) {
+        _audioManager.resume();
+        _audioManager.resumePacing();
+        debugPrint('Music resumed due to speed in range');
+      }
+    } else {
+      if (_audioManager.isPlaying) {
+        Future.delayed(const Duration(seconds: 10), () {
+          if (_currentSpeedKmph != null &&
+              (_currentSpeedKmph! < lowerBound ||
+                  _currentSpeedKmph! > upperBound)) {
+            _audioManager.pause();
+            if (_currentSpeedKmph! < lowerBound) {
+              _playLowerOutOfRangeAudio('speed');
+            } else {
+              _playUpperOutOfRangeAudio('speed');
+            }
+            _showCenterNotification('Music paused');
+            debugPrint('Music paused due to speed out of range');
+          }
+        });
+      }
+    }
+  }
+
   Future<void> _playCurrentAudio() async {
     if (_currentAudioIndex >= widget.audioData.length) {
       _navigateToCompletionScreen();
@@ -282,16 +371,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final audioUrl = currentAudio['audioUrl']?.toString() ?? '';
 
     try {
-      // Clear previous state
       await _audioManager.stop();
       await _audioManager.stopPacing();
 
-      // Reset tracking states
       _initializeTimestamps();
       _pacingTriggered = List.filled(_pacingAudioFiles.length, false);
       _currentAudioStarted = false;
 
-      // Play new audio
       await _audioManager.play(currentAudio['audioUrl']);
       debugPrint('Now playing: ${currentAudio['challengeName']}');
     } catch (e) {
@@ -300,19 +386,20 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
   }
 
-  void _playlowerOutOfRangeAudio() {
+  void _playLowerOutOfRangeAudio(String reason) {
     String outOfRangeAudioPath = 'assets/audio/stop/slow.wav';
     _audioManager.playOverlay(outOfRangeAudioPath, volume: 2.0);
-    debugPrint('Playing out of range audio: $outOfRangeAudioPath');
+    debugPrint(
+        'Playing out of range audio due to low $reason: $outOfRangeAudioPath');
   }
 
-  void _playupperOutOfRangeAudio() {
+  void _playUpperOutOfRangeAudio(String reason) {
     String outOfRangeAudioPath = 'assets/audio/stop/fast.wav';
     _audioManager.playOverlay(outOfRangeAudioPath, volume: 2.0);
-    debugPrint('Playing out of range audio: $outOfRangeAudioPath');
+    debugPrint(
+        'Playing out of range audio due to high $reason: $outOfRangeAudioPath');
   }
 
-  // Function to calculate pacing timestamps
   void _calculatePacingTimestamps() {
     final int numberOfAudios = widget.audioData.length;
     final int totalDurationMinutes = numberOfAudios * 5;
@@ -328,7 +415,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
     debugPrint('Pacing timestamps: $_pacingTimestamps');
   }
 
-  // Function to initialize audio listeners
   void _initializeAudioListeners() {
     _positionSubscription = _audioManager.positionStream.listen((position) {
       if (position > Duration.zero) {
@@ -360,11 +446,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _playerStateSubscription = _audioManager.playerStateStream.listen((state) {
       debugPrint('Player state: ${state.processingState}');
       if (state.processingState == ProcessingState.completed) {
-        if (_currentAudioIndex + 1 < widget.audioData.length) {
-          debugPrint('Moving to next track automatically');
-        } else {
-          _navigateToCompletionScreen();
-        }
+        // Award points for completing the current track and navigate
+        _handleAudioCompletion();
       }
       setState(() {});
     });
@@ -379,13 +462,43 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   Future<void> _handleAudioCompletion() async {
+    // Award points for challenge completion
+    _consecutiveChallengeCompletions++;
+
+    // First challenge: +20 points
+    // Subsequent consecutive challenges: +20 * challenge_index points
+    int challengeCompletionScore;
+    if (_consecutiveChallengeCompletions == 1) {
+      challengeCompletionScore = 20;
+    } else {
+      challengeCompletionScore = 20 * _consecutiveChallengeCompletions;
+    }
+
+    _currentScore += challengeCompletionScore;
+
+    // Store the score for this challenge
+    _challengeScores.add(challengeCompletionScore);
+
+    debugPrint(
+        'Challenge completed! Score +$challengeCompletionScore (Challenge #$_consecutiveChallengeCompletions). Total: $_currentScore');
+
+    // Check if we should navigate to completion screen or continue to next track
     if (_currentAudioIndex + 1 >= widget.audioData.length) {
       _navigateToCompletionScreen();
+    } else {
+      debugPrint('Moving to next track automatically');
     }
   }
 
   void _navigateToCompletionScreen() {
     final lastAudio = widget.audioData.last;
+    debugPrint('=== FINAL SCORING SUMMARY ===');
+    debugPrint('Total Score: $_currentScore');
+    debugPrint('Total Challenges Completed: $_consecutiveChallengeCompletions');
+    debugPrint('Individual Challenge Scores: $_challengeScores');
+    debugPrint('Total Nudges: $totalNudges');
+    debugPrint('============================');
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Navigator.pushReplacement(
         context,
@@ -400,6 +513,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
             audioData: widget.audioData,
             challengeCount: widget.challengeCount,
             playingChallengeCount: widget.playingChallengeCount,
+            score: _currentScore, // Pass the score to completion screen
           ),
         ),
       );
@@ -451,36 +565,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
     _triggered = List<bool>.filled(_timestamps.length, false);
     debugPrint('Timestamps: $_timestamps');
-  }
-
-  String _determineOverlayType(
-      double hr, int lowerbound, int zoneId, int upperbound) {
-    if (zoneId == 1) {
-      if (hr >= lowerbound && hr < upperbound) {
-        return 'A';
-      } else if (hr < lowerbound) {
-        return 'A';
-      } else if (hr >= upperbound) {
-        return 'S';
-      }
-    } else if (zoneId == 2) {
-      if (hr >= lowerbound && hr < upperbound) {
-        return 'A';
-      } else if (hr < lowerbound) {
-        return 'A';
-      } else if (hr >= upperbound) {
-        return 'S';
-      }
-    } else if (zoneId == 3) {
-      if (hr >= lowerbound && hr < upperbound) {
-        return 'A';
-      } else if (hr < lowerbound) {
-        return 'A';
-      } else if (hr >= upperbound) {
-        return 'S';
-      }
-    }
-    return 'A';
   }
 
   Future<void> _fetchMaxHR() async {
@@ -560,22 +644,56 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final int storyId = currentAudio['storyId'];
     String overlayType = 'A';
 
-    if (_currentHR != null && _maxHR != null) {
-      final int zoneId = currentAudio['zoneId'];
-      final double hr = _currentHR!.toDouble();
-      int lowerbound = 0;
-      int upperbound = 0;
-      if (zoneId == 1) {
-        lowerbound = (72 + (_maxHR! - 72) * 0.5).toInt();
-        upperbound = (72 + (_maxHR! - 72) * 0.6).toInt();
-      } else if (zoneId == 2) {
-        lowerbound = (72 + (_maxHR! - 72) * 0.6).toInt();
-        upperbound = (72 + (_maxHR! - 72) * 0.7).toInt();
-      } else if (zoneId == 3) {
-        lowerbound = (72 + (_maxHR! - 72) * 0.7).toInt();
-        upperbound = (72 + (_maxHR! - 72) * 0.8).toInt();
+    if (_useSocket) {
+      if (_currentHR != null && _maxHR != null) {
+        final int zoneId = currentAudio['zoneId'];
+        int lowerBound = 0, upperBound = 0;
+        switch (zoneId) {
+          case 1:
+            lowerBound = (72 + (_maxHR! - 72) * 0.35).toInt();
+            upperBound = (72 + (_maxHR! - 72) * 0.75).toInt();
+            break;
+          case 2:
+            lowerBound = (72 + (_maxHR! - 72) * 0.45).toInt();
+            upperBound = (72 + (_maxHR! - 72) * 0.85).toInt();
+            break;
+          case 3:
+            lowerBound = (72 + (_maxHR! - 72) * 0.55).toInt();
+            upperBound = (72 + (_maxHR! - 72) * 0.95).toInt();
+            break;
+        }
+        overlayType = (_currentHR! >= lowerBound && _currentHR! <= upperBound)
+            ? 'A'
+            : 'S';
       }
-      overlayType = _determineOverlayType(hr, lowerbound, zoneId, upperbound);
+      // If no heart rate data, overlayType remains 'A' (default)
+    } else {
+      if (_currentSpeedKmph != null) {
+        final int zoneId = currentAudio['zoneId'];
+        double lowerBound, upperBound;
+        switch (zoneId) {
+          case 1:
+            lowerBound = 4.0;
+            upperBound = 6.0;
+            break;
+          case 2:
+            lowerBound = 6.0;
+            upperBound = 8.0;
+            break;
+          case 3:
+            lowerBound = 8.0;
+            upperBound = 12.0;
+            break;
+          default:
+            lowerBound = 0.0;
+            upperBound = 0.0;
+        }
+        overlayType = (_currentSpeedKmph! >= lowerBound &&
+                _currentSpeedKmph! <= upperBound)
+            ? 'A'
+            : 'S';
+      }
+      // If no speed data, overlayType remains 'A' (default)
     }
 
     for (int i = 0; i < _timestamps.length; i++) {
@@ -583,6 +701,73 @@ class _PlayerScreenState extends State<PlayerScreen> {
         _triggered[i] = true;
         totalNudges++;
         currentTrackNudges++;
+
+        // Scoring logic for timestamps
+        if (_useSocket && _currentHR != null && _maxHR != null) {
+          final int zoneId = currentAudio['zoneId'];
+          int lowerBound = 0, upperBound = 0;
+          switch (zoneId) {
+            case 1:
+              lowerBound = (72 + (_maxHR! - 72) * 0.35).toInt();
+              upperBound = (72 + (_maxHR! - 72) * 0.75).toInt();
+              break;
+            case 2:
+              lowerBound = (72 + (_maxHR! - 72) * 0.45).toInt();
+              upperBound = (72 + (_maxHR! - 72) * 0.85).toInt();
+              break;
+            case 3:
+              lowerBound = (72 + (_maxHR! - 72) * 0.55).toInt();
+              upperBound = (72 + (_maxHR! - 72) * 0.95).toInt();
+              break;
+          }
+
+          if (_currentHR! >= lowerBound && _currentHR! <= upperBound) {
+            // Heart rate is within zone: +5 points
+            _currentScore += 5;
+            debugPrint(
+                'Score +5: Heart rate in zone at timestamp. Total: $_currentScore');
+          } else {
+            // Heart rate is outside zone: -1 point
+            _currentScore -= 1;
+            debugPrint(
+                'Score -1: Heart rate outside zone at timestamp. Total: $_currentScore');
+          }
+        } else if (!_useSocket && _currentSpeedKmph != null) {
+          // For speed-based tracking (Android/iOS without Apple Watch)
+          final int zoneId = currentAudio['zoneId'];
+          double lowerBound, upperBound;
+          switch (zoneId) {
+            case 1:
+              lowerBound = 4.0;
+              upperBound = 6.0;
+              break;
+            case 2:
+              lowerBound = 6.0;
+              upperBound = 8.0;
+              break;
+            case 3:
+              lowerBound = 8.0;
+              upperBound = 12.0;
+              break;
+            default:
+              lowerBound = 0.0;
+              upperBound = 0.0;
+          }
+
+          if (_currentSpeedKmph! >= lowerBound &&
+              _currentSpeedKmph! <= upperBound) {
+            // Speed is within zone: +5 points
+            _currentScore += 5;
+            debugPrint(
+                'Score +5: Speed in zone at timestamp. Total: $_currentScore');
+          } else {
+            // Speed is outside zone: -1 point
+            _currentScore -= 1;
+            debugPrint(
+                'Score -1: Speed outside zone at timestamp. Total: $_currentScore');
+          }
+        }
+
         String overlayPath;
         final filteredChallenges = widget.audioData;
         final challengeId =
@@ -651,9 +836,19 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _playerStateSubscription.cancel();
     _currentIndexSubscription.cancel();
     _unlockTimer?.cancel();
-    try {
-      _socketService.dispose();
-    } catch (_) {}
+    _dataSubscription?.cancel();
+    if (_socketService != null) {
+      try {
+        _socketService!.dispose();
+      } catch (_) {}
+    }
+    if (!_useSocket && Platform.isAndroid) {
+      GeolocationSpeedService().stopTracking();
+    }
+    // Add cleanup for iOS PedometerService
+    if (!_useSocket && Platform.isIOS && !widget.useAppleWatch) {
+      PedometerService().dispose();
+    }
     super.dispose();
   }
 
@@ -690,21 +885,54 @@ class _PlayerScreenState extends State<PlayerScreen> {
           ),
           title: Padding(
             padding: const EdgeInsets.symmetric(vertical: 12.0),
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                currentAudio['challengeName'],
-                style: const TextStyle(
-                  fontFamily: 'Thewitcher',
-                  fontSize: 24,
-                  letterSpacing: 2,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    currentAudio['challengeName'],
+                    style: const TextStyle(
+                      fontFamily: 'Thewitcher',
+                      fontSize: 24,
+                      letterSpacing: 2,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 3,
+                    overflow: TextOverflow.clip,
+                  ),
                 ),
-                textAlign: TextAlign.center,
-                maxLines: 3,
-                overflow: TextOverflow.clip,
-              ),
+                const SizedBox(height: 4),
+                Text(
+                  _activeServiceLabel,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+                if (_useSocket && _currentHR != null)
+                  Text(
+                    "Heart Rate: $_currentHR bpm",
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                if (!_useSocket && _currentSpeedKmph != null)
+                  Text(
+                    "Speed: ${_currentSpeedKmph!.toStringAsFixed(2)} km/h",
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                const SizedBox(height: 2),
+              ],
             ),
           ),
           centerTitle: true,
@@ -785,6 +1013,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
                                           letterSpacing: 2,
                                         ),
                                         textAlign: TextAlign.center,
+                                        maxLines: 3,
+                                        overflow: TextOverflow.clip,
                                       )
                                     : (_audioManager.isPlaying
                                         ? (_currentAudioStarted
@@ -895,7 +1125,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 ],
               ),
             ] else
-              // LOCKED UI
               Container(
                 color: Colors.black,
                 alignment: Alignment.center,
