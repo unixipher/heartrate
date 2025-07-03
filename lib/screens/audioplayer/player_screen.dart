@@ -95,7 +95,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
     debugPrint('=== INITIALIZING SCORING SYSTEM ===');
     debugPrint('Initial Score: $_currentScore');
     debugPrint(
-        'Initial Challenge Completions: $_consecutiveChallengeCompletions');
+      'Initial Challenge Completions: $_consecutiveChallengeCompletions',
+    );
     debugPrint('===================================');
     _initializePlayer();
     _initializeService();
@@ -196,7 +197,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
       for (int i = 0; i < widget.audioData.length; i++) {
         final audio = widget.audioData[i];
         debugPrint(
-            'Audio $i: ${audio['challengeName']} - URL: ${audio['audioUrl']}');
+          'Audio $i: ${audio['challengeName']} - URL: ${audio['audioUrl']}',
+        );
       }
 
       await _fetchMaxHR();
@@ -219,34 +221,50 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   void _initializeService() async {
+    // Always initialize socket service for data upload
+    _socketService = SocketService(
+      onLoadingChanged: (isLoading) => debugPrint('Socket loading: $isLoading'),
+      onErrorChanged: (error) => debugPrint('Socket error: $error'),
+      onHeartRateChanged: _handleHeartRateUpdate,
+      onSpeedChanged: (speed) =>
+          debugPrint('Speed data saved to server: $speed km/h'),
+    );
+    await _socketService!.fetechtoken();
+
     if (Platform.isAndroid) {
       _useSocket = false;
       await GeolocationSpeedService().initialize();
       GeolocationSpeedService().startTracking();
-      _dataSubscription =
-          GeolocationSpeedService().speedStream.listen((speedMs) {
+      _dataSubscription = GeolocationSpeedService().speedStream.listen((
+        speedMs,
+      ) {
         double speedKmph = speedMs * 3.6;
         _handleSpeedUpdate(speedKmph);
+        // Send speed data to socket server
+        if (_socketService != null) {
+          _socketService!.sendSpeed(speedKmph);
+          debugPrint('Sent GPS speed data to server: $speedKmph km/h');
+        }
       });
     } else if (Platform.isIOS) {
       if (widget.useAppleWatch) {
         _useSocket = true;
-        _socketService = SocketService(
-          onLoadingChanged: (isLoading) =>
-              debugPrint('Socket loading: $isLoading'),
-          onErrorChanged: (error) => debugPrint('Socket error: $error'),
-          onHeartRateChanged: _handleHeartRateUpdate,
-        );
-        _socketService!.fetechtoken();
+        // Heart rate data will come from Apple Watch via socket
       } else {
         _useSocket = false;
         await PedometerService().initialize();
-        _dataSubscription =
-            PedometerService().pedometerDataStream.listen((data) {
+        _dataSubscription = PedometerService().pedometerDataStream.listen((
+          data,
+        ) {
           // Use the service's helper method for safe pace conversion
           double speedMs = PedometerService().getCurrentPaceInMeterPerSecond();
           double speedKmph = speedMs * 3.6;
           _handleSpeedUpdate(speedKmph);
+          // Send speed data to socket server
+          if (_socketService != null) {
+            _socketService!.sendSpeed(speedKmph);
+            debugPrint('Sent Pedometer speed data to server: $speedKmph km/h');
+          }
         });
       }
     }
@@ -390,14 +408,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
     String outOfRangeAudioPath = 'assets/audio/stop/slow.wav';
     _audioManager.playOverlay(outOfRangeAudioPath, volume: 2.0);
     debugPrint(
-        'Playing out of range audio due to low $reason: $outOfRangeAudioPath');
+      'Playing out of range audio due to low $reason: $outOfRangeAudioPath',
+    );
   }
 
   void _playUpperOutOfRangeAudio(String reason) {
     String outOfRangeAudioPath = 'assets/audio/stop/fast.wav';
     _audioManager.playOverlay(outOfRangeAudioPath, volume: 2.0);
     debugPrint(
-        'Playing out of range audio due to high $reason: $outOfRangeAudioPath');
+      'Playing out of range audio due to high $reason: $outOfRangeAudioPath',
+    );
   }
 
   void _calculatePacingTimestamps() {
@@ -432,8 +452,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
       }
     });
 
-    _currentIndexSubscription =
-        _audioManager.currentIndexStream.listen((index) {
+    _currentIndexSubscription = _audioManager.currentIndexStream.listen((
+      index,
+    ) {
       if (index != null && index != _currentPlaylistIndex) {
         setState(() {
           _currentAudioIndex = index;
@@ -480,7 +501,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _challengeScores.add(challengeCompletionScore);
 
     debugPrint(
-        'Challenge completed! Score +$challengeCompletionScore (Challenge #$_consecutiveChallengeCompletions). Total: $_currentScore');
+      'Challenge completed! Score +$challengeCompletionScore (Challenge #$_consecutiveChallengeCompletions). Total: $_currentScore',
+    );
 
     // Check if we should navigate to completion screen or continue to next track
     if (_currentAudioIndex + 1 >= widget.audioData.length) {
@@ -514,6 +536,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
             challengeCount: widget.challengeCount,
             playingChallengeCount: widget.playingChallengeCount,
             score: _currentScore, // Pass the score to completion screen
+            useAppleWatch:
+                widget.useAppleWatch, // Pass the useAppleWatch parameter
           ),
         ),
       );
@@ -545,7 +569,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           '3:20',
           '3:50',
           '4:20',
-          '4:50'
+          '4:50',
         ];
         break;
       case 5:
@@ -725,12 +749,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
             // Heart rate is within zone: +5 points
             _currentScore += 5;
             debugPrint(
-                'Score +5: Heart rate in zone at timestamp. Total: $_currentScore');
+              'Score +5: Heart rate in zone at timestamp. Total: $_currentScore',
+            );
           } else {
             // Heart rate is outside zone: -1 point
             _currentScore -= 1;
             debugPrint(
-                'Score -1: Heart rate outside zone at timestamp. Total: $_currentScore');
+              'Score -1: Heart rate outside zone at timestamp. Total: $_currentScore',
+            );
           }
         } else if (!_useSocket && _currentSpeedKmph != null) {
           // For speed-based tracking (Android/iOS without Apple Watch)
@@ -759,19 +785,22 @@ class _PlayerScreenState extends State<PlayerScreen> {
             // Speed is within zone: +5 points
             _currentScore += 5;
             debugPrint(
-                'Score +5: Speed in zone at timestamp. Total: $_currentScore');
+              'Score +5: Speed in zone at timestamp. Total: $_currentScore',
+            );
           } else {
             // Speed is outside zone: -1 point
             _currentScore -= 1;
             debugPrint(
-                'Score -1: Speed outside zone at timestamp. Total: $_currentScore');
+              'Score -1: Speed outside zone at timestamp. Total: $_currentScore',
+            );
           }
         }
 
         String overlayPath;
         final filteredChallenges = widget.audioData;
-        final challengeId =
-            filteredChallenges.indexWhere((c) => c['id'] == currentAudio['id']);
+        final challengeId = filteredChallenges.indexWhere(
+          (c) => c['id'] == currentAudio['id'],
+        );
         switch (storyId) {
           case 1:
             overlayPath =
@@ -1020,7 +1049,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
                                         ? (_currentAudioStarted
                                             ? Text(
                                                 _formatDuration(remaining),
-                                                key: const ValueKey('timer'),
+                                                key: const ValueKey(
+                                                  'timer',
+                                                ),
                                                 style: const TextStyle(
                                                   color: Colors.white,
                                                   fontSize: 40,
@@ -1044,13 +1075,17 @@ class _PlayerScreenState extends State<PlayerScreen> {
                                         : (_isPausedBlink
                                             ? Icon(
                                                 Icons.play_arrow_rounded,
-                                                key: const ValueKey('playicon'),
+                                                key: const ValueKey(
+                                                  'playicon',
+                                                ),
                                                 color: Colors.white,
                                                 size: 60,
                                               )
                                             : Text(
                                                 _formatDuration(remaining),
-                                                key: const ValueKey('timer'),
+                                                key: const ValueKey(
+                                                  'timer',
+                                                ),
                                                 style: const TextStyle(
                                                   color: Colors.white,
                                                   fontSize: 40,
@@ -1078,11 +1113,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
                             inactiveTrackColor: Colors.white30,
                             trackHeight: 12.0,
                             thumbShape: RoundSliderThumbShape(
-                              enabledThumbRadius: _timestamps.any((timestamp) =>
-                                      (timestamp.inSeconds -
-                                              _currentPosition.inSeconds)
-                                          .abs() <=
-                                      1)
+                              enabledThumbRadius: _timestamps.any(
+                                (timestamp) =>
+                                    (timestamp.inSeconds -
+                                            _currentPosition.inSeconds)
+                                        .abs() <=
+                                    1,
+                              )
                                   ? 12.0
                                   : 0.0,
                             ),
@@ -1109,12 +1146,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
                             Text(
                               _formatDuration(_currentPosition),
                               style: const TextStyle(
-                                  color: Colors.white70, fontSize: 14),
+                                color: Colors.white70,
+                                fontSize: 14,
+                              ),
                             ),
                             Text(
                               _formatDuration(_totalDuration),
                               style: const TextStyle(
-                                  color: Colors.white70, fontSize: 14),
+                                color: Colors.white70,
+                                fontSize: 14,
+                              ),
                             ),
                           ],
                         ),
@@ -1140,8 +1181,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
                         child: CircularProgressIndicator(
                           value: _unlockProgress,
                           strokeWidth: 8,
-                          valueColor:
-                              AlwaysStoppedAnimation<Color>(Colors.purple),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.purple,
+                          ),
                           backgroundColor: Colors.white12,
                         ),
                       ),
@@ -1160,8 +1202,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
                           ],
                         ),
                         child: const Center(
-                          child: Icon(Icons.lock_open,
-                              color: Colors.white, size: 48),
+                          child: Icon(
+                            Icons.lock_open,
+                            color: Colors.white,
+                            size: 48,
+                          ),
                         ),
                       ),
                     ],

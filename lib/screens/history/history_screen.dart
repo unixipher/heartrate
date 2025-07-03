@@ -316,26 +316,26 @@ class _HistoryScreenState extends State<HistoryScreen>
     Navigator.of(context).pop();
 
     if (analytics.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text(
-              'No heart rate data',
-              style: TextStyle(
-                color: Colors.black,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'No heart rate data',
+            style: TextStyle(
+              color: Colors.black,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
             ),
-            backgroundColor: Colors.white,
-            elevation: 0,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            width: 180,
+            textAlign: TextAlign.center,
           ),
-        );
+          backgroundColor: Colors.white,
+          elevation: 0,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          width: 180,
+        ),
+      );
       return;
     }
 
@@ -563,21 +563,34 @@ class _HistoryScreenState extends State<HistoryScreen>
                                       analytics['watchData'].length) {
                                 final data =
                                     analytics['watchData'][value.toInt()];
-                                final timestamp =
-                                    DateTime.parse(data['createdAt']);
-                                final istTimestamp = timestamp
-                                    .add(const Duration(hours: 5, minutes: 30));
-                                final formatter = DateFormat('HH:mm');
-                                return Padding(
-                                  padding: const EdgeInsets.only(top: 8.0),
-                                  child: Text(
-                                    formatter.format(istTimestamp),
-                                    style: const TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 10,
+                                try {
+                                  final timestamp = DateTime.parse(
+                                      data['createdAt']?.toString() ?? '');
+                                  final istTimestamp = timestamp.add(
+                                      const Duration(hours: 5, minutes: 30));
+                                  final formatter = DateFormat('HH:mm');
+                                  return Padding(
+                                    padding: const EdgeInsets.only(top: 8.0),
+                                    child: Text(
+                                      formatter.format(istTimestamp),
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 10,
+                                      ),
                                     ),
-                                  ),
-                                );
+                                  );
+                                } catch (e) {
+                                  return const Padding(
+                                    padding: EdgeInsets.only(top: 8.0),
+                                    child: Text(
+                                      '--:--',
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 10,
+                                      ),
+                                    ),
+                                  );
+                                }
                               }
                               return const Text('');
                             },
@@ -775,26 +788,26 @@ class _HistoryScreenState extends State<HistoryScreen>
     Navigator.of(context).pop();
 
     if (analytics.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text(
-              'No heart rate data',
-              style: TextStyle(
-                color: Colors.black,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'No heart rate data',
+            style: TextStyle(
+              color: Colors.black,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
             ),
-            backgroundColor: Colors.white,
-            elevation: 0,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            width: 180,
+            textAlign: TextAlign.center,
           ),
-        );
+          backgroundColor: Colors.white,
+          elevation: 0,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          width: 180,
+        ),
+      );
       return;
     }
 
@@ -812,12 +825,20 @@ class _HistoryScreenState extends State<HistoryScreen>
                 ? 'Jog'
                 : 'Run';
 
-        final startTime = DateTime.parse(workout['startTime']);
-        final endTime = DateTime.parse(workout['endTime']);
-        final duration = endTime.difference(startTime);
+        Duration duration = Duration.zero;
+        String formattedDuration = '0h 0m 0s';
 
-        final formattedDuration =
-            '${duration.inHours}h ${duration.inMinutes.remainder(60)}m ${duration.inSeconds.remainder(60)}s';
+        try {
+          if (workout['startTime'] != null && workout['endTime'] != null) {
+            final startTime = DateTime.parse(workout['startTime'].toString());
+            final endTime = DateTime.parse(workout['endTime'].toString());
+            duration = endTime.difference(startTime);
+            formattedDuration =
+                '${duration.inHours}h ${duration.inMinutes.remainder(60)}m ${duration.inSeconds.remainder(60)}s';
+          }
+        } catch (e) {
+          debugPrint('Error parsing workout duration: $e');
+        }
 
         return Container(
           height: MediaQuery.of(context).size.height * 0.8,
@@ -1062,21 +1083,34 @@ class _HistoryScreenState extends State<HistoryScreen>
                                       analytics['watchData'].length) {
                                 final data =
                                     analytics['watchData'][value.toInt()];
-                                final timestamp =
-                                    DateTime.parse(data['createdAt']);
-                                final istTimestamp = timestamp
-                                    .add(const Duration(hours: 5, minutes: 30));
-                                final formatter = DateFormat('HH:mm');
-                                return Padding(
-                                  padding: const EdgeInsets.only(top: 8.0),
-                                  child: Text(
-                                    formatter.format(istTimestamp),
-                                    style: const TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 10,
+                                try {
+                                  final timestamp = DateTime.parse(
+                                      data['createdAt']?.toString() ?? '');
+                                  final istTimestamp = timestamp.add(
+                                      const Duration(hours: 5, minutes: 30));
+                                  final formatter = DateFormat('HH:mm');
+                                  return Padding(
+                                    padding: const EdgeInsets.only(top: 8.0),
+                                    child: Text(
+                                      formatter.format(istTimestamp),
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 10,
+                                      ),
                                     ),
-                                  ),
-                                );
+                                  );
+                                } catch (e) {
+                                  return const Padding(
+                                    padding: EdgeInsets.only(top: 8.0),
+                                    child: Text(
+                                      '--:--',
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 10,
+                                      ),
+                                    ),
+                                  );
+                                }
                               }
                               return const Text('');
                             },
@@ -1255,14 +1289,31 @@ class _HistoryScreenState extends State<HistoryScreen>
         itemCount: workoutHistory.length,
         itemBuilder: (context, index) {
           final workout = workoutHistory[index];
-          final startTime = DateTime.parse(workout['startTime']);
-          final endTime = DateTime.parse(workout['endTime']);
-          final duration = endTime.difference(startTime);
+
+          // Safe parsing of start and end times
+          DateTime? startTime;
+          DateTime? endTime;
+          Duration duration = Duration.zero;
+          String formattedDate = 'Invalid Date';
+
+          try {
+            if (workout['startTime'] != null) {
+              startTime = DateTime.parse(workout['startTime'].toString());
+              formattedDate =
+                  DateFormat('MMM dd, yyyy HH:mm').format(startTime.toLocal());
+            }
+            if (workout['endTime'] != null) {
+              endTime = DateTime.parse(workout['endTime'].toString());
+            }
+            if (startTime != null && endTime != null) {
+              duration = endTime.difference(startTime);
+            }
+          } catch (e) {
+            debugPrint('Error parsing workout times: $e');
+          }
 
           final formattedDuration =
               '${duration.inHours}h ${duration.inMinutes.remainder(60)}m ${duration.inSeconds.remainder(60)}s';
-          final formattedDate =
-              DateFormat('MMM dd, yyyy HH:mm').format(startTime.toLocal());
           final challengeCount =
               (workout['challengeIds'] as List?)?.length ?? 0;
 
@@ -1319,13 +1370,15 @@ class _HistoryScreenState extends State<HistoryScreen>
           String formattedCompletedAt = 'No Timestamp';
           if (challenge['completedAt'] != null) {
             try {
-              final completedAtUtc = DateTime.parse(challenge['completedAt']);
+              final completedAtUtc =
+                  DateTime.parse(challenge['completedAt'].toString());
               final completedAtLocal = completedAtUtc.toLocal();
               formattedCompletedAt =
                   DateFormat('MMM dd, yyyy HH:mm').format(completedAtLocal);
               debugPrint('⏰⏰⏰Formatted Completed At: $formattedCompletedAt');
             } catch (e) {
-              formattedCompletedAt = challenge['completedAt'];
+              formattedCompletedAt =
+                  challenge['completedAt']?.toString() ?? 'Invalid Date';
             }
           }
 

@@ -20,6 +20,7 @@ class CompletionScreen extends StatefulWidget {
   final int challengeCount;
   final int playingChallengeCount;
   final int score; // Add score parameter
+  final bool useAppleWatch; // Add useAppleWatch parameter
 
   const CompletionScreen({
     super.key,
@@ -33,6 +34,7 @@ class CompletionScreen extends StatefulWidget {
     required this.challengeCount,
     required this.playingChallengeCount,
     required this.score, // Add score parameter
+    required this.useAppleWatch, // Add useAppleWatch parameter
   });
 
   @override
@@ -49,12 +51,20 @@ class _CompletionScreenState extends State<CompletionScreen>
 
   // Values to animate to
   double _averageHeartRate = 0.0;
+  double _averageSpeed = 0.0; // Add average speed for non-Apple Watch users
   double _percentageInsideZone = 0.0;
   int _nudgeCount = 0;
 
   bool _isAppActive = true;
   bool _isLoading = true;
   bool _hasFetchedData = false;
+
+  // Helper method to determine if using heart rate or speed
+  bool get _useHeartRateData {
+    if (Platform.isAndroid) return false;
+    if (Platform.isIOS && !widget.useAppleWatch) return false;
+    return widget.useAppleWatch;
+  }
 
   @override
   void initState() {
@@ -158,33 +168,46 @@ class _CompletionScreenState extends State<CompletionScreen>
 
   Future<void> _fetchDataAndAnimate() async {
     try {
-      final analysisData = await analyseHeartRate();
+      final analysisData = await analyseData();
       if (!_isAppActive) return;
 
       debugPrint('Setting state with analysis data: $analysisData');
 
       setState(() {
         _averageHeartRate = analysisData['averageHeartRate'] ?? 0.0;
+        _averageSpeed = analysisData['averageSpeed'] ?? 0.0;
         _percentageInsideZone = analysisData['percentageInsideZone'] ?? 0.0;
         _hasFetchedData = true;
       });
 
       debugPrint(
-          'State updated - avgHR: $_averageHeartRate, zonePercentage: $_percentageInsideZone');
-      final maxHr = widget.maxheartRate ?? 200.0;
-      final hrProgress = _averageHeartRate / maxHr;
+          'State updated - avgHR: $_averageHeartRate, avgSpeed: $_averageSpeed, zonePercentage: $_percentageInsideZone');
+
+      // Calculate animation progress based on data type
+      bool isHeartRateData = _useHeartRateData;
+      double primaryProgress = 0.0;
+
+      if (isHeartRateData) {
+        final maxHr = widget.maxheartRate ?? 200.0;
+        primaryProgress = _averageHeartRate / maxHr;
+      } else {
+        // For speed data, use a reasonable max speed for progress calculation
+        const double maxSpeed = 15.0; // 15 km/h as max for progress bar
+        primaryProgress = _averageSpeed / maxSpeed;
+      }
+
       final zoneProgress = _percentageInsideZone / 100.0;
       final nudgeProgress = _nudgeCount / 7.0;
 
       debugPrint('Animation progress values:');
-      debugPrint('- HR Progress: $hrProgress (${_averageHeartRate}/$maxHr)');
+      debugPrint('- Primary Progress: $primaryProgress');
       debugPrint(
           '- Zone Progress: $zoneProgress (${_percentageInsideZone}/100)');
       debugPrint('- Nudge Progress: $nudgeProgress ($_nudgeCount/7)');
 
       _heartRateAnimation =
-          Tween<double>(begin: 0.0, end: hrProgress.clamp(0.0, 1.0)).animate(
-              CurvedAnimation(
+          Tween<double>(begin: 0.0, end: primaryProgress.clamp(0.0, 1.0))
+              .animate(CurvedAnimation(
                   parent: _animationController, curve: Curves.easeOut));
 
       _zoneTimeAnimation =
@@ -275,7 +298,7 @@ class _CompletionScreenState extends State<CompletionScreen>
     super.dispose();
   }
 
-  Future<Map<String, dynamic>> analyseHeartRate() async {
+  Future<Map<String, dynamic>> analyseData() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('token');
@@ -305,127 +328,251 @@ class _CompletionScreenState extends State<CompletionScreen>
         final List<dynamic> data = json.decode(response.body);
         debugPrint('Analysis response data: $data');
 
-        List<dynamic> allHeartRateEntries = [];
-        int? zoneId;
-        for (var challenge in data) {
-          debugPrint('Processing challenge: $challenge');
-          if (zoneId == null && challenge['zoneId'] != null) {
-            zoneId = challenge['zoneId'];
-          }
-          if (challenge['heartRateData'] != null) {
-            debugPrint('Heart rate data found: ${challenge['heartRateData']}');
-            allHeartRateEntries.addAll(challenge['heartRateData']);
-          }
-        }
-        debugPrint('Total heart rate entries: ${allHeartRateEntries.length}');
+        // Determine data type based on platform and Apple Watch usage
+        bool useHeartRate = _useHeartRateData;
 
-        // Calculate zone boundaries for all zones using Karvonen method
-        final maxHR = widget.maxheartRate ?? 0;
-        final restingHR = 72.0;
-
-        double zone1Lower = (restingHR + (maxHR - restingHR) * 0.35)
-            .toDouble(); // 35% intensity
-        double zone1Upper = (restingHR + (maxHR - restingHR) * 0.75)
-            .toDouble(); // 75% intensity
-        double zone2Lower = (restingHR + (maxHR - restingHR) * 0.45)
-            .toDouble(); // 45% intensity
-        double zone2Upper = (restingHR + (maxHR - restingHR) * 0.85)
-            .toDouble(); // 85% intensity
-        double zone3Lower = (restingHR + (maxHR - restingHR) * 0.55)
-            .toDouble(); // 55% intensity
-        double zone3Upper = (restingHR + (maxHR - restingHR) * 0.95)
-            .toDouble(); // 95% intensity
-
-        debugPrint('Zone boundaries (Karvonen method):');
-        debugPrint(
-            '- Zone 1 (Walk): ${zone1Lower.toInt()}-${zone1Upper.toInt()} BPM');
-        debugPrint(
-            '- Zone 2 (Jog): ${zone2Lower.toInt()}-${zone2Upper.toInt()} BPM');
-        debugPrint(
-            '- Zone 3 (Run): ${zone3Lower.toInt()}-${zone3Upper.toInt()} BPM');
-
-        int insideTargetZone = 0;
-        int insideActualZone = 0;
-        int outsideZone = 0;
-        double totalHeartRate = 0.0;
-
-        // Determine target zone boundaries
-        double targetLowerBound, targetUpperBound;
-        if (zoneId == 1) {
-          targetLowerBound = zone1Lower;
-          targetUpperBound = zone1Upper;
-        } else if (zoneId == 2) {
-          targetLowerBound = zone2Lower;
-          targetUpperBound = zone2Upper;
-        } else if (zoneId == 3) {
-          targetLowerBound = zone3Lower;
-          targetUpperBound = zone3Upper;
+        if (useHeartRate) {
+          return _analyseHeartRateData(data);
         } else {
-          throw Exception('Invalid zoneId');
+          return _analyseSpeedData(data);
         }
-
-        for (var entry in allHeartRateEntries) {
-          final heartRate = (entry['heartRate'] as num).toDouble();
-          totalHeartRate += heartRate;
-
-          // Check if in target zone
-          if (heartRate >= targetLowerBound && heartRate <= targetUpperBound) {
-            insideTargetZone++;
-          }
-
-          // Check which zone they were actually in
-          if (heartRate >= zone1Lower && heartRate <= zone1Upper) {
-            insideActualZone++; // Zone 1
-          } else if (heartRate >= zone2Lower && heartRate <= zone2Upper) {
-            insideActualZone++; // Zone 2
-          } else if (heartRate >= zone3Lower && heartRate <= zone3Upper) {
-            insideActualZone++; // Zone 3
-          } else {
-            outsideZone++;
-          }
-        }
-
-        double averageHeartRate = allHeartRateEntries.isNotEmpty
-            ? totalHeartRate / allHeartRateEntries.length
-            : 0.0;
-
-        // Use the higher percentage between target zone and actual zone performance
-        double percentageInsideTargetZone = allHeartRateEntries.isNotEmpty
-            ? (insideTargetZone / allHeartRateEntries.length) * 100
-            : 0.0;
-        double percentageInsideAnyZone = allHeartRateEntries.isNotEmpty
-            ? (insideActualZone / allHeartRateEntries.length) * 100
-            : 0.0;
-
-        // Use the better percentage to show user achievement
-        double displayPercentage = percentageInsideTargetZone > 0
-            ? percentageInsideTargetZone
-            : percentageInsideAnyZone;
-
-        debugPrint('Analysis results:');
-        debugPrint('- Average Heart Rate: $averageHeartRate');
-        debugPrint(
-            '- Percentage Inside Target Zone: $percentageInsideTargetZone');
-        debugPrint('- Percentage Inside Any Zone: $percentageInsideAnyZone');
-        debugPrint('- Display Percentage: $displayPercentage');
-        debugPrint(
-            '- Target Zone bounds: $targetLowerBound - $targetUpperBound');
-
-        return {
-          'insideZone': insideTargetZone,
-          'outsideZone': outsideZone,
-          'averageHeartRate': averageHeartRate,
-          'percentageInsideZone': displayPercentage,
-        };
       } else {
         debugPrint('Analysis API error: ${response.statusCode}');
         debugPrint('Response body: ${response.body}');
-        throw Exception('Failed to analyse heart rate');
+        throw Exception('Failed to analyse data');
       }
     } catch (e) {
-      debugPrint('Error in analyseHeartRate: $e');
+      debugPrint('Error in analyseData: $e');
       rethrow;
     }
+  }
+
+  Map<String, dynamic> _analyseHeartRateData(List<dynamic> data) {
+    List<dynamic> allHeartRateEntries = [];
+    int? zoneId;
+
+    for (var challenge in data) {
+      debugPrint('Processing challenge: $challenge');
+      if (zoneId == null && challenge['zoneId'] != null) {
+        zoneId = challenge['zoneId'];
+      }
+      if (challenge['heartRateData'] != null) {
+        debugPrint('Heart rate data found: ${challenge['heartRateData']}');
+        allHeartRateEntries.addAll(challenge['heartRateData']);
+      }
+    }
+    debugPrint('Total heart rate entries: ${allHeartRateEntries.length}');
+
+    // Calculate zone boundaries for all zones using Karvonen method
+    final maxHR = widget.maxheartRate ?? 0;
+    final restingHR = 72.0;
+
+    double zone1Lower =
+        (restingHR + (maxHR - restingHR) * 0.35).toDouble(); // 35% intensity
+    double zone1Upper =
+        (restingHR + (maxHR - restingHR) * 0.75).toDouble(); // 75% intensity
+    double zone2Lower =
+        (restingHR + (maxHR - restingHR) * 0.45).toDouble(); // 45% intensity
+    double zone2Upper =
+        (restingHR + (maxHR - restingHR) * 0.85).toDouble(); // 85% intensity
+    double zone3Lower =
+        (restingHR + (maxHR - restingHR) * 0.55).toDouble(); // 55% intensity
+    double zone3Upper =
+        (restingHR + (maxHR - restingHR) * 0.95).toDouble(); // 95% intensity
+
+    debugPrint('Zone boundaries (Karvonen method):');
+    debugPrint(
+        '- Zone 1 (Walk): ${zone1Lower.toInt()}-${zone1Upper.toInt()} BPM');
+    debugPrint(
+        '- Zone 2 (Jog): ${zone2Lower.toInt()}-${zone2Upper.toInt()} BPM');
+    debugPrint(
+        '- Zone 3 (Run): ${zone3Lower.toInt()}-${zone3Upper.toInt()} BPM');
+
+    int insideTargetZone = 0;
+    int insideActualZone = 0;
+    int outsideZone = 0;
+    double totalHeartRate = 0.0;
+
+    // Determine target zone boundaries
+    double targetLowerBound, targetUpperBound;
+    if (zoneId == 1) {
+      targetLowerBound = zone1Lower;
+      targetUpperBound = zone1Upper;
+    } else if (zoneId == 2) {
+      targetLowerBound = zone2Lower;
+      targetUpperBound = zone2Upper;
+    } else if (zoneId == 3) {
+      targetLowerBound = zone3Lower;
+      targetUpperBound = zone3Upper;
+    } else {
+      throw Exception('Invalid zoneId');
+    }
+
+    for (var entry in allHeartRateEntries) {
+      final heartRate = (entry['heartRate'] as num).toDouble();
+      totalHeartRate += heartRate;
+
+      // Check if in target zone
+      if (heartRate >= targetLowerBound && heartRate <= targetUpperBound) {
+        insideTargetZone++;
+      }
+
+      // Check which zone they were actually in
+      if (heartRate >= zone1Lower && heartRate <= zone1Upper) {
+        insideActualZone++; // Zone 1
+      } else if (heartRate >= zone2Lower && heartRate <= zone2Upper) {
+        insideActualZone++; // Zone 2
+      } else if (heartRate >= zone3Lower && heartRate <= zone3Upper) {
+        insideActualZone++; // Zone 3
+      } else {
+        outsideZone++;
+      }
+    }
+
+    double averageHeartRate = allHeartRateEntries.isNotEmpty
+        ? totalHeartRate / allHeartRateEntries.length
+        : 0.0;
+
+    // Use the higher percentage between target zone and actual zone performance
+    double percentageInsideTargetZone = allHeartRateEntries.isNotEmpty
+        ? (insideTargetZone / allHeartRateEntries.length) * 100
+        : 0.0;
+    double percentageInsideAnyZone = allHeartRateEntries.isNotEmpty
+        ? (insideActualZone / allHeartRateEntries.length) * 100
+        : 0.0;
+
+    // Use the better percentage to show user achievement
+    double displayPercentage = percentageInsideTargetZone > 0
+        ? percentageInsideTargetZone
+        : percentageInsideAnyZone;
+
+    debugPrint('Heart Rate Analysis results:');
+    debugPrint('- Average Heart Rate: $averageHeartRate');
+    debugPrint('- Percentage Inside Target Zone: $percentageInsideTargetZone');
+    debugPrint('- Percentage Inside Any Zone: $percentageInsideAnyZone');
+    debugPrint('- Display Percentage: $displayPercentage');
+    debugPrint('- Target Zone bounds: $targetLowerBound - $targetUpperBound');
+
+    return {
+      'insideZone': insideTargetZone,
+      'outsideZone': outsideZone,
+      'averageHeartRate': averageHeartRate,
+      'averageSpeed': 0.0, // Not applicable for heart rate analysis
+      'percentageInsideZone': displayPercentage,
+      'dataType': 'heartRate',
+    };
+  }
+
+  Map<String, dynamic> _analyseSpeedData(List<dynamic> data) {
+    List<dynamic> allSpeedEntries = [];
+    int? zoneId;
+
+    for (var challenge in data) {
+      debugPrint('Processing challenge: $challenge');
+      if (zoneId == null && challenge['zoneId'] != null) {
+        zoneId = challenge['zoneId'];
+      }
+      if (challenge['speedData'] != null) {
+        debugPrint('Speed data found: ${challenge['speedData']}');
+        allSpeedEntries.addAll(challenge['speedData']);
+      }
+    }
+    debugPrint('Total speed entries: ${allSpeedEntries.length}');
+
+    // Define speed zone boundaries (same as in player_screen.dart)
+    double zone1Lower,
+        zone1Upper,
+        zone2Lower,
+        zone2Upper,
+        zone3Lower,
+        zone3Upper;
+
+    zone1Lower = 4.0; // Zone 1: Walk
+    zone1Upper = 6.0;
+    zone2Lower = 6.0; // Zone 2: Jog
+    zone2Upper = 8.0;
+    zone3Lower = 8.0; // Zone 3: Run
+    zone3Upper = 12.0;
+
+    debugPrint('Speed Zone boundaries:');
+    debugPrint('- Zone 1 (Walk): $zone1Lower-$zone1Upper km/h');
+    debugPrint('- Zone 2 (Jog): $zone2Lower-$zone2Upper km/h');
+    debugPrint('- Zone 3 (Run): $zone3Lower-$zone3Upper km/h');
+
+    int insideTargetZone = 0;
+    int insideActualZone = 0;
+    int outsideZone = 0;
+    double totalSpeed = 0.0;
+
+    // Determine target zone boundaries
+    double targetLowerBound, targetUpperBound;
+    if (zoneId == 1) {
+      targetLowerBound = zone1Lower;
+      targetUpperBound = zone1Upper;
+    } else if (zoneId == 2) {
+      targetLowerBound = zone2Lower;
+      targetUpperBound = zone2Upper;
+    } else if (zoneId == 3) {
+      targetLowerBound = zone3Lower;
+      targetUpperBound = zone3Upper;
+    } else {
+      throw Exception('Invalid zoneId');
+    }
+
+    for (var entry in allSpeedEntries) {
+      final speed =
+          (entry['speed'] as num).toDouble() * 3.6; // Convert m/s to km/h
+      totalSpeed += speed;
+
+      // Check if in target zone
+      if (speed >= targetLowerBound && speed <= targetUpperBound) {
+        insideTargetZone++;
+      }
+
+      // Check which zone they were actually in
+      if (speed >= zone1Lower && speed <= zone1Upper) {
+        insideActualZone++; // Zone 1
+      } else if (speed >= zone2Lower && speed <= zone2Upper) {
+        insideActualZone++; // Zone 2
+      } else if (speed >= zone3Lower && speed <= zone3Upper) {
+        insideActualZone++; // Zone 3
+      } else {
+        outsideZone++;
+      }
+    }
+
+    double averageSpeed =
+        allSpeedEntries.isNotEmpty ? totalSpeed / allSpeedEntries.length : 0.0;
+
+    // Use the higher percentage between target zone and actual zone performance
+    double percentageInsideTargetZone = allSpeedEntries.isNotEmpty
+        ? (insideTargetZone / allSpeedEntries.length) * 100
+        : 0.0;
+    double percentageInsideAnyZone = allSpeedEntries.isNotEmpty
+        ? (insideActualZone / allSpeedEntries.length) * 100
+        : 0.0;
+
+    // Use the better percentage to show user achievement
+    double displayPercentage = percentageInsideTargetZone > 0
+        ? percentageInsideTargetZone
+        : percentageInsideAnyZone;
+
+    debugPrint('Speed Analysis results:');
+    debugPrint('- Average Speed: $averageSpeed km/h');
+    debugPrint('- Percentage Inside Target Zone: $percentageInsideTargetZone');
+    debugPrint('- Percentage Inside Any Zone: $percentageInsideAnyZone');
+    debugPrint('- Display Percentage: $displayPercentage');
+    debugPrint(
+        '- Target Zone bounds: $targetLowerBound - $targetUpperBound km/h');
+
+    return {
+      'insideZone': insideTargetZone,
+      'outsideZone': outsideZone,
+      'averageHeartRate': 0.0, // Not applicable for speed analysis
+      'averageSpeed': averageSpeed,
+      'percentageInsideZone': displayPercentage,
+      'dataType': 'speed',
+    };
   }
 
   Path drawStar(Size size) {
@@ -626,6 +773,8 @@ class _CompletionScreenState extends State<CompletionScreen>
   }
 
   Widget _buildCompletionContent() {
+    bool isHeartRateData = _useHeartRateData;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -653,13 +802,23 @@ class _CompletionScreenState extends State<CompletionScreen>
           builder: (context, child) {
             return Column(
               children: [
-                _buildProgressBar(
-                  animation: _heartRateAnimation,
-                  label: 'Heart Rate',
-                  icon: Icons.favorite_rounded,
-                  progressColor: Colors.purple,
-                  valueText: '${_averageHeartRate.toInt()} BPM',
-                ),
+                // Show Heart Rate or Speed based on data type
+                if (isHeartRateData)
+                  _buildProgressBar(
+                    animation: _heartRateAnimation,
+                    label: 'Heart Rate',
+                    icon: Icons.favorite_rounded,
+                    progressColor: Colors.purple,
+                    valueText: '${_averageHeartRate.toInt()} BPM',
+                  )
+                else
+                  _buildProgressBar(
+                    animation: _heartRateAnimation,
+                    label: 'Speed',
+                    icon: Icons.speed_rounded,
+                    progressColor: Colors.purple,
+                    valueText: '${_averageSpeed.toStringAsFixed(1)} km/h',
+                  ),
                 _buildProgressBar(
                   animation: _zoneTimeAnimation,
                   label: 'Zone Time',
