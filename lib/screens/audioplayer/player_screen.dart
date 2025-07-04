@@ -9,8 +9,9 @@ import 'package:just_audio/just_audio.dart';
 import 'package:testingheartrate/services/socket_service.dart';
 import 'package:screen_brightness/screen_brightness.dart';
 import 'package:flutter/services.dart';
-import 'package:testingheartrate/services/steps_service.dart';
 import 'package:testingheartrate/services/gps_service.dart';
+import 'package:cm_pedometer/cm_pedometer.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class PlayerScreen extends StatefulWidget {
   final List<Map<String, dynamic>> audioData;
@@ -88,6 +89,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
   double _unlockProgress = 0.0;
   Timer? _unlockTimer;
 
+  // Pedometer variables
+  late Stream<CMPedometerData> _pedometerStream;
+  final ValueNotifier<CMPedometerData?> _pedometerData = ValueNotifier(null);
+
   @override
   void initState() {
     analytics.setAnalyticsCollectionEnabled(true);
@@ -100,6 +105,66 @@ class _PlayerScreenState extends State<PlayerScreen> {
     debugPrint('===================================');
     _initializePlayer();
     _initializeService();
+
+    // Initialize pedometer for iOS
+    if (Platform.isIOS && !widget.useAppleWatch) {
+      _initPedometer();
+    }
+  }
+
+  // NEW: Initialize pedometer directly
+  Future<void> _initPedometer() async {
+    try {
+      // Request pedometer permission
+      bool granted = await _checkPedometerPermission();
+      if (!granted) {
+        debugPrint('Pedometer permission not granted');
+        return;
+      }
+
+      // Initialize pedometer stream
+      _pedometerStream = CMPedometer.stepCounterFirstStream();
+      _pedometerStream
+          .listen(_handlePedometerUpdate)
+          .onError(_handlePedometerError);
+    } catch (e) {
+      debugPrint('Error initializing pedometer: $e');
+    }
+  }
+
+  // NEW: Check pedometer permission
+  Future<bool> _checkPedometerPermission() async {
+    bool granted = await Permission.sensors.isGranted;
+    if (!granted) {
+      granted = await Permission.sensors.request() == PermissionStatus.granted;
+    }
+    return granted;
+  }
+
+  // NEW: Handle pedometer updates
+  void _handlePedometerUpdate(CMPedometerData data) {
+    debugPrint('Pedometer data: ${data.numberOfSteps} steps');
+    _pedometerData.value = data;
+
+    // Calculate speed from current pace
+    double? currentPace = data.currentPace; // seconds per meter
+    if (currentPace != null && currentPace > 0) {
+      double speedMs = 1 / currentPace; // meters per second
+      double speedKmph = speedMs * 3.6; // km/h
+      _handleSpeedUpdate(speedKmph);
+
+      // Send speed data to socket server
+      if (_socketService != null) {
+        _socketService!.sendSpeed(speedKmph);
+        debugPrint('Sent Pedometer speed data to server: $speedKmph km/h');
+      }
+    }
+  }
+
+  // NEW: Handle pedometer errors
+  void _handlePedometerError(error) {
+    debugPrint('Pedometer error: $error');
+    _pedometerData.value = null;
   }
 
   String get _activeServiceLabel {
@@ -250,23 +315,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
       if (widget.useAppleWatch) {
         _useSocket = true;
         // Heart rate data will come from Apple Watch via socket
-      } else {
-        _useSocket = false;
-        await PedometerService().initialize();
-        _dataSubscription = PedometerService().pedometerDataStream.listen((
-          data,
-        ) {
-          // Use the service's helper method for safe pace conversion
-          double speedMs = PedometerService().getCurrentPaceInMeterPerSecond();
-          double speedKmph = speedMs * 3.6;
-          _handleSpeedUpdate(speedKmph);
-          // Send speed data to socket server
-          if (_socketService != null) {
-            _socketService!.sendSpeed(speedKmph);
-            debugPrint('Sent Pedometer speed data to server: $speedKmph km/h');
-          }
-        });
       }
+      // For iOS without Apple Watch, pedometer is already initialized in initState
     }
   }
 
@@ -340,11 +390,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
         upperBound = 6.0;
         break;
       case 2:
-        lowerBound = 6.0;
+        lowerBound = 6.01;
         upperBound = 8.0;
         break;
       case 3:
-        lowerBound = 8.0;
+        lowerBound = 8.01;
         upperBound = 12.0;
         break;
       default:
@@ -873,10 +923,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
     if (!_useSocket && Platform.isAndroid) {
       GeolocationSpeedService().stopTracking();
-    }
-    // Add cleanup for iOS PedometerService
-    if (!_useSocket && Platform.isIOS && !widget.useAppleWatch) {
-      PedometerService().dispose();
     }
     super.dispose();
   }

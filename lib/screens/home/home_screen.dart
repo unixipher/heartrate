@@ -63,22 +63,6 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundImagePath: 'assets/images/luther.png',
       ),
     ),
-    // CharacterData(
-    //   name: 'Agent Scarn',
-    //   image: 'assets/images/nyc.png',
-    //   challengeCount: 0,
-    //   storyId: 4,
-    //   description:
-    //       'An undercover agent on a secret mission to deliver a package to 191 Bedford Hills. Agent Tokyo as his guide he must navigate the streets of NYC and board the bus in time',
-    //   page: const ChallengeScreen(
-    //     storyId: 4,
-    //     title: 'New York',
-    //     description:
-    //         'An undercover agent on a secret mission to deliver a package to 191 Bedford Hills. With Agent Tokyo as his only guide he must navigate the streets of New York and board the bus in time.',
-    //     jarekImagePath: 'assets/images/nyc.png',
-    //     backgroundImagePath: 'assets/images/nycbg.png',
-    //   ),
-    // ),
     CharacterData(
       name: 'Agent Seahorse',
       image: 'assets/images/horse.png',
@@ -109,6 +93,21 @@ class _HomeScreenState extends State<HomeScreen> {
     _initializeTimeTracking();
     _checkUserData();
     _fetchChallenges();
+    
+    // NEW: Request pedometer permission for iOS
+    if (Platform.isIOS) {
+      _requestPedometerPermission();
+    }
+  }
+
+  // NEW: Added pedometer permission request for iOS
+  Future<void> _requestPedometerPermission() async {
+    debugPrint('=== REQUESTING PEDOMETER PERMISSION FOR IOS ===');
+    bool granted = await Permission.sensors.isGranted;
+    if (!granted) {
+      granted = await Permission.sensors.request() == PermissionStatus.granted;
+    }
+    debugPrint('Pedometer permission granted: $granted');
   }
 
   Future<void> _requestLocationPermissionIfAndroid() async {
@@ -130,12 +129,26 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _requestActivityRecognitionPermission() async {
-    if (Platform.isIOS) {
-      bool granted = await Permission.activityRecognition.isGranted;
-      if (!granted) {
-        await Permission.activityRecognition.request();
-      }
+    debugPrint('=== REQUESTING ACTIVITY RECOGNITION PERMISSION ===');
+
+    // Request activity recognition permission for both iOS and Android
+    bool granted = await Permission.activityRecognition.isGranted;
+    debugPrint('Activity recognition permission initially granted: $granted');
+
+    if (!granted) {
+      debugPrint('Requesting activity recognition permission...');
+      granted = await Permission.activityRecognition.request() ==
+          PermissionStatus.granted;
+      debugPrint('Permission request result: $granted');
     }
+
+    if (!granted) {
+      debugPrint('Activity recognition permission denied');
+    } else {
+      debugPrint('Activity recognition permission granted successfully');
+    }
+
+    debugPrint('=== PERMISSION REQUEST COMPLETE ===');
   }
 
   Future<void> _fetchChallenges() async {
@@ -632,26 +645,6 @@ class _ProfileFormState extends State<ProfileForm> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    // const SizedBox(height: 24),
-                    // TextField(
-                    //   controller: _nameController,
-                    //   decoration: InputDecoration(
-                    //     labelText: 'Name',
-                    //     labelStyle: const TextStyle(
-                    //         fontFamily: 'Battambang', color: Colors.white70),
-                    //     enabledBorder: OutlineInputBorder(
-                    //       borderSide: const BorderSide(color: Colors.white70),
-                    //       borderRadius: BorderRadius.circular(10),
-                    //     ),
-                    //     focusedBorder: OutlineInputBorder(
-                    //       borderSide: const BorderSide(color: Colors.white),
-                    //       borderRadius: BorderRadius.circular(10),
-                    //     ),
-                    //     filled: true,
-                    //     fillColor: const Color(0xFF1E1F2D),
-                    //   ),
-                    //   style: const TextStyle(color: Colors.white),
-                    // ),
                     const SizedBox(height: 16),
                     TextField(
                       controller: _ageController,

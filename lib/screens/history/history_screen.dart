@@ -262,10 +262,10 @@ class _HistoryScreenState extends State<HistoryScreen>
             lowerBound = 4.0; // Zone 1: Walk
             upperBound = 6.0;
           } else if (zoneIdToUse == 2) {
-            lowerBound = 6.0; // Zone 2: Jog
+            lowerBound = 6.01; // Zone 2: Jog
             upperBound = 8.0;
           } else if (zoneIdToUse == 3) {
-            lowerBound = 8.0; // Zone 3: Run
+            lowerBound = 8.01; // Zone 3: Run
             upperBound = 12.0;
           } else {
             lowerBound = 4.0; // Default to Zone 1
@@ -432,10 +432,10 @@ class _HistoryScreenState extends State<HistoryScreen>
             lowerBound = 4.0; // Zone 1: Walk
             upperBound = 6.0;
           } else if (zoneIdToUse == 2) {
-            lowerBound = 6.0; // Zone 2: Jog
+            lowerBound = 6.01; // Zone 2: Jog
             upperBound = 8.0;
           } else if (zoneIdToUse == 3) {
-            lowerBound = 8.0; // Zone 3: Run
+            lowerBound = 8.01; // Zone 3: Run
             upperBound = 12.0;
           } else {
             lowerBound = 4.0; // Default to Zone 1

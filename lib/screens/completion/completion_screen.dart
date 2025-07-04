@@ -489,9 +489,9 @@ class _CompletionScreenState extends State<CompletionScreen>
 
     zone1Lower = 4.0; // Zone 1: Walk
     zone1Upper = 6.0;
-    zone2Lower = 6.0; // Zone 2: Jog
+    zone2Lower = 6.01; // Zone 2: Jog (slight gap to avoid overlap)
     zone2Upper = 8.0;
-    zone3Lower = 8.0; // Zone 3: Run
+    zone3Lower = 8.01; // Zone 3: Run (slight gap to avoid overlap)
     zone3Upper = 12.0;
 
     debugPrint('Speed Zone boundaries:');
@@ -521,7 +521,7 @@ class _CompletionScreenState extends State<CompletionScreen>
 
     for (var entry in allSpeedEntries) {
       final speed =
-          (entry['speed'] as num).toDouble() * 3.6; // Convert m/s to km/h
+          (entry['speed'] as num).toDouble(); // Speed is already in km/h
       totalSpeed += speed;
 
       // Check if in target zone
