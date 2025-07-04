@@ -107,6 +107,21 @@ class _HistoryScreenState extends State<HistoryScreen>
         return {};
       }
 
+      // Parse workout start and end times
+      DateTime? workoutStartTime;
+      DateTime? workoutEndTime;
+
+      try {
+        if (workout['startTime'] != null) {
+          workoutStartTime = DateTime.parse(workout['startTime'].toString());
+        }
+        if (workout['endTime'] != null) {
+          workoutEndTime = DateTime.parse(workout['endTime'].toString());
+        }
+      } catch (e) {
+        debugPrint('Error parsing workout times: $e');
+      }
+
       final response = await http.post(
         url,
         headers: {
@@ -125,7 +140,10 @@ class _HistoryScreenState extends State<HistoryScreen>
         final List<dynamic> data = json.decode(response.body);
 
         List<dynamic> allHeartRateEntries = [];
+        List<dynamic> allSpeedEntries = [];
         int? responseZoneId;
+        String dataType = 'heart_rate'; // Default to heart rate
+
         for (var challengeData in data) {
           if (responseZoneId == null && challengeData['zoneId'] != null) {
             responseZoneId = challengeData['zoneId'];
@@ -133,58 +151,165 @@ class _HistoryScreenState extends State<HistoryScreen>
           if (challengeData['heartRateData'] != null) {
             allHeartRateEntries.addAll(challengeData['heartRateData']);
           }
-        }
-
-        if (allHeartRateEntries.isEmpty) return {};
-
-        final maxHR = userData?['maxhr']?.toDouble() ?? 200.0;
-        double lowerBound, upperBound;
-
-        final zoneIdToUse = responseZoneId ?? 1;
-        if (zoneIdToUse == 1) {
-          lowerBound = (72 + (maxHR - 72) * 0.35).toDouble(); // 35% intensity
-          upperBound = (72 + (maxHR - 72) * 0.75).toDouble(); // 75% intensity
-        } else if (zoneIdToUse == 2) {
-          lowerBound = (72 + (maxHR - 72) * 0.45).toDouble(); // 45% intensity
-          upperBound = (72 + (maxHR - 72) * 0.85).toDouble(); // 85% intensity
-        } else if (zoneIdToUse == 3) {
-          lowerBound = (72 + (maxHR - 72) * 0.55).toDouble(); // 55% intensity
-          upperBound = (72 + (maxHR - 72) * 0.95).toDouble(); // 95% intensity
-        } else {
-          throw Exception('Invalid zoneId');
-        }
-
-        int insideZone = 0;
-        int outsideZone = 0;
-        double totalHeartRate = 0.0;
-
-        for (var entry in allHeartRateEntries) {
-          final heartRate = (entry['heartRate'] as num).toDouble();
-          totalHeartRate += heartRate;
-          if (heartRate >= lowerBound && heartRate <= upperBound) {
-            insideZone++;
-          } else {
-            outsideZone++;
+          if (challengeData['speedData'] != null) {
+            allSpeedEntries.addAll(challengeData['speedData']);
+          }
+          if (challengeData['dataType'] != null) {
+            dataType = challengeData['dataType'];
           }
         }
 
-        double averageHeartRate = totalHeartRate / allHeartRateEntries.length;
-        double percentageInsideZone =
-            (insideZone / allHeartRateEntries.length) * 100;
+        // Filter data by workout time range
+        if (workoutStartTime != null && workoutEndTime != null) {
+          debugPrint(
+              'Filtering data for workout period: $workoutStartTime to $workoutEndTime');
+          debugPrint(
+              'Original heart rate entries: ${allHeartRateEntries.length}');
+          debugPrint('Original speed entries: ${allSpeedEntries.length}');
 
-        return {
-          'watchData': allHeartRateEntries,
-          'heartRates': allHeartRateEntries.map((e) => e['heartRate']).toList(),
-          'averageHR': averageHeartRate,
-          'insideZone': insideZone,
-          'outsideZone': outsideZone,
-          'zoneThreshold': lowerBound,
-          'upperBound': upperBound,
-          'lowerBound': lowerBound,
-          'percentageInsideZone': percentageInsideZone,
-          'zoneId': zoneIdToUse,
-          'challengeIds': challengeIds,
-        };
+          allHeartRateEntries = allHeartRateEntries.where((entry) {
+            try {
+              final entryTime = DateTime.parse(entry['createdAt'].toString());
+              return entryTime.isAfter(workoutStartTime!) &&
+                  entryTime.isBefore(workoutEndTime!);
+            } catch (e) {
+              debugPrint('Error parsing entry time: $e');
+              return false;
+            }
+          }).toList();
+
+          allSpeedEntries = allSpeedEntries.where((entry) {
+            try {
+              final entryTime = DateTime.parse(entry['createdAt'].toString());
+              return entryTime.isAfter(workoutStartTime!) &&
+                  entryTime.isBefore(workoutEndTime!);
+            } catch (e) {
+              debugPrint('Error parsing entry time: $e');
+              return false;
+            }
+          }).toList();
+
+          debugPrint(
+              'Filtered heart rate entries: ${allHeartRateEntries.length}');
+          debugPrint('Filtered speed entries: ${allSpeedEntries.length}');
+        } else {
+          debugPrint('No workout time range available, showing all data');
+        }
+
+        // Check if we have heart rate data, otherwise use speed data
+        if (allHeartRateEntries.isNotEmpty) {
+          final maxHR = userData?['maxhr']?.toDouble() ?? 200.0;
+          double lowerBound, upperBound;
+
+          final zoneIdToUse = responseZoneId ?? 1;
+          if (zoneIdToUse == 1) {
+            lowerBound = (72 + (maxHR - 72) * 0.35).toDouble(); // 35% intensity
+            upperBound = (72 + (maxHR - 72) * 0.75).toDouble(); // 75% intensity
+          } else if (zoneIdToUse == 2) {
+            lowerBound = (72 + (maxHR - 72) * 0.45).toDouble(); // 45% intensity
+            upperBound = (72 + (maxHR - 72) * 0.85).toDouble(); // 85% intensity
+          } else if (zoneIdToUse == 3) {
+            lowerBound = (72 + (maxHR - 72) * 0.55).toDouble(); // 55% intensity
+            upperBound = (72 + (maxHR - 72) * 0.95).toDouble(); // 95% intensity
+          } else {
+            throw Exception('Invalid zoneId');
+          }
+
+          int insideZone = 0;
+          int outsideZone = 0;
+          double totalHeartRate = 0.0;
+
+          for (var entry in allHeartRateEntries) {
+            final heartRate = (entry['heartRate'] as num).toDouble();
+            totalHeartRate += heartRate;
+            if (heartRate >= lowerBound && heartRate <= upperBound) {
+              insideZone++;
+            } else {
+              outsideZone++;
+            }
+          }
+
+          double averageHeartRate = totalHeartRate / allHeartRateEntries.length;
+          double percentageInsideZone =
+              (insideZone / allHeartRateEntries.length) * 100;
+
+          return {
+            'dataType': 'heart_rate',
+            'watchData': allHeartRateEntries,
+            'heartRates':
+                allHeartRateEntries.map((e) => e['heartRate']).toList(),
+            'averageHR': averageHeartRate,
+            'insideZone': insideZone,
+            'outsideZone': outsideZone,
+            'zoneThreshold': lowerBound,
+            'upperBound': upperBound,
+            'lowerBound': lowerBound,
+            'percentageInsideZone': percentageInsideZone,
+            'zoneId': zoneIdToUse,
+            'challengeIds': challengeIds,
+          };
+        } else if (allSpeedEntries.isNotEmpty) {
+          // Process speed data
+          double totalSpeed = 0.0;
+          double maxSpeed = 0.0;
+          double minSpeed = double.infinity;
+
+          // Define speed zone bounds (km/hr)
+          final zoneIdToUse = responseZoneId ?? 1;
+          double lowerBound, upperBound;
+
+          if (zoneIdToUse == 1) {
+            lowerBound = 4.0; // Zone 1: Walk
+            upperBound = 6.0;
+          } else if (zoneIdToUse == 2) {
+            lowerBound = 6.0; // Zone 2: Jog
+            upperBound = 8.0;
+          } else if (zoneIdToUse == 3) {
+            lowerBound = 8.0; // Zone 3: Run
+            upperBound = 12.0;
+          } else {
+            lowerBound = 4.0; // Default to Zone 1
+            upperBound = 6.0;
+          }
+
+          int insideZone = 0;
+          int outsideZone = 0;
+
+          for (var entry in allSpeedEntries) {
+            final speed = (entry['speed'] as num).toDouble();
+            totalSpeed += speed;
+            if (speed > maxSpeed) maxSpeed = speed;
+            if (speed < minSpeed) minSpeed = speed;
+
+            if (speed >= lowerBound && speed <= upperBound) {
+              insideZone++;
+            } else {
+              outsideZone++;
+            }
+          }
+
+          double averageSpeed = totalSpeed / allSpeedEntries.length;
+          double percentageInsideZone =
+              (insideZone / allSpeedEntries.length) * 100;
+
+          return {
+            'dataType': 'speed',
+            'watchData': allSpeedEntries,
+            'speeds': allSpeedEntries.map((e) => e['speed']).toList(),
+            'averageSpeed': averageSpeed,
+            'maxSpeed': maxSpeed,
+            'minSpeed': minSpeed,
+            'lowerBound': lowerBound,
+            'upperBound': upperBound,
+            'insideZone': insideZone,
+            'outsideZone': outsideZone,
+            'percentageInsideZone': percentageInsideZone,
+            'zoneId': zoneIdToUse,
+            'challengeIds': challengeIds,
+          };
+        }
+
+        return {};
       } else {
         throw Exception('Failed to analyse workout data');
       }
@@ -222,7 +347,9 @@ class _HistoryScreenState extends State<HistoryScreen>
         final List<dynamic> data = json.decode(response.body);
 
         List<dynamic> allHeartRateEntries = [];
+        List<dynamic> allSpeedEntries = [];
         int? responseZoneId;
+
         for (var challengeData in data) {
           if (responseZoneId == null && challengeData['zoneId'] != null) {
             responseZoneId = challengeData['zoneId'];
@@ -230,57 +357,128 @@ class _HistoryScreenState extends State<HistoryScreen>
           if (challengeData['heartRateData'] != null) {
             allHeartRateEntries.addAll(challengeData['heartRateData']);
           }
-        }
-
-        if (allHeartRateEntries.isEmpty) return {};
-
-        final maxHR = userData?['maxhr']?.toDouble() ?? 200.0;
-        double lowerBound, upperBound;
-
-        final zoneIdToUse = responseZoneId ?? zoneId;
-        if (zoneIdToUse == 1) {
-          lowerBound = (72 + (maxHR - 72) * 0.35).toDouble(); // 35% intensity
-          upperBound = (72 + (maxHR - 72) * 0.75).toDouble(); // 75% intensity
-        } else if (zoneIdToUse == 2) {
-          lowerBound = (72 + (maxHR - 72) * 0.45).toDouble(); // 45% intensity
-          upperBound = (72 + (maxHR - 72) * 0.85).toDouble(); // 85% intensity
-        } else if (zoneIdToUse == 3) {
-          lowerBound = (72 + (maxHR - 72) * 0.55).toDouble(); // 55% intensity
-          upperBound = (72 + (maxHR - 72) * 0.95).toDouble(); // 95% intensity
-        } else {
-          throw Exception('Invalid zoneId');
-        }
-
-        int insideZone = 0;
-        int outsideZone = 0;
-        double totalHeartRate = 0.0;
-
-        for (var entry in allHeartRateEntries) {
-          final heartRate = (entry['heartRate'] as num).toDouble();
-          totalHeartRate += heartRate;
-          if (heartRate >= lowerBound && heartRate <= upperBound) {
-            insideZone++;
-          } else {
-            outsideZone++;
+          if (challengeData['speedData'] != null) {
+            allSpeedEntries.addAll(challengeData['speedData']);
           }
         }
 
-        double averageHeartRate = totalHeartRate / allHeartRateEntries.length;
-        double percentageInsideZone =
-            (insideZone / allHeartRateEntries.length) * 100;
+        debugPrint(
+            'Challenge analysis - Heart rate entries: ${allHeartRateEntries.length}');
+        debugPrint(
+            'Challenge analysis - Speed entries: ${allSpeedEntries.length}');
 
-        return {
-          'watchData': allHeartRateEntries,
-          'heartRates': allHeartRateEntries.map((e) => e['heartRate']).toList(),
-          'averageHR': averageHeartRate,
-          'insideZone': insideZone,
-          'outsideZone': outsideZone,
-          'zoneThreshold': lowerBound,
-          'upperBound': upperBound,
-          'lowerBound': lowerBound,
-          'percentageInsideZone': percentageInsideZone,
-          'zoneId': zoneIdToUse,
-        };
+        // Check if we have heart rate data, otherwise use speed data
+        if (allHeartRateEntries.isNotEmpty) {
+          final maxHR = userData?['maxhr']?.toDouble() ?? 200.0;
+          double lowerBound, upperBound;
+
+          final zoneIdToUse = responseZoneId ?? zoneId;
+          if (zoneIdToUse == 1) {
+            lowerBound = (72 + (maxHR - 72) * 0.35).toDouble(); // 35% intensity
+            upperBound = (72 + (maxHR - 72) * 0.75).toDouble(); // 75% intensity
+          } else if (zoneIdToUse == 2) {
+            lowerBound = (72 + (maxHR - 72) * 0.45).toDouble(); // 45% intensity
+            upperBound = (72 + (maxHR - 72) * 0.85).toDouble(); // 85% intensity
+          } else if (zoneIdToUse == 3) {
+            lowerBound = (72 + (maxHR - 72) * 0.55).toDouble(); // 55% intensity
+            upperBound = (72 + (maxHR - 72) * 0.95).toDouble(); // 95% intensity
+          } else {
+            throw Exception('Invalid zoneId');
+          }
+
+          int insideZone = 0;
+          int outsideZone = 0;
+          double totalHeartRate = 0.0;
+
+          for (var entry in allHeartRateEntries) {
+            final heartRate = (entry['heartRate'] as num).toDouble();
+            totalHeartRate += heartRate;
+            if (heartRate >= lowerBound && heartRate <= upperBound) {
+              insideZone++;
+            } else {
+              outsideZone++;
+            }
+          }
+
+          double averageHeartRate = totalHeartRate / allHeartRateEntries.length;
+          double percentageInsideZone =
+              (insideZone / allHeartRateEntries.length) * 100;
+
+          return {
+            'dataType': 'heart_rate',
+            'watchData': allHeartRateEntries,
+            'heartRates':
+                allHeartRateEntries.map((e) => e['heartRate']).toList(),
+            'averageHR': averageHeartRate,
+            'insideZone': insideZone,
+            'outsideZone': outsideZone,
+            'zoneThreshold': lowerBound,
+            'upperBound': upperBound,
+            'lowerBound': lowerBound,
+            'percentageInsideZone': percentageInsideZone,
+            'zoneId': zoneIdToUse,
+          };
+        } else if (allSpeedEntries.isNotEmpty) {
+          // Process speed data
+          double totalSpeed = 0.0;
+          double maxSpeed = 0.0;
+          double minSpeed = double.infinity;
+
+          // Define speed zone bounds (km/hr)
+          final zoneIdToUse = responseZoneId ?? zoneId;
+          double lowerBound, upperBound;
+
+          if (zoneIdToUse == 1) {
+            lowerBound = 4.0; // Zone 1: Walk
+            upperBound = 6.0;
+          } else if (zoneIdToUse == 2) {
+            lowerBound = 6.0; // Zone 2: Jog
+            upperBound = 8.0;
+          } else if (zoneIdToUse == 3) {
+            lowerBound = 8.0; // Zone 3: Run
+            upperBound = 12.0;
+          } else {
+            lowerBound = 4.0; // Default to Zone 1
+            upperBound = 6.0;
+          }
+
+          int insideZone = 0;
+          int outsideZone = 0;
+
+          for (var entry in allSpeedEntries) {
+            final speed = (entry['speed'] as num).toDouble();
+            totalSpeed += speed;
+            if (speed > maxSpeed) maxSpeed = speed;
+            if (speed < minSpeed) minSpeed = speed;
+
+            if (speed >= lowerBound && speed <= upperBound) {
+              insideZone++;
+            } else {
+              outsideZone++;
+            }
+          }
+
+          double averageSpeed = totalSpeed / allSpeedEntries.length;
+          double percentageInsideZone =
+              (insideZone / allSpeedEntries.length) * 100;
+
+          return {
+            'dataType': 'speed',
+            'watchData': allSpeedEntries,
+            'speeds': allSpeedEntries.map((e) => e['speed']).toList(),
+            'averageSpeed': averageSpeed,
+            'maxSpeed': maxSpeed,
+            'minSpeed': minSpeed,
+            'lowerBound': lowerBound,
+            'upperBound': upperBound,
+            'insideZone': insideZone,
+            'outsideZone': outsideZone,
+            'percentageInsideZone': percentageInsideZone,
+            'zoneId': zoneIdToUse,
+          };
+        }
+
+        return {};
       } else {
         throw Exception('Failed to analyse heart rate');
       }
@@ -319,7 +517,7 @@ class _HistoryScreenState extends State<HistoryScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text(
-            'No heart rate data',
+            'No analytics data available',
             style: TextStyle(
               color: Colors.black,
               fontSize: 12,
@@ -352,6 +550,7 @@ class _HistoryScreenState extends State<HistoryScreen>
             : analytics['zoneId'] == 2
                 ? 'Jog'
                 : 'Run';
+        final isSpeedData = analytics['dataType'] == 'speed';
 
         return Container(
           height: MediaQuery.of(context).size.height * 0.8,
@@ -383,7 +582,7 @@ class _HistoryScreenState extends State<HistoryScreen>
                 ),
                 const SizedBox(height: 20),
 
-                // Average Heart Rate
+                // Average Heart Rate or Speed
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
@@ -393,13 +592,16 @@ class _HistoryScreenState extends State<HistoryScreen>
                   ),
                   child: Column(
                     children: [
-                      const Text(
-                        'Average Heart Rate',
-                        style: TextStyle(color: Colors.white70, fontSize: 16),
+                      Text(
+                        isSpeedData ? 'Average Speed' : 'Average Heart Rate',
+                        style: const TextStyle(
+                            color: Colors.white70, fontSize: 16),
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        '${analytics['averageHR'].toStringAsFixed(1)} BPM',
+                        isSpeedData
+                            ? '${analytics['averageSpeed'].toStringAsFixed(1)} km/h'
+                            : '${analytics['averageHR'].toStringAsFixed(1)} BPM',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 24,
@@ -422,7 +624,9 @@ class _HistoryScreenState extends State<HistoryScreen>
                   child: Column(
                     children: [
                       Text(
-                        '$zoneType Zone (${analytics['lowerBound'].toInt()}-${analytics['upperBound'].toInt()} BPM)',
+                        isSpeedData
+                            ? '$zoneType Zone (${analytics['lowerBound'].toStringAsFixed(1)}-${analytics['upperBound'].toStringAsFixed(1)} km/h)'
+                            : '$zoneType Zone (${analytics['lowerBound'].toInt()}-${analytics['upperBound'].toInt()} BPM)',
                         style: const TextStyle(
                             color: Colors.white70, fontSize: 16),
                       ),
@@ -440,10 +644,10 @@ class _HistoryScreenState extends State<HistoryScreen>
                 ),
                 const SizedBox(height: 20),
 
-                // Heart Rate Line Chart
-                const Text(
-                  'Heart Rate Over Time',
-                  style: TextStyle(
+                // Heart Rate or Speed Line Chart
+                Text(
+                  isSpeedData ? 'Speed Over Time' : 'Heart Rate Over Time',
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -477,9 +681,11 @@ class _HistoryScreenState extends State<HistoryScreen>
                           getTooltipItems: (touchedSpots) {
                             return touchedSpots.map((touchedSpot) {
                               if (touchedSpot.barIndex == 0) {
-                                // Heart rate line
+                                // Main data line
                                 return LineTooltipItem(
-                                  'Heart Rate\n${touchedSpot.y.toInt()} BPM',
+                                  isSpeedData
+                                      ? 'Speed\n${touchedSpot.y.toStringAsFixed(1)} km/h'
+                                      : 'Heart Rate\n${touchedSpot.y.toInt()} BPM',
                                   const TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,
@@ -489,7 +695,9 @@ class _HistoryScreenState extends State<HistoryScreen>
                               } else if (touchedSpot.barIndex == 1) {
                                 // Lower bound line
                                 return LineTooltipItem(
-                                  'Target Zone Lower\n${touchedSpot.y.toInt()} BPM',
+                                  isSpeedData
+                                      ? 'Target Zone Lower\n${touchedSpot.y.toStringAsFixed(1)} km/h'
+                                      : 'Target Zone Lower\n${touchedSpot.y.toInt()} BPM',
                                   const TextStyle(
                                     color: Color(0xFF00FF88),
                                     fontWeight: FontWeight.bold,
@@ -499,7 +707,9 @@ class _HistoryScreenState extends State<HistoryScreen>
                               } else if (touchedSpot.barIndex == 2) {
                                 // Upper bound line
                                 return LineTooltipItem(
-                                  'Target Zone Upper\n${touchedSpot.y.toInt()} BPM',
+                                  isSpeedData
+                                      ? 'Target Zone Upper\n${touchedSpot.y.toStringAsFixed(1)} km/h'
+                                      : 'Target Zone Upper\n${touchedSpot.y.toInt()} BPM',
                                   const TextStyle(
                                     color: Color(0xFF00FF88),
                                     fontWeight: FontWeight.bold,
@@ -515,7 +725,7 @@ class _HistoryScreenState extends State<HistoryScreen>
                       gridData: FlGridData(
                         show: true,
                         drawVerticalLine: true,
-                        horizontalInterval: 20,
+                        horizontalInterval: isSpeedData ? 2 : 20,
                         verticalInterval:
                             analytics['watchData'].length > 30 ? 3 : 1,
                         getDrawingHorizontalLine: (value) {
@@ -540,7 +750,9 @@ class _HistoryScreenState extends State<HistoryScreen>
                             reservedSize: 50,
                             getTitlesWidget: (value, meta) {
                               return Text(
-                                '${value.toInt()}',
+                                isSpeedData
+                                    ? '${value.toStringAsFixed(1)}'
+                                    : '${value.toInt()}',
                                 style: const TextStyle(
                                   color: Colors.white70,
                                   fontSize: 12,
@@ -612,38 +824,67 @@ class _HistoryScreenState extends State<HistoryScreen>
                       ),
                       minX: 0,
                       maxX: (analytics['watchData'].length - 1).toDouble(),
-                      minY: [
-                        analytics['heartRates']
-                                .reduce((a, b) => a < b ? a : b)
-                                .toDouble() -
-                            10,
-                        analytics['lowerBound'] - 20,
-                      ].reduce((a, b) => a < b ? a : b),
-                      maxY: [
-                        analytics['heartRates']
-                                .reduce((a, b) => a > b ? a : b)
-                                .toDouble() +
-                            10,
-                        analytics['upperBound'] + 20,
-                      ].reduce((a, b) => a > b ? a : b),
+                      minY: isSpeedData
+                          ? [
+                              analytics['speeds']?.isNotEmpty == true
+                                  ? analytics['speeds']
+                                          .reduce((a, b) => a < b ? a : b)
+                                          .toDouble() -
+                                      1
+                                  : 0.0,
+                              analytics['lowerBound'] - 1,
+                            ].reduce((a, b) => a < b ? a : b)
+                          : [
+                              analytics['heartRates']
+                                      .reduce((a, b) => a < b ? a : b)
+                                      .toDouble() -
+                                  10,
+                              analytics['lowerBound'] - 20,
+                            ].reduce((a, b) => a < b ? a : b),
+                      maxY: isSpeedData
+                          ? [
+                              analytics['speeds']?.isNotEmpty == true
+                                  ? analytics['speeds']
+                                          .reduce((a, b) => a > b ? a : b)
+                                          .toDouble() +
+                                      1
+                                  : 15.0,
+                              analytics['upperBound'] + 1,
+                            ].reduce((a, b) => a > b ? a : b)
+                          : [
+                              analytics['heartRates']
+                                      .reduce((a, b) => a > b ? a : b)
+                                      .toDouble() +
+                                  10,
+                              analytics['upperBound'] + 20,
+                            ].reduce((a, b) => a > b ? a : b),
                       lineBarsData: [
-                        // Heart rate line with gradient
+                        // Main data line with gradient
                         LineChartBarData(
                           spots: List.generate(
                             analytics['watchData'].length,
                             (index) => FlSpot(
                               index.toDouble(),
-                              analytics['watchData'][index]['heartRate']
-                                  .toDouble(),
+                              isSpeedData
+                                  ? analytics['watchData'][index]['speed']
+                                      .toDouble()
+                                  : analytics['watchData'][index]['heartRate']
+                                      .toDouble(),
                             ),
                           ),
                           isCurved: true,
                           gradient: LinearGradient(
-                            colors: [
-                              const Color(0xFF00D4FF),
-                              const Color(0xFF0099FF),
-                              const Color(0xFF0066FF),
-                            ],
+                            colors: isSpeedData
+                                ? [
+                                    const Color(0xFF00FF88),
+                                    const Color(0xFF00CC66),
+                                    const Color(0xFF009944),
+                                  ]
+                                : [
+                                    const Color(0xFF00D4FF),
+                                    const Color(0xFF0099FF),
+                                    const Color(0xFF0066FF),
+                                  ],
                           ),
                           barWidth: 4,
                           belowBarData: BarAreaData(
@@ -651,11 +892,17 @@ class _HistoryScreenState extends State<HistoryScreen>
                             gradient: LinearGradient(
                               begin: Alignment.topCenter,
                               end: Alignment.bottomCenter,
-                              colors: [
-                                const Color(0xFF00D4FF).withOpacity(0.3),
-                                const Color(0xFF0099FF).withOpacity(0.1),
-                                Colors.transparent,
-                              ],
+                              colors: isSpeedData
+                                  ? [
+                                      const Color(0xFF00FF88).withOpacity(0.3),
+                                      const Color(0xFF00CC66).withOpacity(0.1),
+                                      Colors.transparent,
+                                    ]
+                                  : [
+                                      const Color(0xFF00D4FF).withOpacity(0.3),
+                                      const Color(0xFF0099FF).withOpacity(0.1),
+                                      Colors.transparent,
+                                    ],
                             ),
                           ),
                           dotData: FlDotData(
@@ -665,7 +912,9 @@ class _HistoryScreenState extends State<HistoryScreen>
                                 radius: 2.5,
                                 color: Colors.white,
                                 strokeWidth: 1.5,
-                                strokeColor: const Color(0xFF0099FF),
+                                strokeColor: isSpeedData
+                                    ? const Color(0xFF00CC66)
+                                    : const Color(0xFF0099FF),
                               );
                             },
                           ),
@@ -719,19 +968,25 @@ class _HistoryScreenState extends State<HistoryScreen>
                           width: 24,
                           height: 4,
                           decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [
-                                Color(0xFF00D4FF),
-                                Color(0xFF0099FF),
-                              ],
+                            gradient: LinearGradient(
+                              colors: isSpeedData
+                                  ? [
+                                      const Color(0xFF00FF88),
+                                      const Color(0xFF00CC66),
+                                    ]
+                                  : [
+                                      const Color(0xFF00D4FF),
+                                      const Color(0xFF0099FF),
+                                    ],
                             ),
                             borderRadius: BorderRadius.circular(2),
                           ),
                         ),
                         const SizedBox(width: 8),
-                        const Text(
-                          'Heart Rate',
-                          style: TextStyle(color: Colors.white70, fontSize: 12),
+                        Text(
+                          isSpeedData ? 'Speed' : 'Heart Rate',
+                          style: const TextStyle(
+                              color: Colors.white70, fontSize: 12),
                         ),
                       ],
                     ),
@@ -791,7 +1046,7 @@ class _HistoryScreenState extends State<HistoryScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text(
-            'No heart rate data',
+            'No analytics data available',
             style: TextStyle(
               color: Colors.black,
               fontSize: 12,
@@ -824,6 +1079,7 @@ class _HistoryScreenState extends State<HistoryScreen>
             : analytics['zoneId'] == 2
                 ? 'Jog'
                 : 'Run';
+        final isSpeedData = analytics['dataType'] == 'speed';
 
         Duration duration = Duration.zero;
         String formattedDuration = '0h 0m 0s';
@@ -903,7 +1159,7 @@ class _HistoryScreenState extends State<HistoryScreen>
                 ),
                 const SizedBox(height: 16),
 
-                // Average Heart Rate
+                // Average Heart Rate or Speed
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
@@ -913,13 +1169,16 @@ class _HistoryScreenState extends State<HistoryScreen>
                   ),
                   child: Column(
                     children: [
-                      const Text(
-                        'Average Heart Rate',
-                        style: TextStyle(color: Colors.white70, fontSize: 16),
+                      Text(
+                        isSpeedData ? 'Average Speed' : 'Average Heart Rate',
+                        style: const TextStyle(
+                            color: Colors.white70, fontSize: 16),
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        '${analytics['averageHR'].toStringAsFixed(1)} BPM',
+                        isSpeedData
+                            ? '${analytics['averageSpeed'].toStringAsFixed(1)} km/h'
+                            : '${analytics['averageHR'].toStringAsFixed(1)} BPM',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 24,
@@ -942,7 +1201,9 @@ class _HistoryScreenState extends State<HistoryScreen>
                   child: Column(
                     children: [
                       Text(
-                        '$zoneType Zone (${analytics['lowerBound'].toInt()}-${analytics['upperBound'].toInt()} BPM)',
+                        isSpeedData
+                            ? '$zoneType Zone (${analytics['lowerBound'].toStringAsFixed(1)}-${analytics['upperBound'].toStringAsFixed(1)} km/h)'
+                            : '$zoneType Zone (${analytics['lowerBound'].toInt()}-${analytics['upperBound'].toInt()} BPM)',
                         style: const TextStyle(
                             color: Colors.white70, fontSize: 16),
                       ),
@@ -960,10 +1221,10 @@ class _HistoryScreenState extends State<HistoryScreen>
                 ),
                 const SizedBox(height: 20),
 
-                // Heart Rate Line Chart
-                const Text(
-                  'Heart Rate Over Time',
-                  style: TextStyle(
+                // Heart Rate or Speed Line Chart
+                Text(
+                  isSpeedData ? 'Speed Over Time' : 'Heart Rate Over Time',
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -997,9 +1258,11 @@ class _HistoryScreenState extends State<HistoryScreen>
                           getTooltipItems: (touchedSpots) {
                             return touchedSpots.map((touchedSpot) {
                               if (touchedSpot.barIndex == 0) {
-                                // Heart rate line
+                                // Main data line
                                 return LineTooltipItem(
-                                  'Heart Rate\n${touchedSpot.y.toInt()} BPM',
+                                  isSpeedData
+                                      ? 'Speed\n${touchedSpot.y.toStringAsFixed(1)} km/h'
+                                      : 'Heart Rate\n${touchedSpot.y.toInt()} BPM',
                                   const TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,
@@ -1009,7 +1272,9 @@ class _HistoryScreenState extends State<HistoryScreen>
                               } else if (touchedSpot.barIndex == 1) {
                                 // Lower bound line
                                 return LineTooltipItem(
-                                  'Target Zone Lower\n${touchedSpot.y.toInt()} BPM',
+                                  isSpeedData
+                                      ? 'Target Zone Lower\n${touchedSpot.y.toStringAsFixed(1)} km/h'
+                                      : 'Target Zone Lower\n${touchedSpot.y.toInt()} BPM',
                                   const TextStyle(
                                     color: Color(0xFF00FF88),
                                     fontWeight: FontWeight.bold,
@@ -1019,7 +1284,9 @@ class _HistoryScreenState extends State<HistoryScreen>
                               } else if (touchedSpot.barIndex == 2) {
                                 // Upper bound line
                                 return LineTooltipItem(
-                                  'Target Zone Upper\n${touchedSpot.y.toInt()} BPM',
+                                  isSpeedData
+                                      ? 'Target Zone Upper\n${touchedSpot.y.toStringAsFixed(1)} km/h'
+                                      : 'Target Zone Upper\n${touchedSpot.y.toInt()} BPM',
                                   const TextStyle(
                                     color: Color(0xFF00FF88),
                                     fontWeight: FontWeight.bold,
@@ -1035,7 +1302,7 @@ class _HistoryScreenState extends State<HistoryScreen>
                       gridData: FlGridData(
                         show: true,
                         drawVerticalLine: true,
-                        horizontalInterval: 20,
+                        horizontalInterval: isSpeedData ? 2 : 20,
                         verticalInterval:
                             analytics['watchData'].length > 30 ? 3 : 1,
                         getDrawingHorizontalLine: (value) {
@@ -1060,7 +1327,9 @@ class _HistoryScreenState extends State<HistoryScreen>
                             reservedSize: 50,
                             getTitlesWidget: (value, meta) {
                               return Text(
-                                '${value.toInt()}',
+                                isSpeedData
+                                    ? '${value.toStringAsFixed(1)}'
+                                    : '${value.toInt()}',
                                 style: const TextStyle(
                                   color: Colors.white70,
                                   fontSize: 12,
@@ -1132,20 +1401,40 @@ class _HistoryScreenState extends State<HistoryScreen>
                       ),
                       minX: 0,
                       maxX: (analytics['watchData'].length - 1).toDouble(),
-                      minY: [
-                        analytics['heartRates']
-                                .reduce((a, b) => a < b ? a : b)
-                                .toDouble() -
-                            10,
-                        analytics['lowerBound'] - 20,
-                      ].reduce((a, b) => a < b ? a : b),
-                      maxY: [
-                        analytics['heartRates']
-                                .reduce((a, b) => a > b ? a : b)
-                                .toDouble() +
-                            10,
-                        analytics['upperBound'] + 20,
-                      ].reduce((a, b) => a > b ? a : b),
+                      minY: isSpeedData
+                          ? [
+                              analytics['speeds']?.isNotEmpty == true
+                                  ? analytics['speeds']
+                                          .reduce((a, b) => a < b ? a : b)
+                                          .toDouble() -
+                                      1
+                                  : 0.0,
+                              analytics['lowerBound'] - 1,
+                            ].reduce((a, b) => a < b ? a : b)
+                          : [
+                              analytics['heartRates']
+                                      .reduce((a, b) => a < b ? a : b)
+                                      .toDouble() -
+                                  10,
+                              analytics['lowerBound'] - 20,
+                            ].reduce((a, b) => a < b ? a : b),
+                      maxY: isSpeedData
+                          ? [
+                              analytics['speeds']?.isNotEmpty == true
+                                  ? analytics['speeds']
+                                          .reduce((a, b) => a > b ? a : b)
+                                          .toDouble() +
+                                      1
+                                  : 15.0,
+                              analytics['upperBound'] + 1,
+                            ].reduce((a, b) => a > b ? a : b)
+                          : [
+                              analytics['heartRates']
+                                      .reduce((a, b) => a > b ? a : b)
+                                      .toDouble() +
+                                  10,
+                              analytics['upperBound'] + 20,
+                            ].reduce((a, b) => a > b ? a : b),
                       lineBarsData: [
                         // Heart rate line with gradient
                         LineChartBarData(
@@ -1153,17 +1442,26 @@ class _HistoryScreenState extends State<HistoryScreen>
                             analytics['watchData'].length,
                             (index) => FlSpot(
                               index.toDouble(),
-                              analytics['watchData'][index]['heartRate']
-                                  .toDouble(),
+                              isSpeedData
+                                  ? analytics['watchData'][index]['speed']
+                                      .toDouble()
+                                  : analytics['watchData'][index]['heartRate']
+                                      .toDouble(),
                             ),
                           ),
                           isCurved: true,
                           gradient: LinearGradient(
-                            colors: [
-                              const Color(0xFFFF6B6B),
-                              const Color(0xFFFF8E53),
-                              const Color(0xFFFF6B35),
-                            ],
+                            colors: isSpeedData
+                                ? [
+                                    const Color(0xFF00FF88),
+                                    const Color(0xFF00CC66),
+                                    const Color(0xFF009944),
+                                  ]
+                                : [
+                                    const Color(0xFFFF6B6B),
+                                    const Color(0xFFFF8E53),
+                                    const Color(0xFFFF6B35),
+                                  ],
                           ),
                           barWidth: 4,
                           belowBarData: BarAreaData(
@@ -1171,11 +1469,17 @@ class _HistoryScreenState extends State<HistoryScreen>
                             gradient: LinearGradient(
                               begin: Alignment.topCenter,
                               end: Alignment.bottomCenter,
-                              colors: [
-                                const Color(0xFFFF6B6B).withOpacity(0.3),
-                                const Color(0xFFFF8E53).withOpacity(0.1),
-                                Colors.transparent,
-                              ],
+                              colors: isSpeedData
+                                  ? [
+                                      const Color(0xFF00FF88).withOpacity(0.3),
+                                      const Color(0xFF00CC66).withOpacity(0.1),
+                                      Colors.transparent,
+                                    ]
+                                  : [
+                                      const Color(0xFFFF6B6B).withOpacity(0.3),
+                                      const Color(0xFFFF8E53).withOpacity(0.1),
+                                      Colors.transparent,
+                                    ],
                             ),
                           ),
                           dotData: FlDotData(
@@ -1185,7 +1489,9 @@ class _HistoryScreenState extends State<HistoryScreen>
                                 radius: 2.5,
                                 color: Colors.white,
                                 strokeWidth: 1.5,
-                                strokeColor: const Color(0xFFFF6B35),
+                                strokeColor: isSpeedData
+                                    ? const Color(0xFF00CC66)
+                                    : const Color(0xFFFF6B35),
                               );
                             },
                           ),
@@ -1239,19 +1545,25 @@ class _HistoryScreenState extends State<HistoryScreen>
                           width: 24,
                           height: 4,
                           decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [
-                                Color(0xFFFF6B6B),
-                                Color(0xFFFF8E53),
-                              ],
+                            gradient: LinearGradient(
+                              colors: isSpeedData
+                                  ? [
+                                      const Color(0xFF00FF88),
+                                      const Color(0xFF00CC66),
+                                    ]
+                                  : [
+                                      const Color(0xFFFF6B6B),
+                                      const Color(0xFFFF8E53),
+                                    ],
                             ),
                             borderRadius: BorderRadius.circular(2),
                           ),
                         ),
                         const SizedBox(width: 8),
-                        const Text(
-                          'Heart Rate',
-                          style: TextStyle(color: Colors.white70, fontSize: 12),
+                        Text(
+                          isSpeedData ? 'Speed' : 'Heart Rate',
+                          style: const TextStyle(
+                              color: Colors.white70, fontSize: 12),
                         ),
                       ],
                     ),
