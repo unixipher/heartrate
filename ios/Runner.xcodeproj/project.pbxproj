@@ -946,6 +946,132 @@
 			remoteGlobalIDString = 7CE94F34A7704E5F74375D77B038ABF1;
 			remoteInfo = sign_in_with_apple;
 		};
+		14EBBFDC2E23B165006AC272 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 14C1309E2DA0D5E6000F081E /* Pods.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 626B91FA30530F8DA0D892C01BC22133;
+			remoteInfo = firebase_messaging;
+		};
+		14EBBFDE2E23B165006AC272 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 14C1309E2DA0D5E6000F081E /* Pods.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 75CF387A098437DDEB77C4DD2B48D012;
+			remoteInfo = "firebase_messaging-firebase_messaging_Privacy";
+		};
+		14EBBFE02E23B165006AC272 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 14C1309E2DA0D5E6000F081E /* Pods.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 5B654B4B042BA7DC93766943A643E42B;
+			remoteInfo = FirebaseMessaging;
+		};
+		14EBBFE22E23B165006AC272 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 14C1309E2DA0D5E6000F081E /* Pods.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = B0B6501341FD6783C6874C54AB31A9CF;
+			remoteInfo = "FirebaseMessaging-FirebaseMessaging_Privacy";
+		};
+		14EBBFE42E23B165006AC272 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 14C1309E2DA0D5E6000F081E /* Pods.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 856B5CD56F194FAD26EA91620B66D614;
+			remoteInfo = GoogleDataTransport;
+		};
+		14EBBFE62E23B165006AC272 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 14C1309E2DA0D5E6000F081E /* Pods.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = F73AA961F4AEFF2B46B00AE435DF6BE3;
+			remoteInfo = "GoogleDataTransport-GoogleDataTransport_Privacy";
+		};
+		14EBC0212E23B165006AC272 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 144E6BA02D9A78D2002DF943 /* Pods.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 626B91FA30530F8DA0D892C01BC22133;
+			remoteInfo = firebase_messaging;
+		};
+		14EBC0232E23B165006AC272 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 144E6BA02D9A78D2002DF943 /* Pods.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 75CF387A098437DDEB77C4DD2B48D012;
+			remoteInfo = "firebase_messaging-firebase_messaging_Privacy";
+		};
+		14EBC0252E23B165006AC272 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 144E6BA02D9A78D2002DF943 /* Pods.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 5B654B4B042BA7DC93766943A643E42B;
+			remoteInfo = FirebaseMessaging;
+		};
+		14EBC0272E23B165006AC272 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 144E6BA02D9A78D2002DF943 /* Pods.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = B0B6501341FD6783C6874C54AB31A9CF;
+			remoteInfo = "FirebaseMessaging-FirebaseMessaging_Privacy";
+		};
+		14EBC0292E23B165006AC272 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 144E6BA02D9A78D2002DF943 /* Pods.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 856B5CD56F194FAD26EA91620B66D614;
+			remoteInfo = GoogleDataTransport;
+		};
+		14EBC02B2E23B165006AC272 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 144E6BA02D9A78D2002DF943 /* Pods.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = F73AA961F4AEFF2B46B00AE435DF6BE3;
+			remoteInfo = "GoogleDataTransport-GoogleDataTransport_Privacy";
+		};
+		14EBC0662E23B165006AC272 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 147B76292DBA6AD500006787 /* Pods.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 626B91FA30530F8DA0D892C01BC22133;
+			remoteInfo = firebase_messaging;
+		};
+		14EBC0682E23B165006AC272 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 147B76292DBA6AD500006787 /* Pods.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 75CF387A098437DDEB77C4DD2B48D012;
+			remoteInfo = "firebase_messaging-firebase_messaging_Privacy";
+		};
+		14EBC06A2E23B165006AC272 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 147B76292DBA6AD500006787 /* Pods.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 5B654B4B042BA7DC93766943A643E42B;
+			remoteInfo = FirebaseMessaging;
+		};
+		14EBC06C2E23B165006AC272 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 147B76292DBA6AD500006787 /* Pods.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = B0B6501341FD6783C6874C54AB31A9CF;
+			remoteInfo = "FirebaseMessaging-FirebaseMessaging_Privacy";
+		};
+		14EBC06E2E23B165006AC272 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 147B76292DBA6AD500006787 /* Pods.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 856B5CD56F194FAD26EA91620B66D614;
+			remoteInfo = GoogleDataTransport;
+		};
+		14EBC0702E23B165006AC272 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 147B76292DBA6AD500006787 /* Pods.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = F73AA961F4AEFF2B46B00AE435DF6BE3;
+			remoteInfo = "GoogleDataTransport-GoogleDataTransport_Privacy";
+		};
 		14F32B7D2DBC9B420065A080 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 14C1309E2DA0D5E6000F081E /* Pods.xcodeproj */;
@@ -1075,14 +1201,20 @@
 				14953B392E0EBFAF002D6517 /* device_info_plus_privacy.bundle */,
 				14148A8A2DDA405100C3DE63 /* firebase_analytics.framework */,
 				14148A8C2DDA405100C3DE63 /* firebase_core.framework */,
+				14EBC0222E23B165006AC272 /* firebase_messaging.framework */,
+				14EBC0242E23B165006AC272 /* firebase_messaging_Privacy.bundle */,
 				14148A8E2DDA405100C3DE63 /* FirebaseCore.framework */,
 				14148A902DDA405100C3DE63 /* FirebaseCore_Privacy.bundle */,
 				14148A922DDA405100C3DE63 /* FirebaseCoreInternal.framework */,
 				14148A942DDA405100C3DE63 /* FirebaseCoreInternal_Privacy.bundle */,
 				14148A962DDA405100C3DE63 /* FirebaseInstallations.framework */,
 				14148A982DDA405100C3DE63 /* FirebaseInstallations_Privacy.bundle */,
+				14EBC0262E23B165006AC272 /* FirebaseMessaging.framework */,
+				14EBC0282E23B165006AC272 /* FirebaseMessaging_Privacy.bundle */,
 				14B496F62E03DD1400E19A30 /* geolocator_apple.framework */,
 				14B496F82E03DD1400E19A30 /* geolocator_apple_privacy.bundle */,
+				14EBC02A2E23B165006AC272 /* GoogleDataTransport.framework */,
+				14EBC02C2E23B165006AC272 /* GoogleDataTransport_Privacy.bundle */,
 				14148A9A2DDA405100C3DE63 /* GoogleUtilities.framework */,
 				14148A9C2DDA405100C3DE63 /* GoogleUtilities_Privacy.bundle */,
 				141E37942DC0976200C818BF /* just_audio.framework */,
@@ -1128,14 +1260,20 @@
 				14953B6E2E0EBFAF002D6517 /* device_info_plus_privacy.bundle */,
 				14148AC72DDA405100C3DE63 /* firebase_analytics.framework */,
 				14148AC92DDA405100C3DE63 /* firebase_core.framework */,
+				14EBC0672E23B165006AC272 /* firebase_messaging.framework */,
+				14EBC0692E23B165006AC272 /* firebase_messaging_Privacy.bundle */,
 				14148ACB2DDA405100C3DE63 /* FirebaseCore.framework */,
 				14148ACD2DDA405100C3DE63 /* FirebaseCore_Privacy.bundle */,
 				14148ACF2DDA405100C3DE63 /* FirebaseCoreInternal.framework */,
 				14148AD12DDA405100C3DE63 /* FirebaseCoreInternal_Privacy.bundle */,
 				14148AD32DDA405100C3DE63 /* FirebaseInstallations.framework */,
 				14148AD52DDA405100C3DE63 /* FirebaseInstallations_Privacy.bundle */,
+				14EBC06B2E23B165006AC272 /* FirebaseMessaging.framework */,
+				14EBC06D2E23B165006AC272 /* FirebaseMessaging_Privacy.bundle */,
 				14B4972E2E03DD1400E19A30 /* geolocator_apple.framework */,
 				14B497302E03DD1400E19A30 /* geolocator_apple_privacy.bundle */,
+				14EBC06F2E23B165006AC272 /* GoogleDataTransport.framework */,
+				14EBC0712E23B165006AC272 /* GoogleDataTransport_Privacy.bundle */,
 				14148AD72DDA405100C3DE63 /* GoogleUtilities.framework */,
 				14148AD92DDA405100C3DE63 /* GoogleUtilities_Privacy.bundle */,
 				141E37AE2DC0976200C818BF /* just_audio.framework */,
@@ -1181,14 +1319,20 @@
 				14953B042E0EBFAF002D6517 /* device_info_plus_privacy.bundle */,
 				14148A4D2DDA405100C3DE63 /* firebase_analytics.framework */,
 				14148A4F2DDA405100C3DE63 /* firebase_core.framework */,
+				14EBBFDD2E23B165006AC272 /* firebase_messaging.framework */,
+				14EBBFDF2E23B165006AC272 /* firebase_messaging_Privacy.bundle */,
 				14148A512DDA405100C3DE63 /* FirebaseCore.framework */,
 				14148A532DDA405100C3DE63 /* FirebaseCore_Privacy.bundle */,
 				14148A552DDA405100C3DE63 /* FirebaseCoreInternal.framework */,
 				14148A572DDA405100C3DE63 /* FirebaseCoreInternal_Privacy.bundle */,
 				14148A592DDA405100C3DE63 /* FirebaseInstallations.framework */,
 				14148A5B2DDA405100C3DE63 /* FirebaseInstallations_Privacy.bundle */,
+				14EBBFE12E23B165006AC272 /* FirebaseMessaging.framework */,
+				14EBBFE32E23B165006AC272 /* FirebaseMessaging_Privacy.bundle */,
 				14B496BE2E03DD1400E19A30 /* geolocator_apple.framework */,
 				14B496C02E03DD1400E19A30 /* geolocator_apple_privacy.bundle */,
+				14EBBFE52E23B165006AC272 /* GoogleDataTransport.framework */,
+				14EBBFE72E23B165006AC272 /* GoogleDataTransport_Privacy.bundle */,
 				14148A5D2DDA405100C3DE63 /* GoogleUtilities.framework */,
 				14148A5F2DDA405100C3DE63 /* GoogleUtilities_Privacy.bundle */,
 				141E377A2DC0976200C818BF /* just_audio.framework */,
@@ -2332,6 +2476,132 @@
 			fileType = wrapper.framework;
 			path = sign_in_with_apple.framework;
 			remoteRef = 14C130FC2DA0D5E6000F081E /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		14EBBFDD2E23B165006AC272 /* firebase_messaging.framework */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.framework;
+			path = firebase_messaging.framework;
+			remoteRef = 14EBBFDC2E23B165006AC272 /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		14EBBFDF2E23B165006AC272 /* firebase_messaging_Privacy.bundle */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.cfbundle;
+			path = firebase_messaging_Privacy.bundle;
+			remoteRef = 14EBBFDE2E23B165006AC272 /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		14EBBFE12E23B165006AC272 /* FirebaseMessaging.framework */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.framework;
+			path = FirebaseMessaging.framework;
+			remoteRef = 14EBBFE02E23B165006AC272 /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		14EBBFE32E23B165006AC272 /* FirebaseMessaging_Privacy.bundle */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.cfbundle;
+			path = FirebaseMessaging_Privacy.bundle;
+			remoteRef = 14EBBFE22E23B165006AC272 /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		14EBBFE52E23B165006AC272 /* GoogleDataTransport.framework */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.framework;
+			path = GoogleDataTransport.framework;
+			remoteRef = 14EBBFE42E23B165006AC272 /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		14EBBFE72E23B165006AC272 /* GoogleDataTransport_Privacy.bundle */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.cfbundle;
+			path = GoogleDataTransport_Privacy.bundle;
+			remoteRef = 14EBBFE62E23B165006AC272 /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		14EBC0222E23B165006AC272 /* firebase_messaging.framework */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.framework;
+			path = firebase_messaging.framework;
+			remoteRef = 14EBC0212E23B165006AC272 /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		14EBC0242E23B165006AC272 /* firebase_messaging_Privacy.bundle */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.cfbundle;
+			path = firebase_messaging_Privacy.bundle;
+			remoteRef = 14EBC0232E23B165006AC272 /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		14EBC0262E23B165006AC272 /* FirebaseMessaging.framework */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.framework;
+			path = FirebaseMessaging.framework;
+			remoteRef = 14EBC0252E23B165006AC272 /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		14EBC0282E23B165006AC272 /* FirebaseMessaging_Privacy.bundle */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.cfbundle;
+			path = FirebaseMessaging_Privacy.bundle;
+			remoteRef = 14EBC0272E23B165006AC272 /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		14EBC02A2E23B165006AC272 /* GoogleDataTransport.framework */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.framework;
+			path = GoogleDataTransport.framework;
+			remoteRef = 14EBC0292E23B165006AC272 /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		14EBC02C2E23B165006AC272 /* GoogleDataTransport_Privacy.bundle */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.cfbundle;
+			path = GoogleDataTransport_Privacy.bundle;
+			remoteRef = 14EBC02B2E23B165006AC272 /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		14EBC0672E23B165006AC272 /* firebase_messaging.framework */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.framework;
+			path = firebase_messaging.framework;
+			remoteRef = 14EBC0662E23B165006AC272 /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		14EBC0692E23B165006AC272 /* firebase_messaging_Privacy.bundle */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.cfbundle;
+			path = firebase_messaging_Privacy.bundle;
+			remoteRef = 14EBC0682E23B165006AC272 /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		14EBC06B2E23B165006AC272 /* FirebaseMessaging.framework */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.framework;
+			path = FirebaseMessaging.framework;
+			remoteRef = 14EBC06A2E23B165006AC272 /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		14EBC06D2E23B165006AC272 /* FirebaseMessaging_Privacy.bundle */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.cfbundle;
+			path = FirebaseMessaging_Privacy.bundle;
+			remoteRef = 14EBC06C2E23B165006AC272 /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		14EBC06F2E23B165006AC272 /* GoogleDataTransport.framework */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.framework;
+			path = GoogleDataTransport.framework;
+			remoteRef = 14EBC06E2E23B165006AC272 /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		14EBC0712E23B165006AC272 /* GoogleDataTransport_Privacy.bundle */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.cfbundle;
+			path = GoogleDataTransport_Privacy.bundle;
+			remoteRef = 14EBC0702E23B165006AC272 /* PBXContainerItemProxy */;
 			sourceTree = BUILT_PRODUCTS_DIR;
 		};
 		14F32B7E2DBC9B420065A080 /* video_player_avfoundation.framework */ = {

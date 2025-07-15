@@ -92,11 +92,38 @@ class _HomeScreenState extends State<HomeScreen> {
     _requestLocationPermissionIfAndroid();
     _initializeTimeTracking();
     _checkUserData();
+    _updatefcmToken();
     _fetchChallenges();
-    
+
     // NEW: Request pedometer permission for iOS
     if (Platform.isIOS) {
       _requestPedometerPermission();
+    }
+  }
+
+  Future<void> _updatefcmToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token') ?? '';
+    final fcmToken = prefs.getString('fcmToken') ?? '';
+
+    try {
+      final response = await http.post(
+        Uri.parse('https://authcheck.co/updateuser'),
+        headers: {
+          'Accept': '/',
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({'fcmToken': fcmToken}),
+      );
+
+      if (response.statusCode == 200) {
+        debugPrint('FCM token updated successfully');
+      } else {
+        debugPrint('Failed to update FCM token: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('Error updating FCM token: $e');
     }
   }
 
@@ -490,6 +517,9 @@ class _ProfileFormState extends State<ProfileForm> {
   late TextEditingController _ageController;
   late String _gender;
   bool _isSubmitting = false;
+  List<Map<String, dynamic>> _cities = [];
+  String? _selectedCityId;
+  bool _isLoadingCities = false;
 
   @override
   void initState() {
@@ -497,6 +527,8 @@ class _ProfileFormState extends State<ProfileForm> {
     _nameController = TextEditingController(text: widget.user['name'] ?? '');
     _ageController = TextEditingController();
     _gender = widget.user['gender'] ?? 'male';
+    _selectedCityId = widget.user['cityId'];
+    _fetchCities();
   }
 
   @override
@@ -504,6 +536,41 @@ class _ProfileFormState extends State<ProfileForm> {
     _nameController.dispose();
     _ageController.dispose();
     super.dispose();
+  }
+
+  Future<void> _fetchCities() async {
+    setState(() {
+      _isLoadingCities = true;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token') ?? '';
+
+      final response = await http.get(
+        Uri.parse('https://authcheck.co/city'),
+        headers: {
+          'Accept': '/',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        setState(() {
+          _cities = List<Map<String, dynamic>>.from(data['cities']);
+        });
+        debugPrint('Cities fetched successfully: ${_cities.length} cities');
+      } else {
+        debugPrint('Failed to fetch cities: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('Error fetching cities: $e');
+    } finally {
+      setState(() {
+        _isLoadingCities = false;
+      });
+    }
   }
 
   Future<void> _submitForm() async {
@@ -527,10 +594,18 @@ class _ProfileFormState extends State<ProfileForm> {
           'name': _nameController.text,
           'age': int.tryParse(_ageController.text) ?? 0,
           'gender': _gender,
+          'cityId': _selectedCityId,
         }),
       );
 
       if (response.statusCode == 200) {
+        // Store cityId in SharedPreferences
+        if (_selectedCityId != null) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('cityId', _selectedCityId!);
+          debugPrint('CityId stored in SharedPreferences: $_selectedCityId');
+        }
+
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -707,6 +782,60 @@ class _ProfileFormState extends State<ProfileForm> {
                       dropdownColor: const Color(0xFF0A0D29),
                       style: const TextStyle(color: Colors.white),
                     ),
+                    const SizedBox(height: 16),
+                    _isLoadingCities
+                        ? const Center(
+                            child: CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.purple,
+                              ),
+                            ),
+                          )
+                        : DropdownButtonFormField<String>(
+                            value: _selectedCityId,
+                            hint: const Text(
+                              'Select City',
+                              style: TextStyle(color: Colors.white70),
+                            ),
+                            items: _cities
+                                .map(
+                                  (city) => DropdownMenuItem<String>(
+                                    value: city['id'],
+                                    child: Text(
+                                      city['name'],
+                                      style:
+                                          const TextStyle(color: Colors.white),
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (value) {
+                              setState(() {
+                                _selectedCityId = value;
+                              });
+                            },
+                            decoration: InputDecoration(
+                              labelText: 'City',
+                              labelStyle: const TextStyle(
+                                fontFamily: 'Battambang',
+                                color: Colors.white70,
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderSide:
+                                    const BorderSide(color: Colors.white70),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderSide:
+                                    const BorderSide(color: Colors.white),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              filled: true,
+                              fillColor: const Color(0xFF1E1F2D),
+                            ),
+                            dropdownColor: const Color(0xFF0A0D29),
+                            style: const TextStyle(color: Colors.white),
+                          ),
                     const SizedBox(height: 24),
                     Center(
                       child: ElevatedButton(
