@@ -105,7 +105,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   _profileItem('Age', age),
                   _profileItem('Max HR', maxHr),
                   _profileItem('Gender', gender),
-                  const SizedBox(height: 360),
+                  const SizedBox(height: 300),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [

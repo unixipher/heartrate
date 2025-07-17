@@ -2262,14 +2262,14 @@ class _HistoryScreenState extends State<HistoryScreen>
                 icon: Icon(Icons.fitness_center),
                 text: 'Workout History',
               ),
-              Tab(
-                icon: Icon(Icons.music_note),
-                text: 'Challenge History',
-              ),
-              Tab(
-                icon: Icon(Icons.leaderboard),
-                text: 'Leader Board',
-              ),
+              // Tab(
+              //   icon: Icon(Icons.music_note),
+              //   text: 'Challenge History',
+              // ),
+              // Tab(
+              //   icon: Icon(Icons.leaderboard),
+              //   text: 'Leader Board',
+              // ),
             ],
           ),
         ),

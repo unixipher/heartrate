@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:testingheartrate/screens/challenge/challenge_screen.dart';
 import 'package:testingheartrate/screens/history/history_screen.dart';
+import 'package:testingheartrate/screens/leaderboard/leaderboard.dart';
 import 'package:testingheartrate/screens/profile/profile_page.dart';
 import 'package:testingheartrate/services/time_tracking_service.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -238,6 +239,11 @@ class _HomeScreenState extends State<HomeScreen> {
           final maxHr = user['maxhr'];
           await prefs.setInt('maxhr', maxHr.toInt());
           debugPrint('MaxHR stored: $maxHr');
+        }
+
+        if (user['id'] != null) {
+          await prefs.setString('userId', user['id'].toString());
+          debugPrint('User ID stored: ${user['id']}');
         }
 
         if (user['score'] != null) {
@@ -486,6 +492,11 @@ class _HomeScreenState extends State<HomeScreen> {
           } else if (index == 2) {
             Navigator.push(
               context,
+              MaterialPageRoute(builder: (context) => LeaderboardScreen()),
+            );
+          } else if (index == 3) {
+            Navigator.push(
+              context,
               MaterialPageRoute(builder: (context) => ProfilePage()),
             );
           }
@@ -493,6 +504,8 @@ class _HomeScreenState extends State<HomeScreen> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.history), label: 'History'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.leaderboard), label: 'Leaderboard'),
           BottomNavigationBarItem(
             icon: Icon(Icons.person_rounded),
             label: 'Profile',

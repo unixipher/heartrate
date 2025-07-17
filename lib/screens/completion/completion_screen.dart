@@ -59,6 +59,12 @@ class _CompletionScreenState extends State<CompletionScreen>
   bool _isLoading = true;
   bool _hasFetchedData = false;
 
+  // Leaderboard related variables
+  List<dynamic> leaderboardData = [];
+  Map<String, dynamic>? userData;
+  bool isLeaderboardLoading = false;
+  final ScrollController _leaderboardScrollController = ScrollController();
+
   // Helper method to determine if using heart rate or speed
   bool get _useHeartRateData {
     if (Platform.isAndroid) return false;
@@ -86,6 +92,9 @@ class _CompletionScreenState extends State<CompletionScreen>
         Tween<double>(begin: 0.0, end: 0.0).animate(_animationController);
     if (_isAppActive) {
       _updateChallengeAndFetchData();
+      // Fetch leaderboard data
+      fetchUserData();
+      fetchLeaderboard();
     }
   }
 
@@ -290,11 +299,188 @@ class _CompletionScreenState extends State<CompletionScreen>
     debugPrint("💯💯💯💯score: ${widget.score}");
   }
 
+  // Leaderboard related methods
+  Future<void> fetchUserData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token') ?? '';
+      final response = await http.get(
+        Uri.parse('https://authcheck.co/getuser'),
+        headers: {
+          'Accept': '*/*',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body) as Map<String, dynamic>;
+        setState(() {
+          userData = data['user'];
+        });
+
+        // Try to scroll to current user if leaderboard is already loaded
+        _scrollToCurrentUser();
+      } else {
+        throw Exception('Failed to load user data');
+      }
+    } catch (e) {
+      debugPrint('Error fetching user data: $e');
+    }
+  }
+
+  Future<void> fetchLeaderboard() async {
+    setState(() {
+      isLeaderboardLoading = true;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token') ?? '';
+      final response = await http.get(
+        Uri.parse('https://authcheck.co/leaderboard'),
+        headers: {
+          'Accept': '*/*',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final dynamic responseData = json.decode(response.body);
+        List<dynamic> data = [];
+
+        // Handle different response formats
+        if (responseData is List) {
+          data = responseData;
+        } else if (responseData is Map<String, dynamic>) {
+          // If it's a map, check for common keys that might contain the user list
+          if (responseData.containsKey('users')) {
+            data = responseData['users'] as List<dynamic>;
+          } else if (responseData.containsKey('leaderboard')) {
+            data = responseData['leaderboard'] as List<dynamic>;
+          } else if (responseData.containsKey('data')) {
+            data = responseData['data'] as List<dynamic>;
+          } else {
+            // If it's a single user object, wrap it in a list
+            data = [responseData];
+          }
+        }
+
+        // Sort by score (highest to lowest)
+        data.sort((a, b) {
+          final scoreA = (a['score'] ?? 0) as num;
+          final scoreB = (b['score'] ?? 0) as num;
+          return scoreB.compareTo(scoreA);
+        });
+
+        setState(() {
+          leaderboardData = data;
+          isLeaderboardLoading = false;
+        });
+
+        // Auto-scroll to current user after a short delay
+        _scrollToCurrentUser();
+      } else {
+        throw Exception('Failed to load leaderboard');
+      }
+    } catch (e) {
+      setState(() {
+        isLeaderboardLoading = false;
+      });
+      debugPrint('Error fetching leaderboard: $e');
+    }
+  }
+
+  void _scrollToCurrentUser() {
+    debugPrint('_scrollToCurrentUser called');
+    debugPrint('userData: ${userData != null ? "available" : "null"}');
+    debugPrint('leaderboardData: ${leaderboardData.length} items');
+
+    if (userData == null || leaderboardData.isEmpty) {
+      debugPrint('Cannot scroll: userData or leaderboardData not ready');
+      return;
+    }
+
+    // Find current user's position in leaderboard
+    int currentUserIndex = -1;
+    for (int i = 0; i < leaderboardData.length; i++) {
+      if (leaderboardData[i]['id'] == userData!['id']) {
+        currentUserIndex = i;
+        break;
+      }
+    }
+
+    debugPrint('Current user found at index: $currentUserIndex');
+
+    if (currentUserIndex != -1) {
+      // Delay scroll to ensure the ListView is built
+      Future.delayed(const Duration(milliseconds: 1000), () {
+        if (_leaderboardScrollController.hasClients) {
+          // Calculate scroll position (each item is approximately 80 pixels high including margins)
+          double scrollPosition = currentUserIndex * 80.0;
+
+          debugPrint('Scrolling to position: $scrollPosition');
+
+          // Scroll to position with animation
+          _leaderboardScrollController.animateTo(
+            scrollPosition,
+            duration: const Duration(milliseconds: 800),
+            curve: Curves.easeInOut,
+          );
+        } else {
+          debugPrint('ScrollController does not have clients yet');
+        }
+      });
+    } else {
+      debugPrint('Current user not found in leaderboard');
+    }
+  }
+
+  Color _getPositionColor(int position) {
+    switch (position) {
+      case 1:
+        return Colors.amber; // Gold
+      case 2:
+        return Colors.grey[400]!; // Silver
+      case 3:
+        return Colors.orange[800]!; // Bronze
+      default:
+        return Colors.blue[700]!; // Default blue
+    }
+  }
+
+  String _getUserEmoji(int position) {
+    switch (position) {
+      case 1:
+        return '🥇'; // Gold medal
+      case 2:
+        return '🥈'; // Silver medal
+      case 3:
+        return '🥉'; // Bronze medal
+      case 4:
+        return '🔥'; // Fire
+      case 5:
+        return '⭐'; // Star
+      case 6:
+        return '💪'; // Muscle
+      case 7:
+        return '🚀'; // Rocket
+      case 8:
+        return '⚡'; // Lightning
+      case 9:
+        return '🎯'; // Target
+      case 10:
+        return '💎'; // Diamond
+      default:
+        return '🏃'; // Runner
+    }
+  }
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _confettiController.dispose();
     _animationController.dispose();
+    _leaderboardScrollController.dispose();
     super.dispose();
   }
 
@@ -826,17 +1012,38 @@ class _CompletionScreenState extends State<CompletionScreen>
                   progressColor: Colors.purple,
                   valueText: '${_percentageInsideZone.toInt()}%',
                 ),
-                _buildProgressBar(
-                  animation: _nudgeAnimation,
-                  label: 'Zone Nudges',
-                  icon: Icons.notifications_active_rounded,
-                  progressColor: Colors.purple,
-                  valueText: '$_nudgeCount times',
-                ),
+                // _buildProgressBar(
+                //   animation: _nudgeAnimation,
+                //   label: 'Zone Nudges',
+                //   icon: Icons.notifications_active_rounded,
+                //   progressColor: Colors.purple,
+                //   valueText: '$_nudgeCount times',
+                // ),
               ],
             );
           },
         ),
+        const SizedBox(height: 30),
+        // Leaderboard title
+        ShaderMask(
+          shaderCallback: (bounds) {
+            return const LinearGradient(
+              colors: [Colors.white, Colors.white],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ).createShader(bounds);
+          },
+          child: const Text(
+            'GLOBAL LEADERBOARD',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'TheWitcher',
+              color: Colors.white,
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
       ],
     );
   }
@@ -927,157 +1134,205 @@ class _CompletionScreenState extends State<CompletionScreen>
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 10.0),
-                    child: ListView.builder(
-                      shrinkWrap: true,
-                      itemCount: (widget.audioData as List).length,
-                      itemBuilder: (context, index) {
-                        final item = (widget.audioData as List)[index];
-                        return GestureDetector(
-                          onTap: () {
-                            debugPrint(
-                                'Tapped on item: ${item['challengeName']}');
-                          },
-                          child: Container(
-                            margin: const EdgeInsets.symmetric(
-                                vertical: 8, horizontal: 28),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              gradient: LinearGradient(
-                                colors: [
-                                  Colors.white.withOpacity(0.15),
-                                  Colors.white.withOpacity(0.05),
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              border: Border.all(
-                                color: Colors.white.withOpacity(0.2),
-                                width: 1.2,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.08),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
+                    child: isLeaderboardLoading
+                        ? const Center(
+                            child: CircularProgressIndicator(
+                              color: Colors.purple,
                             ),
-                            child: ListTile(
-                              title: item['challengeName'] != null &&
-                                      item['challengeName'].length > 20
-                                  ? SingleChildScrollView(
-                                      scrollDirection: Axis.horizontal,
-                                      child: Text(
-                                        item['challengeName'],
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 20,
-                                          fontFamily: 'TheWitcher',
-                                          fontWeight: FontWeight.bold,
-                                          shadows: [
-                                            Shadow(
-                                              color: Colors.black26,
-                                              blurRadius: 2,
-                                              offset: Offset(1, 1),
+                          )
+                        : leaderboardData.isEmpty
+                            ? const Center(
+                                child: Text(
+                                  'No leaderboard data available',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              )
+                            : RefreshIndicator(
+                                onRefresh: () async {
+                                  await fetchLeaderboard();
+                                },
+                                child: ListView.builder(
+                                  controller: _leaderboardScrollController,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16),
+                                  itemCount: leaderboardData.length,
+                                  itemBuilder: (context, index) {
+                                    final user = leaderboardData[index];
+                                    final position = index + 1;
+                                    final userName = (user['name'] == null ||
+                                            user['name']
+                                                .toString()
+                                                .trim()
+                                                .isEmpty)
+                                        ? 'Anonymous'
+                                        : user['name'];
+                                    final userScore =
+                                        (user['score'] ?? 0) as num;
+                                    final isCurrentUser =
+                                        user['id'] == userData?['id'];
+                                    final userEmoji = _getUserEmoji(position);
+
+                                    return Container(
+                                      margin: const EdgeInsets.symmetric(
+                                          vertical: 4),
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            Colors.white.withOpacity(0.15),
+                                            Colors.white.withOpacity(0.05),
+                                          ],
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                        ),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                          color: isCurrentUser
+                                              ? Colors.purple.withOpacity(0.6)
+                                              : Colors.white.withOpacity(0.2),
+                                          width: isCurrentUser ? 2 : 1.2,
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color:
+                                                Colors.black.withOpacity(0.08),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 4),
+                                          ),
+                                        ],
+                                      ),
+                                      child: ListTile(
+                                        leading: Container(
+                                          width: 50,
+                                          height: 50,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            gradient: LinearGradient(
+                                              begin: Alignment.topLeft,
+                                              end: Alignment.bottomRight,
+                                              colors: [
+                                                _getPositionColor(position)
+                                                    .withOpacity(0.8),
+                                                _getPositionColor(position)
+                                                    .withOpacity(0.4),
+                                              ],
+                                            ),
+                                            border: Border.all(
+                                              color:
+                                                  _getPositionColor(position),
+                                              width: 2,
+                                            ),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color:
+                                                    _getPositionColor(position)
+                                                        .withOpacity(0.3),
+                                                blurRadius: 8,
+                                                spreadRadius: 2,
+                                              ),
+                                            ],
+                                          ),
+                                          child: Center(
+                                            child: Text(
+                                              userEmoji,
+                                              style: const TextStyle(
+                                                fontSize: 24,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        title: Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                userName,
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontWeight: isCurrentUser
+                                                      ? FontWeight.bold
+                                                      : FontWeight.normal,
+                                                  fontSize:
+                                                      isCurrentUser ? 16 : 14,
+                                                  fontFamily: 'TheWitcher',
+                                                  shadows: const [
+                                                    Shadow(
+                                                      color: Colors.black26,
+                                                      blurRadius: 2,
+                                                      offset: Offset(1, 1),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                            if (isCurrentUser)
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 2),
+                                                decoration: BoxDecoration(
+                                                  gradient: LinearGradient(
+                                                    colors: [
+                                                      Colors.purple
+                                                          .withOpacity(0.8),
+                                                      Colors.purple
+                                                          .withOpacity(0.6),
+                                                    ],
+                                                  ),
+                                                  borderRadius:
+                                                      BorderRadius.circular(10),
+                                                ),
+                                                child: const Text(
+                                                  'You',
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontFamily: 'Battambang',
+                                                  ),
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                        trailing: Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.end,
+                                          children: [
+                                            Text(
+                                              '$userScore',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 18,
+                                                fontFamily: 'TheWitcher',
+                                                shadows: [
+                                                  Shadow(
+                                                    color: Colors.black26,
+                                                    blurRadius: 2,
+                                                    offset: Offset(1, 1),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            const Text(
+                                              'points',
+                                              style: TextStyle(
+                                                color: Colors.white70,
+                                                fontSize: 12,
+                                                fontFamily: 'Battambang',
+                                              ),
                                             ),
                                           ],
                                         ),
                                       ),
-                                    )
-                                  : Text(
-                                      item['challengeName'] ?? 'No Title',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 20,
-                                        fontFamily: 'TheWitcher',
-                                        fontWeight: FontWeight.bold,
-                                        shadows: [
-                                          Shadow(
-                                            color: Colors.black26,
-                                            blurRadius: 2,
-                                            offset: Offset(1, 1),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                              leading: Container(
-                                width: 40,
-                                height: 40,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  gradient: RadialGradient(
-                                    colors: [
-                                      Colors.purple.shade300,
-                                      Colors.purple.shade700
-                                    ],
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.3),
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: const Icon(
-                                  Icons.check,
-                                  color: Colors.white,
-                                  size: 24,
+                                    );
+                                  },
                                 ),
                               ),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 2,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: item['zoneId'] == 1
-                                              ? Colors.purple.withOpacity(0.3)
-                                              : item['zoneId'] == 2
-                                                  ? Colors.purple
-                                                      .withOpacity(0.3)
-                                                  : Colors.purple
-                                                      .withOpacity(0.3),
-                                          borderRadius:
-                                              BorderRadius.circular(10),
-                                        ),
-                                        child: Text(
-                                          'Zone: ${item['zoneId'] == 1 ? 'Walk' : item['zoneId'] == 2 ? 'Jog' : item['zoneId'] == 3 ? 'Run' : 'No Zone'}',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 14,
-                                            fontFamily: 'Battambang',
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                              trailing: Container(
-                                width: 32,
-                                height: 32,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Colors.white.withOpacity(0.1),
-                                ),
-                                child: const Icon(
-                                  Icons.arrow_forward_ios,
-                                  color: Colors.white54,
-                                  size: 16,
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
                   ),
                 ),
                 Padding(
