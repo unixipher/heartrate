@@ -695,194 +695,199 @@ class _ProfileFormState extends State<ProfileForm> {
 
   @override
   Widget build(BuildContext context) {
+    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+
     return Stack(
       children: [
         BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
           child: Container(color: Colors.black.withOpacity(0.5)),
         ),
-        DraggableScrollableSheet(
-          initialChildSize: 0.5,
-          maxChildSize: 0.9,
-          minChildSize: 0.3,
-          builder: (context, scrollController) {
-            return Container(
-              decoration: const BoxDecoration(
-                color: Color(0xFF0A0D29),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-              ),
-              child: SingleChildScrollView(
-                controller: scrollController,
-                padding: EdgeInsets.only(
-                  left: 16,
-                  right: 16,
-                  top: 16,
-                  bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+        Padding(
+          padding: EdgeInsets.only(bottom: keyboardHeight),
+          child: DraggableScrollableSheet(
+            initialChildSize: 0.5,
+            maxChildSize: 0.9,
+            minChildSize: 0.3,
+            builder: (context, scrollController) {
+              return Container(
+                decoration: const BoxDecoration(
+                  color: Color(0xFF0A0D29),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Complete Your Profile',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontFamily: 'Thewitcher',
-                        fontWeight: FontWeight.bold,
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.only(
+                    left: 16,
+                    right: 16,
+                    top: 16,
+                    bottom: 16,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Complete Your Profile',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontFamily: 'Thewitcher',
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _ageController,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        labelText: 'Age',
-                        labelStyle: const TextStyle(
-                          fontFamily: 'Battambang',
-                          color: Colors.white70,
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: const BorderSide(color: Colors.white70),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: const BorderSide(color: Colors.white),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        filled: true,
-                        fillColor: const Color(0xFF1E1F2D),
-                      ),
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                    const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                      value: _gender,
-                      items: ['male', 'female']
-                          .map(
-                            (g) => DropdownMenuItem(
-                              value: g,
-                              child: Text(
-                                g[0].toUpperCase() + g.substring(1),
-                                style: const TextStyle(color: Colors.white),
-                              ),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          _gender = value!;
-                        });
-                      },
-                      decoration: InputDecoration(
-                        labelText: 'Gender',
-                        labelStyle: const TextStyle(
-                          fontFamily: 'Battambang',
-                          color: Colors.white70,
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: const BorderSide(color: Colors.white70),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: const BorderSide(color: Colors.white),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        filled: true,
-                        fillColor: const Color(0xFF1E1F2D),
-                      ),
-                      dropdownColor: const Color(0xFF0A0D29),
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                    const SizedBox(height: 16),
-                    _isLoadingCities
-                        ? const Center(
-                            child: CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.purple,
-                              ),
-                            ),
-                          )
-                        : DropdownButtonFormField<String>(
-                            value: _selectedCityId,
-                            hint: const Text(
-                              'Select City',
-                              style: TextStyle(color: Colors.white70),
-                            ),
-                            items: _cities
-                                .map(
-                                  (city) => DropdownMenuItem<String>(
-                                    value: city['id'],
-                                    child: Text(
-                                      city['name'],
-                                      style:
-                                          const TextStyle(color: Colors.white),
-                                    ),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (value) {
-                              setState(() {
-                                _selectedCityId = value;
-                              });
-                            },
-                            decoration: InputDecoration(
-                              labelText: 'City',
-                              labelStyle: const TextStyle(
-                                fontFamily: 'Battambang',
-                                color: Colors.white70,
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderSide:
-                                    const BorderSide(color: Colors.white70),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderSide:
-                                    const BorderSide(color: Colors.white),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              filled: true,
-                              fillColor: const Color(0xFF1E1F2D),
-                            ),
-                            dropdownColor: const Color(0xFF0A0D29),
-                            style: const TextStyle(color: Colors.white),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: _ageController,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: 'Age',
+                          labelStyle: const TextStyle(
+                            fontFamily: 'Battambang',
+                            color: Colors.white70,
                           ),
-                    const SizedBox(height: 24),
-                    Center(
-                      child: ElevatedButton(
-                        onPressed: _isSubmitting ? null : _submitForm,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF7B1FA2),
-                          shape: RoundedRectangleBorder(
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: const BorderSide(color: Colors.white70),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 12,
-                            horizontal: 24,
+                          focusedBorder: OutlineInputBorder(
+                            borderSide: const BorderSide(color: Colors.white),
+                            borderRadius: BorderRadius.circular(10),
                           ),
+                          filled: true,
+                          fillColor: const Color(0xFF1E1F2D),
                         ),
-                        child: _isSubmitting
-                            ? const CircularProgressIndicator(
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.white,
-                                ),
-                              )
-                            : const Text(
-                                'Save',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<String>(
+                        value: _gender,
+                        items: ['male', 'female']
+                            .map(
+                              (g) => DropdownMenuItem(
+                                value: g,
+                                child: Text(
+                                  g[0].toUpperCase() + g.substring(1),
+                                  style: const TextStyle(color: Colors.white),
                                 ),
                               ),
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _gender = value!;
+                          });
+                        },
+                        decoration: InputDecoration(
+                          labelText: 'Gender',
+                          labelStyle: const TextStyle(
+                            fontFamily: 'Battambang',
+                            color: Colors.white70,
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: const BorderSide(color: Colors.white70),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderSide: const BorderSide(color: Colors.white),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          filled: true,
+                          fillColor: const Color(0xFF1E1F2D),
+                        ),
+                        dropdownColor: const Color(0xFF0A0D29),
+                        style: const TextStyle(color: Colors.white),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 16),
+                      _isLoadingCities
+                          ? const Center(
+                              child: CircularProgressIndicator(
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.purple,
+                                ),
+                              ),
+                            )
+                          : DropdownButtonFormField<String>(
+                              value: _selectedCityId,
+                              hint: const Text(
+                                'Select City',
+                                style: TextStyle(color: Colors.white70),
+                              ),
+                              items: _cities
+                                  .map(
+                                    (city) => DropdownMenuItem<String>(
+                                      value: city['id'],
+                                      child: Text(
+                                        city['name'],
+                                        style: const TextStyle(
+                                            color: Colors.white),
+                                      ),
+                                    ),
+                                  )
+                                  .toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  _selectedCityId = value;
+                                });
+                              },
+                              decoration: InputDecoration(
+                                labelText: 'City',
+                                labelStyle: const TextStyle(
+                                  fontFamily: 'Battambang',
+                                  color: Colors.white70,
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderSide:
+                                      const BorderSide(color: Colors.white70),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderSide:
+                                      const BorderSide(color: Colors.white),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                filled: true,
+                                fillColor: const Color(0xFF1E1F2D),
+                              ),
+                              dropdownColor: const Color(0xFF0A0D29),
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                      const SizedBox(height: 24),
+                      Center(
+                        child: ElevatedButton(
+                          onPressed: _isSubmitting ? null : _submitForm,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF7B1FA2),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 12,
+                              horizontal: 24,
+                            ),
+                          ),
+                          child: _isSubmitting
+                              ? const CircularProgressIndicator(
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
+                                )
+                              : const Text(
+                                  'Save',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
       ],
     );
