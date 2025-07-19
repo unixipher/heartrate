@@ -605,7 +605,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
     List<String> timeStrings = [];
     switch (adjustedIndexId) {
       case 0:
-        timeStrings = ['2:20', '2:50', '3:20', '3:50', '4:20', '4:50'];
+        timeStrings = [
+          '1:20',
+          '1:50',
+          '2:20',
+          '2:50',
+          '3:20',
+          '3:50',
+          '4:20',
+          '4:50',
+        ];
         break;
       case 1:
       case 2:
@@ -623,7 +632,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
         ];
         break;
       case 5:
-        timeStrings = ['1:20', '1:50', '2:20', '2:50', '3:20', '3:50'];
+        timeStrings = [
+          '1:20',
+          '1:50',
+          '2:20',
+          '2:50',
+          '3:20',
+          '3:50',
+          '4:20',
+          '4:50',
+        ];
         break;
       default:
         timeStrings = [];
