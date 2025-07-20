@@ -76,6 +76,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
   bool _isPlayingIntro = false;
   bool _introCompleted = false;
 
+  // SMM-specific detour variables
+  int _smmConsecutiveOutOfZone = 0;
+  bool _smmIsPlayingDetour = false;
+
   late StreamSubscription<Duration> _positionSubscription;
   late StreamSubscription<Duration?> _durationSubscription;
   late StreamSubscription<PlayerState> _playerStateSubscription;
@@ -567,6 +571,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _pacingTriggered = List.filled(_pacingAudioFiles.length, false);
     _currentAudioStarted = false;
     currentTrackNudges = 0;
+    
+    // Reset SMM-specific detour variables
+    _smmConsecutiveOutOfZone = 0;
+    _smmIsPlayingDetour = false;
   }
 
   Future<void> _handleAudioCompletion() async {
@@ -772,6 +780,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final currentAudio = widget.audioData[_currentAudioIndex];
     final int storyId = currentAudio['storyId'];
     String overlayType = 'A';
+    bool isInZone = true;
 
     if (_useSocket) {
       if (_currentHR != null && _maxHR != null) {
@@ -791,9 +800,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
             upperBound = (72 + (_maxHR! - 72) * 0.95).toInt();
             break;
         }
-        overlayType = (_currentHR! >= lowerBound && _currentHR! <= upperBound)
-            ? 'A'
-            : 'S';
+        isInZone = (_currentHR! >= lowerBound && _currentHR! <= upperBound);
+        overlayType = isInZone ? 'A' : 'S';
       }
       // If no heart rate data, overlayType remains 'A' (default)
     } else {
@@ -817,10 +825,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
             lowerBound = 0.0;
             upperBound = 0.0;
         }
-        overlayType = (_currentSpeedKmph! >= lowerBound &&
-                _currentSpeedKmph! <= upperBound)
-            ? 'A'
-            : 'S';
+        isInZone = (_currentSpeedKmph! >= lowerBound && _currentSpeedKmph! <= upperBound);
+        overlayType = isInZone ? 'A' : 'S';
       }
       // If no speed data, overlayType remains 'A' (default)
     }
@@ -830,6 +836,43 @@ class _PlayerScreenState extends State<PlayerScreen> {
         _triggered[i] = true;
         totalNudges++;
         currentTrackNudges++;
+
+        // SMM-specific detour logic (storyId == 2)
+        if (storyId == 2) {
+          if (!isInZone) {
+            _smmConsecutiveOutOfZone++;
+            debugPrint('SMM: Out of zone nudge #$_smmConsecutiveOutOfZone');
+            
+            if (_smmConsecutiveOutOfZone >= 3 && !_smmIsPlayingDetour) {
+              // Play detour audio instead of overlay
+              _smmIsPlayingDetour = true;
+              _audioManager.pause(); // Pause main audio
+              _audioManager.stopPacing(); // Stop pacing
+              
+              String detourPath = 'assets/audio/smm/detour.wav'; // Adjust path as needed
+              _audioManager.playOverlay(detourPath, volume: 2.0);
+              _showCenterNotification('Take the detour!', seconds: 3);
+              debugPrint('SMM: Playing detour audio after 3 consecutive out-of-zone nudges');
+              
+              // Reset consecutive count after playing detour
+              _smmConsecutiveOutOfZone = 0;
+              
+              // Resume main audio and pacing after detour (assuming detour is short)
+              Timer(const Duration(seconds: 5), () {
+                if (mounted && _smmIsPlayingDetour) {
+                  _audioManager.resume();
+                  _audioManager.resumePacing();
+                  _smmIsPlayingDetour = false;
+                  debugPrint('SMM: Resumed main audio after detour');
+                }
+              });
+              return; // Don't play normal overlay
+            }
+          } else {
+            // Reset consecutive count if user is back in zone
+            _smmConsecutiveOutOfZone = 0;
+          }
+        }
 
         // Scoring logic for timestamps
         if (_useSocket && _currentHR != null && _maxHR != null) {
@@ -901,6 +944,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           }
         }
 
+        // Normal overlay logic for all stories (including SMM when not playing detour)
         String overlayPath;
         final filteredChallenges = widget.audioData;
         final challengeId = filteredChallenges.indexWhere(
