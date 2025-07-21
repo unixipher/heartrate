@@ -982,47 +982,111 @@ class _CompletionScreenState extends State<CompletionScreen>
           ),
         ),
         const SizedBox(height: 20),
-        AnimatedBuilder(
-          animation: _animationController,
-          builder: (context, child) {
-            return Column(
-              children: [
-                // Show Heart Rate or Speed based on data type
-                if (isHeartRateData)
-                  _buildProgressBar(
-                    animation: _heartRateAnimation,
-                    label: 'Heart Rate',
-                    icon: Icons.favorite_rounded,
-                    progressColor: Colors.purple,
-                    valueText: '${_averageHeartRate.toInt()} BPM',
-                  )
-                else
-                  _buildProgressBar(
-                    animation: _heartRateAnimation,
-                    label: 'Speed',
-                    icon: Icons.speed_rounded,
-                    progressColor: Colors.purple,
-                    valueText: '${_averageSpeed.toStringAsFixed(1)} km/h',
+        // Transparent cards section (similar to player screen)
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20.0),
+          child: Row(
+            children: [
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                _buildProgressBar(
-                  animation: _zoneTimeAnimation,
-                  label: 'Zone Time',
-                  icon: Icons.access_time,
-                  progressColor: Colors.purple,
-                  valueText: '${_percentageInsideZone.toInt()}%',
+                  padding: const EdgeInsets.all(10),
+                  child: Column(
+                    children: [
+                      Text(
+                        _useHeartRateData ? "Heart Rate" : "Speed",
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        _isLoading
+                            ? "--"
+                            : (_useHeartRateData
+                                ? "${_averageHeartRate.toInt()}"
+                                : "${_averageSpeed.toStringAsFixed(1)} kmph"),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                // _buildProgressBar(
-                //   animation: _nudgeAnimation,
-                //   label: 'Zone Nudges',
-                //   icon: Icons.notifications_active_rounded,
-                //   progressColor: Colors.purple,
-                //   valueText: '$_nudgeCount times',
-                // ),
-              ],
-            );
-          },
+              ),
+              const SizedBox(width: 15), // Space between cards
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  padding: const EdgeInsets.all(10),
+                  child: Column(
+                    children: [
+                      const Text(
+                        "Zone Time",
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        _isLoading ? "--" : "${_percentageInsideZone.toInt()}%",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 15), // Space between cards
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  padding: const EdgeInsets.all(10),
+                  child: Column(
+                    children: [
+                      const Text(
+                        "Score",
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        _isLoading ? "--" : "${widget.score}",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 30),
+        const SizedBox(height: 20), // Space below cards
         // Leaderboard title
         ShaderMask(
           shaderCallback: (bounds) {
