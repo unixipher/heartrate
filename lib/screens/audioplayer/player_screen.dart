@@ -17,14 +17,12 @@ class PlayerScreen extends StatefulWidget {
   final List<Map<String, dynamic>> audioData;
   final int challengeCount;
   final int playingChallengeCount;
-  final bool useAppleWatch;
 
   const PlayerScreen({
     super.key,
     required this.challengeCount,
     required this.audioData,
     required this.playingChallengeCount,
-    required this.useAppleWatch,
   });
 
   @override
@@ -124,7 +122,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _initializeDetourTimestamps();
 
     // Initialize pedometer for iOS
-    if (Platform.isIOS && !widget.useAppleWatch) {
+    if (Platform.isIOS) {
       _initPedometer();
     }
   }
@@ -204,7 +202,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   String get _activeServiceLabel {
     if (_useSocket) return "Apple Watch (Socket)";
     if (Platform.isAndroid) return "GPS";
-    if (Platform.isIOS && !widget.useAppleWatch) return "Pedometer";
+    if (Platform.isIOS) return "Pedometer + Socket";
     return "Unknown";
   }
 
@@ -435,11 +433,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
         }
       });
     } else if (Platform.isIOS) {
-      if (widget.useAppleWatch) {
-        _useSocket = true;
-        // Heart rate data will come from Apple Watch via socket
-      }
-      // For iOS without Apple Watch, pedometer is already initialized in initState
+      _useSocket = true;
+      // Heart rate data will come from Apple Watch via socket
+      // Pedometer is already initialized for speed data
     }
   }
 
@@ -452,9 +448,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
     if (_maxHR == null) return;
 
-    final currentHeartRate = _currentHR;
     final currentAudio = widget.audioData[_currentAudioIndex];
     final int zoneId = currentAudio['zoneId'];
+    final currentHeartRate = _currentHR;
 
     int lowerBound = 0, upperBound = 0;
     switch (zoneId) {
@@ -506,7 +502,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
 
     // Check for detour trigger
-    if (!_isInDetour && _outOfZoneCount >= 3 && _isInTimestampRange(_currentPosition, const Duration(minutes: 4, seconds: 20))) {
+    if (!_isInDetour &&
+        _outOfZoneCount >= 3 &&
+        _isInTimestampRange(
+            _currentPosition, const Duration(minutes: 4, seconds: 20))) {
       _startDetour();
     }
   }
@@ -572,7 +571,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
 
     // Check for detour trigger
-    if (!_isInDetour && _outOfZoneCount >= 3 && _isInTimestampRange(_currentPosition, const Duration(minutes: 4, seconds: 20))) {
+    if (!_isInDetour &&
+        _outOfZoneCount >= 3 &&
+        _isInTimestampRange(
+            _currentPosition, const Duration(minutes: 4, seconds: 20))) {
       _startDetour();
     }
   }
@@ -622,7 +624,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
     });
     await _audioManager.stopPacing();
     await _audioManager.resume();
-    if (_currentPacingSegment == 1) { // Only play pacing for second 1/5 part
+    if (_currentPacingSegment == 1) {
+      // Only play pacing for second 1/5 part
       _audioManager.resumePacing();
     }
     debugPrint('Detour ended, resuming main audio at $_detourStartPosition');
@@ -763,7 +766,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
             challengeCount: widget.challengeCount,
             playingChallengeCount: widget.playingChallengeCount,
             score: _currentScore,
-            useAppleWatch: widget.useAppleWatch,
           ),
         ),
       );
@@ -796,7 +798,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           '4:20',
           '4:50',
         ];
-      break;
+        break;
       default:
         timeStrings = [];
     }
@@ -872,7 +874,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
     String detourPath;
 
     for (int i = 0; i < _detourTimestamps.length; i++) {
-      if (!_detourTriggered[i] && _isInTimestampRange(position, _detourTimestamps[i])) {
+      if (!_detourTriggered[i] &&
+          _isInTimestampRange(position, _detourTimestamps[i])) {
         _detourTriggered[i] = true;
         _currentDetourIndex = i;
 
@@ -958,7 +961,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 lowerBound = 0.0;
                 upperBound = 0.0;
             }
-            isOutOfZone = _currentSpeedKmph! < lowerBound || _currentSpeedKmph! > upperBound;
+            isOutOfZone = _currentSpeedKmph! < lowerBound ||
+                _currentSpeedKmph! > upperBound;
           }
 
           if (isOutOfZone) {
@@ -1010,7 +1014,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
       if (_currentPacingSegment != -1 &&
           _currentPacingSegment < _pacingAudioFiles.length &&
-          (!_isInDetour || _currentPacingSegment == 1)) { // Only play for second segment during detour
+          (!_isInDetour || _currentPacingSegment == 1)) {
+        // Only play for second segment during detour
         String pacingAudioPath =
             'assets/audio/pacing/${_pacingAudioFiles[_currentPacingSegment]}';
         _audioManager.playPacingLoop(pacingAudioPath);
@@ -1197,21 +1202,34 @@ class _PlayerScreenState extends State<PlayerScreen> {
     return "${twoDigits(duration.inMinutes)}:${twoDigits(duration.inSeconds.remainder(60))}";
   }
 
+// After modification:
   void _togglePlayPause() async {
-    // Don't allow pause/play during intro or detour
-    if (_isPlayingIntro || _isInDetour) {
-      return;
+    // Allow pausing the intro audio, but not during detour
+    if (_isInDetour) {
+      return; // Cannot pause during detour
     }
 
-    if (_audioManager.isPlaying) {
-      await _audioManager.pause();
-      _startBlinking();
+    if (_isPlayingIntro) {
+      if (_audioManager.introPlayer.playing) {
+        await _audioManager.introPlayer.pause();
+        _startBlinking();
+        debugPrint('Intro audio paused');
+      } else {
+        await _audioManager.introPlayer.play();
+        _stopBlinking();
+        debugPrint('Intro audio resumed');
+      }
     } else {
-      if (!_audioManager.isPlaying) {
+      // Original logic for main audio
+      if (_audioManager.isPlaying) {
+        await _audioManager.pause();
+        _startBlinking();
+        debugPrint('Main audio paused');
+      } else {
         _audioManager.resume();
         _audioManager.resumePacing();
         _stopBlinking();
-        debugPrint('Music resumed');
+        debugPrint('Main audio resumed');
       }
     }
     setState(() {});
@@ -1294,34 +1312,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     overflow: TextOverflow.clip,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  _activeServiceLabel,
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-                if (_useSocket && _currentHR != null)
-                  Text(
-                    "Heart Rate: $_currentHR bpm",
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                if (!_useSocket && _currentSpeedKmph != null)
-                  Text(
-                    "Speed: ${_currentSpeedKmph!.toStringAsFixed(2)} km/h",
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                const SizedBox(height: 2),
               ],
             ),
           ),
@@ -1485,6 +1475,79 @@ class _PlayerScreenState extends State<PlayerScreen> {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 20), // Added space below the timer
+                  // Start of new section for Heart Rate and Speed
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            padding: const EdgeInsets.all(10),
+                            child: Column(
+                              children: [
+                                const Text(
+                                  "Heart Rate",
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 5),
+                                Text(
+                                  _currentHR != null ? "$_currentHR bpm" : "--",
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 20), // Space between cards
+                        Expanded(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            padding: const EdgeInsets.all(10),
+                            child: Column(
+                              children: [
+                                const Text(
+                                  "Pacing",
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 5),
+                                Text(
+                                  _currentSpeedKmph != null
+                                      ? "${_currentSpeedKmph!.toStringAsFixed(1)} km/h"
+                                      : "--",
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // End of new section
                   const Spacer(flex: 2),
                   if (!_isInDetour) ...[
                     Padding(
@@ -1519,7 +1582,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
                                   : _currentPosition.inSeconds.toDouble(),
                               min: 0,
                               max: _isPlayingIntro
-                                  ? (_introTotalDuration.inSeconds.toDouble() > 0
+                                  ? (_introTotalDuration.inSeconds.toDouble() >
+                                          0
                                       ? _introTotalDuration.inSeconds.toDouble()
                                       : 1)
                                   : (_totalDuration.inSeconds.toDouble() > 0

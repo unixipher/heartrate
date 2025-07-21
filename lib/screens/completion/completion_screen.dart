@@ -20,7 +20,6 @@ class CompletionScreen extends StatefulWidget {
   final int challengeCount;
   final int playingChallengeCount;
   final int score; // Add score parameter
-  final bool useAppleWatch; // Add useAppleWatch parameter
 
   const CompletionScreen({
     super.key,
@@ -34,7 +33,6 @@ class CompletionScreen extends StatefulWidget {
     required this.challengeCount,
     required this.playingChallengeCount,
     required this.score, // Add score parameter
-    required this.useAppleWatch, // Add useAppleWatch parameter
   });
 
   @override
@@ -68,8 +66,9 @@ class _CompletionScreenState extends State<CompletionScreen>
   // Helper method to determine if using heart rate or speed
   bool get _useHeartRateData {
     if (Platform.isAndroid) return false;
-    if (Platform.isIOS && !widget.useAppleWatch) return false;
-    return widget.useAppleWatch;
+    if (Platform.isIOS)
+      return true; // Always use heart rate on iOS (via socket)
+    return false;
   }
 
   @override
