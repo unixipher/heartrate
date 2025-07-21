@@ -44,6 +44,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
   int _consecutiveChallengeCompletions = 0;
   List<int> _challengeScores = []; // Track score for each challenge
 
+  // NEW: Out-of-zone counter
+  int _outOfZoneCount = 0;
+  bool _isInDetour = false;
+  Duration _detourStartPosition = Duration.zero;
+  List<Duration> _detourTimestamps = [];
+  List<bool> _detourTriggered = [];
+  int _currentDetourIndex = -1;
+
   Duration _currentPosition = Duration.zero;
   Duration _totalDuration = Duration.zero;
 
@@ -113,11 +121,29 @@ class _PlayerScreenState extends State<PlayerScreen> {
     debugPrint('===================================');
     _initializePlayer();
     _initializeService();
+    _initializeDetourTimestamps();
 
     // Initialize pedometer for iOS
     if (Platform.isIOS && !widget.useAppleWatch) {
       _initPedometer();
     }
+  }
+
+  // NEW: Initialize detour timestamps
+  void _initializeDetourTimestamps() {
+    _detourTimestamps = [
+      const Duration(minutes: 4, seconds: 35), // dstart
+      const Duration(minutes: 4, seconds: 55), // d1
+      const Duration(minutes: 5, seconds: 15), // d2
+      const Duration(minutes: 5, seconds: 35), // d3
+      const Duration(minutes: 5, seconds: 55), // d4
+      const Duration(minutes: 6, seconds: 15), // d5
+      const Duration(minutes: 6, seconds: 35), // d6
+      const Duration(minutes: 6, seconds: 55), // d7
+      const Duration(minutes: 7, seconds: 15), // d8
+      const Duration(minutes: 7, seconds: 35), // dstop
+    ];
+    _detourTriggered = List<bool>.filled(_detourTimestamps.length, false);
   }
 
   // NEW: Initialize pedometer directly
@@ -301,7 +327,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         _introCompleted = false;
       });
 
-      // Define intro audio path (you can customize this based on story or use a generic intro)
+      // Define intro audio path
       final currentAudio = widget.audioData[_currentAudioIndex];
       final int storyId = currentAudio['storyId'];
 
@@ -311,13 +337,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
           introAudioPath = 'assets/audio/aradium/intro.wav';
           break;
         case 2:
-          introAudioPath = 'assets/audio/aradium/intro.wav';
+          introAudioPath = 'assets/audio/smm/intro.wav';
           break;
         case 3:
-          introAudioPath = 'assets/audio/aradium/intro.wav';
+          introAudioPath = 'assets/audio/luther/intro.wav';
           break;
         case 4:
-          introAudioPath = 'assets/audio/aradium/intro.wav';
+          introAudioPath = 'assets/audio/dare/intro.wav';
           break;
         default:
           introAudioPath = 'assets/audio/aradium/intro.wav';
@@ -326,7 +352,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       await _audioManager.playIntro(introAudioPath, volume: 1.0);
       debugPrint('Playing intro audio: $introAudioPath');
     } catch (e) {
-      debugPrint('Error playing intro audio: $e');
+      debugPrint('Error playing intro befell: $e');
       // If intro fails, go directly to main audio
       _startMainAudio();
     }
@@ -448,11 +474,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
     if (currentHeartRate != null &&
         (currentHeartRate < lowerBound || currentHeartRate > upperBound)) {
-      if (_audioManager.isPlaying && !_isPlayingIntro) {
+      if (!_isInDetour) {
+        setState(() {
+          _outOfZoneCount++;
+          debugPrint('Heart rate out of zone, count: $_outOfZoneCount');
+        });
+      }
+      if (_audioManager.isPlaying && !_isPlayingIntro && !_isInDetour) {
         Future.delayed(const Duration(seconds: 10), () {
           if (_currentHR != null &&
               (_currentHR! < lowerBound || _currentHR! > upperBound) &&
-              !_isPlayingIntro) {
+              !_isPlayingIntro &&
+              !_isInDetour) {
             _audioManager.pause();
             if (_currentHR! < lowerBound) {
               _playLowerOutOfRangeAudio('heart');
@@ -465,11 +498,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
         });
       }
     } else {
-      if (!_audioManager.isPlaying && _introCompleted) {
+      if (!_audioManager.isPlaying && _introCompleted && !_isInDetour) {
         _audioManager.resume();
         _audioManager.resumePacing();
         debugPrint('Music resumed due to heart rate in range');
       }
+    }
+
+    // Check for detour trigger
+    if (!_isInDetour && _outOfZoneCount >= 3 && _isInTimestampRange(_currentPosition, const Duration(minutes: 4, seconds: 20))) {
+      _startDetour();
     }
   }
 
@@ -501,18 +539,25 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
 
     if (speedKmph >= lowerBound && speedKmph <= upperBound) {
-      if (!_audioManager.isPlaying && _introCompleted) {
+      if (!_audioManager.isPlaying && _introCompleted && !_isInDetour) {
         _audioManager.resume();
         _audioManager.resumePacing();
         debugPrint('Music resumed due to speed in range');
       }
     } else {
-      if (_audioManager.isPlaying && !_isPlayingIntro) {
+      if (!_isInDetour) {
+        setState(() {
+          _outOfZoneCount++;
+          debugPrint('Speed out of zone, count: $_outOfZoneCount');
+        });
+      }
+      if (_audioManager.isPlaying && !_isPlayingIntro && !_isInDetour) {
         Future.delayed(const Duration(seconds: 10), () {
           if (_currentSpeedKmph != null &&
               (_currentSpeedKmph! < lowerBound ||
                   _currentSpeedKmph! > upperBound) &&
-              !_isPlayingIntro) {
+              !_isPlayingIntro &&
+              !_isInDetour) {
             _audioManager.pause();
             if (_currentSpeedKmph! < lowerBound) {
               _playLowerOutOfRangeAudio('speed');
@@ -525,6 +570,63 @@ class _PlayerScreenState extends State<PlayerScreen> {
         });
       }
     }
+
+    // Check for detour trigger
+    if (!_isInDetour && _outOfZoneCount >= 3 && _isInTimestampRange(_currentPosition, const Duration(minutes: 4, seconds: 20))) {
+      _startDetour();
+    }
+  }
+
+  // NEW: Start detour audio
+  Future<void> _startDetour() async {
+    setState(() {
+      _isInDetour = true;
+      _detourStartPosition = _currentPosition;
+      _currentDetourIndex = 0;
+      _detourTriggered = List<bool>.filled(_detourTimestamps.length, false);
+      _detourTriggered[0] = true; // Mark dstart as triggered
+    });
+
+    await _audioManager.pause();
+    await _audioManager.stopPacing();
+    final currentAudio = widget.audioData[_currentAudioIndex];
+    final int storyId = currentAudio['storyId'];
+    String detourPath;
+    switch (storyId) {
+      case 1:
+        detourPath = 'assets/audio/aradium/detour/dstart.wav';
+        break;
+      case 2:
+        detourPath = 'assets/audio/smm/detour/dstart.wav';
+        break;
+      case 3:
+        detourPath = 'assets/audio/luther/detour/dstart.wav';
+        break;
+      case 4:
+        detourPath = 'assets/audio/dare/detour/dstart.wav';
+        break;
+      default:
+        detourPath = 'assets/audio/aradium/detour/dstart.wav';
+    }
+    _audioManager.playOverlay(detourPath, volume: 2.0);
+    debugPrint('Detour started: $detourPath');
+    _showCenterNotification('Detour started');
+  }
+
+  // NEW: End detour and resume main audio
+  Future<void> _endDetour() async {
+    setState(() {
+      _isInDetour = false;
+      _outOfZoneCount = 0;
+      _currentDetourIndex = -1;
+    });
+    await _audioManager.stopPacing();
+    await _audioManager.resume();
+    if (_currentPacingSegment == 1) { // Only play pacing for second 1/5 part
+      _audioManager.resumePacing();
+    }
+    debugPrint('Detour ended, resuming main audio at $_detourStartPosition');
+    _showCenterNotification('Resuming main audio');
   }
 
   void _playLowerOutOfRangeAudio(String reason) {
@@ -582,6 +684,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
         setState(() {
           _currentAudioIndex = index;
           _currentPlaylistIndex = index;
+          _outOfZoneCount = 0; // Reset out-of-zone count on track change
+          _isInDetour = false;
+          _currentDetourIndex = -1;
         });
         _onTrackChanged();
       }
@@ -657,9 +762,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
             audioData: widget.audioData,
             challengeCount: widget.challengeCount,
             playingChallengeCount: widget.playingChallengeCount,
-            score: _currentScore, // Pass the score to completion screen
-            useAppleWatch:
-                widget.useAppleWatch, // Pass the useAppleWatch parameter
+            score: _currentScore,
+            useAppleWatch: widget.useAppleWatch,
           ),
         ),
       );
@@ -677,12 +781,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
     List<String> timeStrings = [];
     switch (adjustedIndexId) {
       case 0:
-        timeStrings = ['2:20', '2:50', '3:20', '3:50', '4:20', '4:50'];
-        break;
       case 1:
       case 2:
       case 3:
       case 4:
+      case 5:
         timeStrings = [
           '1:20',
           '1:50',
@@ -693,10 +796,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           '4:20',
           '4:50',
         ];
-        break;
-      case 5:
-        timeStrings = ['1:20', '1:50', '2:20', '2:50', '3:20', '3:50'];
-        break;
+      break;
       default:
         timeStrings = [];
     }
@@ -754,9 +854,139 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   void _handlePositionUpdate(Duration position) {
     setState(() => _currentPosition = position);
-    // Only check for overlays and pacing if intro is completed
+    // Only check for overlays and pacing if intro is completed and not in detour
     if (_introCompleted && !_isPlayingIntro) {
-      _checkForOverlayTrigger(position);
+      if (_isInDetour) {
+        _checkForDetourAudio(position);
+      } else {
+        _checkForOverlayTrigger(position);
+        _checkForPacingAudio(position);
+      }
+    }
+  }
+
+  // NEW: Check for detour audio triggers
+  void _checkForDetourAudio(Duration position) {
+    final currentAudio = widget.audioData[_currentAudioIndex];
+    final int storyId = currentAudio['storyId'];
+    String detourPath;
+
+    for (int i = 0; i < _detourTimestamps.length; i++) {
+      if (!_detourTriggered[i] && _isInTimestampRange(position, _detourTimestamps[i])) {
+        _detourTriggered[i] = true;
+        _currentDetourIndex = i;
+
+        if (i == 0) {
+          // dstart
+          switch (storyId) {
+            case 1:
+              detourPath = 'assets/audio/aradium/detour/dstart.wav';
+              break;
+            case 2:
+              detourPath = 'assets/audio/smm/detour/dstart.wav';
+              break;
+            case 3:
+              detourPath = 'assets/audio/luther/detour/dstart.wav';
+              break;
+            case 4:
+              detourPath = 'assets/audio/dare/detour/dstart.wav';
+              break;
+            default:
+              detourPath = 'assets/audio/aradium/detour/dstart.wav';
+          }
+        } else if (i == _detourTimestamps.length - 1) {
+          // dstop
+          switch (storyId) {
+            case 1:
+              detourPath = 'assets/audio/aradium/detour/dstop.wav';
+              break;
+            case 2:
+              detourPath = 'assets/audio/smm/detour/dstop.wav';
+              break;
+            case 3:
+              detourPath = 'assets/audio/luther/detour/dstop.wav';
+              break;
+            case 4:
+              detourPath = 'assets/audio/dare/detour/dstop.wav';
+              break;
+            default:
+              detourPath = 'assets/audio/aradium/detour/dstop.wav';
+          }
+          _audioManager.playOverlay(detourPath, volume: 2.0);
+          debugPrint('Playing detour audio: $detourPath');
+          _endDetour();
+          return;
+        } else {
+          // d1 to d8
+          // Only play if out of zone
+          bool isOutOfZone = false;
+          if (_useSocket && _currentHR != null && _maxHR != null) {
+            final int zoneId = currentAudio['zoneId'];
+            int lowerBound = 0, upperBound = 0;
+            switch (zoneId) {
+              case 1:
+                lowerBound = (72 + (_maxHR! - 72) * 0.35).toInt();
+                upperBound = (72 + (_maxHR! - 72) * 0.75).toInt();
+                break;
+              case 2:
+                lowerBound = (72 + (_maxHR! - 72) * 0.45).toInt();
+                upperBound = (72 + (_maxHR! - 72) * 0.85).toInt();
+                break;
+              case 3:
+                lowerBound = (72 + (_maxHR! - 72) * 0.55).toInt();
+                upperBound = (72 + (_maxHR! - 72) * 0.95).toInt();
+                break;
+            }
+            isOutOfZone = _currentHR! < lowerBound || _currentHR! > upperBound;
+          } else if (!_useSocket && _currentSpeedKmph != null) {
+            final int zoneId = currentAudio['zoneId'];
+            double lowerBound, upperBound;
+            switch (zoneId) {
+              case 1:
+                lowerBound = 4.0;
+                upperBound = 6.0;
+                break;
+              case 2:
+                lowerBound = 6.01;
+                upperBound = 8.0;
+                break;
+              case 3:
+                lowerBound = 8.01;
+                upperBound = 12.0;
+                break;
+              default:
+                lowerBound = 0.0;
+                upperBound = 0.0;
+            }
+            isOutOfZone = _currentSpeedKmph! < lowerBound || _currentSpeedKmph! > upperBound;
+          }
+
+          if (isOutOfZone) {
+            switch (storyId) {
+              case 1:
+                detourPath = 'assets/audio/aradium/detour/d${i}.wav';
+                break;
+              case 2:
+                detourPath = 'assets/audio/smm/detour/d${i}.wav';
+                break;
+              case 3:
+                detourPath = 'assets/audio/luther/detour/d${i}.wav';
+                break;
+              case 4:
+                detourPath = 'assets/audio/dare/detour/d${i}.wav';
+                break;
+              default:
+                detourPath = 'assets/audio/aradium/detour/d${i}.wav';
+            }
+            _audioManager.playOverlay(detourPath, volume: 2.0);
+            debugPrint('Playing detour audio: $detourPath');
+          }
+        }
+      }
+    }
+
+    // Play pacing audio only for second 1/5 part during detour
+    if (_currentPacingSegment == 1) {
       _checkForPacingAudio(position);
     }
   }
@@ -779,7 +1009,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
       _currentPacingSegment = newSegment;
 
       if (_currentPacingSegment != -1 &&
-          _currentPacingSegment < _pacingAudioFiles.length) {
+          _currentPacingSegment < _pacingAudioFiles.length &&
+          (!_isInDetour || _currentPacingSegment == 1)) { // Only play for second segment during detour
         String pacingAudioPath =
             'assets/audio/pacing/${_pacingAudioFiles[_currentPacingSegment]}';
         _audioManager.playPacingLoop(pacingAudioPath);
@@ -789,6 +1020,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   void _checkForOverlayTrigger(Duration position) {
+    if (_isInDetour) return; // Skip overlay triggers during detour
+
     final currentAudio = widget.audioData[_currentAudioIndex];
     final int storyId = currentAudio['storyId'];
     String overlayType = 'A';
@@ -815,7 +1048,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
             ? 'A'
             : 'S';
       }
-      // If no heart rate data, overlayType remains 'A' (default)
     } else {
       if (_currentSpeedKmph != null) {
         final int zoneId = currentAudio['zoneId'];
@@ -842,7 +1074,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
             ? 'A'
             : 'S';
       }
-      // If no speed data, overlayType remains 'A' (default)
     }
 
     for (int i = 0; i < _timestamps.length; i++) {
@@ -967,8 +1198,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   void _togglePlayPause() async {
-    // Don't allow pause/play during intro audio - intro must complete
-    if (_isPlayingIntro) {
+    // Don't allow pause/play during intro or detour
+    if (_isPlayingIntro || _isInDetour) {
       return;
     }
 
@@ -1255,80 +1486,82 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     ),
                   ),
                   const Spacer(flex: 2),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Column(
-                      children: [
-                        SliderTheme(
-                          data: SliderTheme.of(context).copyWith(
-                            thumbColor: Colors.purple,
-                            activeTrackColor: Colors.purple,
-                            inactiveTrackColor: Colors.white30,
-                            trackHeight: 12.0,
-                            thumbShape: RoundSliderThumbShape(
-                              enabledThumbRadius: _timestamps.any(
-                                (timestamp) =>
-                                    (timestamp.inSeconds -
-                                            _currentPosition.inSeconds)
-                                        .abs() <=
-                                    1,
-                              )
-                                  ? 12.0
-                                  : 0.0,
-                            ),
-                            overlayColor: Colors.purple.withOpacity(0.2),
-                            overlayShape: const RoundSliderOverlayShape(
-                              overlayRadius: 28.0,
-                            ),
-                          ),
-                          child: Slider(
-                            value: _isPlayingIntro
-                                ? _introPosition.inSeconds.toDouble()
-                                : _currentPosition.inSeconds.toDouble(),
-                            min: 0,
-                            max: _isPlayingIntro
-                                ? (_introTotalDuration.inSeconds.toDouble() > 0
-                                    ? _introTotalDuration.inSeconds.toDouble()
-                                    : 1)
-                                : (_totalDuration.inSeconds.toDouble() > 0
-                                    ? _totalDuration.inSeconds.toDouble()
-                                    : 1),
-                            onChanged: _isPlayingIntro
-                                ? null
-                                : (value) async {
-                                    final position =
-                                        Duration(seconds: value.toInt());
-                                    await _audioManager.audioPlayer
-                                        .seek(position);
-                                  },
-                          ),
-                        ),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              _isPlayingIntro
-                                  ? _formatDuration(_introPosition)
-                                  : _formatDuration(_currentPosition),
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 14,
+                  if (!_isInDetour) ...[
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Column(
+                        children: [
+                          SliderTheme(
+                            data: SliderTheme.of(context).copyWith(
+                              thumbColor: Colors.purple,
+                              activeTrackColor: Colors.purple,
+                              inactiveTrackColor: Colors.white30,
+                              trackHeight: 12.0,
+                              thumbShape: RoundSliderThumbShape(
+                                enabledThumbRadius: _timestamps.any(
+                                  (timestamp) =>
+                                      (timestamp.inSeconds -
+                                              _currentPosition.inSeconds)
+                                          .abs() <=
+                                      1,
+                                )
+                                    ? 12.0
+                                    : 0.0,
+                              ),
+                              overlayColor: Colors.purple.withOpacity(0.2),
+                              overlayShape: const RoundSliderOverlayShape(
+                                overlayRadius: 28.0,
                               ),
                             ),
-                            Text(
-                              _isPlayingIntro
-                                  ? _formatDuration(_introTotalDuration)
-                                  : _formatDuration(_totalDuration),
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 14,
-                              ),
+                            child: Slider(
+                              value: _isPlayingIntro
+                                  ? _introPosition.inSeconds.toDouble()
+                                  : _currentPosition.inSeconds.toDouble(),
+                              min: 0,
+                              max: _isPlayingIntro
+                                  ? (_introTotalDuration.inSeconds.toDouble() > 0
+                                      ? _introTotalDuration.inSeconds.toDouble()
+                                      : 1)
+                                  : (_totalDuration.inSeconds.toDouble() > 0
+                                      ? _totalDuration.inSeconds.toDouble()
+                                      : 1),
+                              onChanged: _isPlayingIntro || _isInDetour
+                                  ? null
+                                  : (value) async {
+                                      final position =
+                                          Duration(seconds: value.toInt());
+                                      await _audioManager.audioPlayer
+                                          .seek(position);
+                                    },
                             ),
-                          ],
-                        ),
-                      ],
+                          ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                _isPlayingIntro
+                                    ? _formatDuration(_introPosition)
+                                    : _formatDuration(_currentPosition),
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              Text(
+                                _isPlayingIntro
+                                    ? _formatDuration(_introTotalDuration)
+                                    : _formatDuration(_totalDuration),
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
+                  ],
                   const Spacer(flex: 1),
                 ],
               ),

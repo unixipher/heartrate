@@ -147,8 +147,8 @@ class TimeTrackingService with WidgetsBindingObserver {
         'sessionEnd': DateTime.now().toUtc().toIso8601String(),
       };
 
-      debugPrint(
-          'TimeTracking: Updating session with payload: ${json.encode(updatePayload)}');
+      // debugPrint(
+      //     'TimeTracking: Updating session with payload: ${json.encode(updatePayload)}');
 
       final response = await http.post(
         Uri.parse('https://authcheck.co/updateappusagesession'),
@@ -162,7 +162,7 @@ class TimeTrackingService with WidgetsBindingObserver {
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        debugPrint('TimeTracking: Session updated successfully');
+        // debugPrint('App Alive');
       } else {
         debugPrint(
             'TimeTracking: Failed to update session: ${response.statusCode}');
