@@ -68,7 +68,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
   bool _hasMaxHR = false;
   final List<String> _pacingAudioFiles = [];
   List<Duration> _pacingTimestamps = [];
-  List<bool> _pacingTriggered = [];
   int _currentAudioIndex = 0;
   int _currentPacingSegment = -1;
   List<Duration> _pacingSegmentEnds = [];
@@ -88,6 +87,15 @@ class _PlayerScreenState extends State<PlayerScreen> {
   double? _previousBrightness;
   double _unlockProgress = 0.0;
   Timer? _unlockTimer;
+
+  // Intro audio state
+  bool _isPlayingIntro = false;
+  bool _introCompleted = false;
+  Duration _introPosition = Duration.zero;
+  Duration _introTotalDuration = Duration.zero;
+  late StreamSubscription<Duration> _introPositionSubscription;
+  late StreamSubscription<Duration?> _introDurationSubscription;
+  late StreamSubscription<PlayerState> _introPlayerStateSubscription;
 
   // Pedometer variables
   late Stream<CMPedometerData> _pedometerStream;
@@ -268,19 +276,108 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
       await _fetchMaxHR();
       _calculatePacingTimestamps();
-      _pacingTriggered = List<bool>.filled(_pacingAudioFiles.length, false);
 
       await _audioManager.initializePlaylist(widget.audioData);
       _initializeAudioListeners();
+      _initializeIntroAudioListeners();
 
-      await _audioManager.playFromIndex(0);
-      await _audioManager.setVolume(1);
+      // Start with intro audio instead of main playlist
+      await _playIntroAudio();
 
       _initializeTimestamps();
-      debugPrint('Playlist initialized and started');
+      debugPrint('Playlist initialized and intro started');
     } catch (e) {
       debugPrint('Initialization error: $e');
       _showCenterNotification('Initialization failed');
+      Future.delayed(const Duration(seconds: 2), _handleAudioCompletion);
+    }
+  }
+
+  // NEW: Play intro audio before starting the main challenge
+  Future<void> _playIntroAudio() async {
+    try {
+      setState(() {
+        _isPlayingIntro = true;
+        _introCompleted = false;
+      });
+
+      // Define intro audio path (you can customize this based on story or use a generic intro)
+      final currentAudio = widget.audioData[_currentAudioIndex];
+      final int storyId = currentAudio['storyId'];
+
+      String introAudioPath;
+      switch (storyId) {
+        case 1:
+          introAudioPath = 'assets/audio/aradium/intro.wav';
+          break;
+        case 2:
+          introAudioPath = 'assets/audio/aradium/intro.wav';
+          break;
+        case 3:
+          introAudioPath = 'assets/audio/aradium/intro.wav';
+          break;
+        case 4:
+          introAudioPath = 'assets/audio/aradium/intro.wav';
+          break;
+        default:
+          introAudioPath = 'assets/audio/aradium/intro.wav';
+      }
+
+      await _audioManager.playIntro(introAudioPath, volume: 1.0);
+      debugPrint('Playing intro audio: $introAudioPath');
+    } catch (e) {
+      debugPrint('Error playing intro audio: $e');
+      // If intro fails, go directly to main audio
+      _startMainAudio();
+    }
+  }
+
+  // NEW: Initialize intro audio listeners
+  void _initializeIntroAudioListeners() {
+    _introPositionSubscription =
+        _audioManager.introPositionStream.listen((position) {
+      setState(() {
+        _introPosition = position;
+      });
+    });
+
+    _introDurationSubscription =
+        _audioManager.introDurationStream.listen((duration) {
+      if (duration != null) {
+        setState(() => _introTotalDuration = duration);
+      }
+    });
+
+    _introPlayerStateSubscription =
+        _audioManager.introPlayerStateStream.listen((state) {
+      debugPrint('Intro player state: ${state.processingState}');
+      if (state.processingState == ProcessingState.completed) {
+        _onIntroCompleted();
+      }
+      setState(() {});
+    });
+  }
+
+  // NEW: Handle intro audio completion
+  void _onIntroCompleted() async {
+    debugPrint('Intro audio completed, starting main challenge audio');
+    setState(() {
+      _isPlayingIntro = false;
+      _introCompleted = true;
+    });
+    await _audioManager.stopIntro();
+    _startMainAudio();
+  }
+
+  // NEW: Start the main challenge audio after intro
+  Future<void> _startMainAudio() async {
+    try {
+      await _audioManager.playFromIndex(0);
+      await _audioManager.setVolume(1);
+      debugPrint('Main challenge audio started');
+    } catch (e) {
+      debugPrint('Error starting main audio: $e');
+      _showCenterNotification('Audio playback failed');
       Future.delayed(const Duration(seconds: 2), _handleAudioCompletion);
     }
   }
@@ -351,10 +448,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
     if (currentHeartRate != null &&
         (currentHeartRate < lowerBound || currentHeartRate > upperBound)) {
-      if (_audioManager.isPlaying) {
+      if (_audioManager.isPlaying && !_isPlayingIntro) {
         Future.delayed(const Duration(seconds: 10), () {
           if (_currentHR != null &&
-              (_currentHR! < lowerBound || _currentHR! > upperBound)) {
+              (_currentHR! < lowerBound || _currentHR! > upperBound) &&
+              !_isPlayingIntro) {
             _audioManager.pause();
             if (_currentHR! < lowerBound) {
               _playLowerOutOfRangeAudio('heart');
@@ -367,7 +465,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         });
       }
     } else {
-      if (!_audioManager.isPlaying) {
+      if (!_audioManager.isPlaying && _introCompleted) {
         _audioManager.resume();
         _audioManager.resumePacing();
         debugPrint('Music resumed due to heart rate in range');
@@ -403,17 +501,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
 
     if (speedKmph >= lowerBound && speedKmph <= upperBound) {
-      if (!_audioManager.isPlaying) {
+      if (!_audioManager.isPlaying && _introCompleted) {
         _audioManager.resume();
         _audioManager.resumePacing();
         debugPrint('Music resumed due to speed in range');
       }
     } else {
-      if (_audioManager.isPlaying) {
+      if (_audioManager.isPlaying && !_isPlayingIntro) {
         Future.delayed(const Duration(seconds: 10), () {
           if (_currentSpeedKmph != null &&
               (_currentSpeedKmph! < lowerBound ||
-                  _currentSpeedKmph! > upperBound)) {
+                  _currentSpeedKmph! > upperBound) &&
+              !_isPlayingIntro) {
             _audioManager.pause();
             if (_currentSpeedKmph! < lowerBound) {
               _playLowerOutOfRangeAudio('speed');
@@ -425,32 +524,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
           }
         });
       }
-    }
-  }
-
-  Future<void> _playCurrentAudio() async {
-    if (_currentAudioIndex >= widget.audioData.length) {
-      _navigateToCompletionScreen();
-      return;
-    }
-
-    setState(() => _currentAudioStarted = false);
-    final currentAudio = widget.audioData[_currentAudioIndex];
-    final audioUrl = currentAudio['audioUrl']?.toString() ?? '';
-
-    try {
-      await _audioManager.stop();
-      await _audioManager.stopPacing();
-
-      _initializeTimestamps();
-      _pacingTriggered = List.filled(_pacingAudioFiles.length, false);
-      _currentAudioStarted = false;
-
-      await _audioManager.play(currentAudio['audioUrl']);
-      debugPrint('Now playing: ${currentAudio['challengeName']}');
-    } catch (e) {
-      debugPrint('Error playing audio: $e');
-      Future.delayed(Duration(seconds: 2), _handleAudioCompletion);
     }
   }
 
@@ -487,7 +560,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   void _initializeAudioListeners() {
     _positionSubscription = _audioManager.positionStream.listen((position) {
-      if (position > Duration.zero) {
+      if (position > Duration.zero && !_isPlayingIntro) {
         setState(() {
           _currentPosition = position;
           _currentAudioStarted = true;
@@ -527,7 +600,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
   void _onTrackChanged() {
     debugPrint('Track changed to index: $_currentAudioIndex');
     _initializeTimestamps();
-    _pacingTriggered = List.filled(_pacingAudioFiles.length, false);
     _currentAudioStarted = false;
     currentTrackNudges = 0;
   }
@@ -682,8 +754,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   void _handlePositionUpdate(Duration position) {
     setState(() => _currentPosition = position);
-    _checkForOverlayTrigger(position);
-    _checkForPacingAudio(position);
+    // Only check for overlays and pacing if intro is completed
+    if (_introCompleted && !_isPlayingIntro) {
+      _checkForOverlayTrigger(position);
+      _checkForPacingAudio(position);
+    }
   }
 
   void _checkForPacingAudio(Duration position) {
@@ -892,6 +967,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   void _togglePlayPause() async {
+    // Don't allow pause/play during intro audio - intro must complete
+    if (_isPlayingIntro) {
+      return;
+    }
+
     if (_audioManager.isPlaying) {
       await _audioManager.pause();
       _startBlinking();
@@ -899,6 +979,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       if (!_audioManager.isPlaying) {
         _audioManager.resume();
         _audioManager.resumePacing();
+        _stopBlinking();
         debugPrint('Music resumed');
       }
     }
@@ -914,6 +995,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _durationSubscription.cancel();
     _playerStateSubscription.cancel();
     _currentIndexSubscription.cancel();
+    _introPositionSubscription.cancel();
+    _introDurationSubscription.cancel();
+    _introPlayerStateSubscription.cancel();
     _unlockTimer?.cancel();
     _dataSubscription?.cancel();
     if (_socketService != null) {
@@ -1091,55 +1175,78 @@ class _PlayerScreenState extends State<PlayerScreen> {
                                         maxLines: 3,
                                         overflow: TextOverflow.clip,
                                       )
-                                    : (_audioManager.isPlaying
-                                        ? (_currentAudioStarted
-                                            ? Text(
-                                                _formatDuration(remaining),
-                                                key: const ValueKey(
-                                                  'timer',
-                                                ),
+                                    : _isPlayingIntro
+                                        ? Column(
+                                            key: const ValueKey('intro'),
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const SizedBox(height: 8),
+                                              Text(
+                                                _formatDuration(
+                                                    _introTotalDuration -
+                                                        _introPosition),
                                                 style: const TextStyle(
                                                   color: Colors.white,
-                                                  fontSize: 40,
+                                                  fontSize: 32,
                                                   fontWeight: FontWeight.normal,
                                                   fontFamily: 'Thewitcher',
                                                   letterSpacing: 2,
                                                 ),
-                                              )
-                                            : const SizedBox(
-                                                key: ValueKey('loading'),
-                                                width: 60,
-                                                height: 60,
-                                                child:
-                                                    CircularProgressIndicator(
-                                                  valueColor:
-                                                      AlwaysStoppedAnimation<
-                                                          Color>(Colors.white),
-                                                  strokeWidth: 6,
-                                                ),
-                                              ))
-                                        : (_isPausedBlink
-                                            ? Icon(
-                                                Icons.play_arrow_rounded,
-                                                key: const ValueKey(
-                                                  'playicon',
-                                                ),
-                                                color: Colors.white,
-                                                size: 60,
-                                              )
-                                            : Text(
-                                                _formatDuration(remaining),
-                                                key: const ValueKey(
-                                                  'timer',
-                                                ),
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 40,
-                                                  fontWeight: FontWeight.normal,
-                                                  fontFamily: 'Thewitcher',
-                                                  letterSpacing: 2,
-                                                ),
-                                              ))),
+                                              ),
+                                            ],
+                                          )
+                                        : (_audioManager.isPlaying
+                                            ? (_currentAudioStarted
+                                                ? Text(
+                                                    _formatDuration(remaining),
+                                                    key: const ValueKey(
+                                                      'timer',
+                                                    ),
+                                                    style: const TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 40,
+                                                      fontWeight:
+                                                          FontWeight.normal,
+                                                      fontFamily: 'Thewitcher',
+                                                      letterSpacing: 2,
+                                                    ),
+                                                  )
+                                                : const SizedBox(
+                                                    key: ValueKey('loading'),
+                                                    width: 60,
+                                                    height: 60,
+                                                    child:
+                                                        CircularProgressIndicator(
+                                                      valueColor:
+                                                          AlwaysStoppedAnimation<
+                                                                  Color>(
+                                                              Colors.white),
+                                                      strokeWidth: 6,
+                                                    ),
+                                                  ))
+                                            : (_isPausedBlink
+                                                ? Icon(
+                                                    Icons.play_arrow_rounded,
+                                                    key: const ValueKey(
+                                                      'playicon',
+                                                    ),
+                                                    color: Colors.white,
+                                                    size: 60,
+                                                  )
+                                                : Text(
+                                                    _formatDuration(remaining),
+                                                    key: const ValueKey(
+                                                      'timer',
+                                                    ),
+                                                    style: const TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 40,
+                                                      fontWeight:
+                                                          FontWeight.normal,
+                                                      fontFamily: 'Thewitcher',
+                                                      letterSpacing: 2,
+                                                    ),
+                                                  ))),
                               ),
                             ),
                           ),
@@ -1175,29 +1282,43 @@ class _PlayerScreenState extends State<PlayerScreen> {
                             ),
                           ),
                           child: Slider(
-                            value: _currentPosition.inSeconds.toDouble(),
+                            value: _isPlayingIntro
+                                ? _introPosition.inSeconds.toDouble()
+                                : _currentPosition.inSeconds.toDouble(),
                             min: 0,
-                            max: _totalDuration.inSeconds.toDouble() > 0
-                                ? _totalDuration.inSeconds.toDouble()
-                                : 1,
-                            onChanged: (value) async {
-                              final position = Duration(seconds: value.toInt());
-                              await _audioManager.audioPlayer.seek(position);
-                            },
+                            max: _isPlayingIntro
+                                ? (_introTotalDuration.inSeconds.toDouble() > 0
+                                    ? _introTotalDuration.inSeconds.toDouble()
+                                    : 1)
+                                : (_totalDuration.inSeconds.toDouble() > 0
+                                    ? _totalDuration.inSeconds.toDouble()
+                                    : 1),
+                            onChanged: _isPlayingIntro
+                                ? null
+                                : (value) async {
+                                    final position =
+                                        Duration(seconds: value.toInt());
+                                    await _audioManager.audioPlayer
+                                        .seek(position);
+                                  },
                           ),
                         ),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              _formatDuration(_currentPosition),
+                              _isPlayingIntro
+                                  ? _formatDuration(_introPosition)
+                                  : _formatDuration(_currentPosition),
                               style: const TextStyle(
                                 color: Colors.white70,
                                 fontSize: 14,
                               ),
                             ),
                             Text(
-                              _formatDuration(_totalDuration),
+                              _isPlayingIntro
+                                  ? _formatDuration(_introTotalDuration)
+                                  : _formatDuration(_totalDuration),
                               style: const TextStyle(
                                 color: Colors.white70,
                                 fontSize: 14,

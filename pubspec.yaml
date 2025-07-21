@@ -119,6 +119,9 @@ flutter:
     - assets/audio/smm/overlay/17/
     - assets/audio/pacing/
     - assets/audio/stop/
+    - assets/audio/aradium/
+    - assets/audio/dare/
+    - assets/audio/smm/
     - assets/audio/luther/
     - shorebird.yaml
   fonts:

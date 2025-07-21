@@ -8,6 +8,7 @@ class AudioManager {
   AudioPlayer _mainPlayer = AudioPlayer();
   AudioPlayer _overlayPlayer = AudioPlayer();
   AudioPlayer _pacingPlayer = AudioPlayer();
+  AudioPlayer _introPlayer = AudioPlayer(); // Add intro player
 
   // Add playlist management
   ConcatenatingAudioSource? _playlist;
@@ -53,10 +54,12 @@ class AudioManager {
       await _mainPlayer.dispose();
       await _overlayPlayer.dispose();
       await _pacingPlayer.dispose();
+      await _introPlayer.dispose();
     } catch (_) {}
     _mainPlayer = AudioPlayer();
     _overlayPlayer = AudioPlayer();
     _pacingPlayer = AudioPlayer();
+    _introPlayer = AudioPlayer();
     _playlist = null;
     _isPlaylistInitialized = false;
     _initializeAudioSession();
@@ -67,7 +70,9 @@ class AudioManager {
   }
 
   AudioPlayer get audioPlayer => _mainPlayer;
+  AudioPlayer get introPlayer => _introPlayer; // Add intro player getter
   bool get isPlaying => _mainPlayer.playing;
+  bool get isIntroPlaying => _introPlayer.playing; // Add intro playing status
 
   // Stream getters
   Stream<Duration> get positionStream => _mainPlayer.positionStream;
@@ -75,6 +80,12 @@ class AudioManager {
   Stream<PlayerState> get playerStateStream => _mainPlayer.playerStateStream;
   Stream<int?> get currentIndexStream => _mainPlayer.currentIndexStream;
   Duration get bufferedPosition => _mainPlayer.bufferedPosition;
+
+  // Intro stream getters
+  Stream<Duration> get introPositionStream => _introPlayer.positionStream;
+  Stream<Duration?> get introDurationStream => _introPlayer.durationStream;
+  Stream<PlayerState> get introPlayerStateStream =>
+      _introPlayer.playerStateStream;
 
   // Initialize playlist with all audio URLs
   Future<void> initializePlaylist(List<Map<String, dynamic>> audioData) async {
@@ -193,6 +204,28 @@ class AudioManager {
     }
   }
 
+  // Add intro audio methods
+  Future<void> playIntro(String assetPath, {double volume = 1.0}) async {
+    try {
+      debugPrint('AudioManager: Playing intro audio: $assetPath');
+      await _introPlayer.stop();
+      await _introPlayer.setVolume(volume);
+      await _introPlayer.setAsset(assetPath);
+      await _introPlayer.play();
+    } catch (e) {
+      debugPrint('AudioManager: Error playing intro: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> stopIntro() async {
+    try {
+      await _introPlayer.stop();
+    } catch (e) {
+      debugPrint('AudioManager: Error stopping intro: $e');
+    }
+  }
+
   Future<void> playPacing(String assetPath, {double volume = 1}) async {
     try {
       await _pacingPlayer.stop();
@@ -261,6 +294,7 @@ class AudioManager {
       await _mainPlayer.stop();
       await _overlayPlayer.stop();
       await _pacingPlayer.stop();
+      await _introPlayer.stop();
     } catch (e) {
       debugPrint('AudioManager: Error stopping: $e');
     }
@@ -296,6 +330,7 @@ class AudioManager {
       await _mainPlayer.dispose();
       await _overlayPlayer.dispose();
       await _pacingPlayer.dispose();
+      await _introPlayer.dispose();
     } catch (e) {
       debugPrint('AudioManager: Error disposing: $e');
     }
