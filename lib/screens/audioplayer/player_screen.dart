@@ -570,20 +570,30 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Future<void> _startDetour() async {
     setState(() {
       _isInDetour = true;
-      _detourTriggerPosition = _currentPosition; // Record where we are
-      _detourElapsedSeconds = 0; // Reset the detour clock
+      _detourTriggerPosition = _currentPosition;
+      _detourElapsedSeconds = 0;
       _detourTriggered = List<bool>.filled(_detourTimestamps.length, false);
     });
 
-    await _audioManager.setVolume(0); // Mute main audio
-    await _audioManager.stopPacing();
+    await _audioManager.setVolume(0);
+    await _audioManager.stopPacing(); // Stop any regular pacing
+
+    // --- ADD THIS BLOCK ---
+    // Start the specific pacing audio for the detour
+    if (_pacingAudioFiles.length > 1) {
+      // Safety check
+      String detourPacingPath = 'assets/audio/pacing/${_pacingAudioFiles[1]}';
+      _audioManager.playPacingLoop(detourPacingPath);
+      debugPrint('Playing detour pacing audio: $detourPacingPath');
+    }
+    // --- END OF BLOCK ---
+
     debugPrint('--- DETOUR STARTED ---');
     _showCenterNotification('Detour Started');
 
-    _detourTimer?.cancel(); // Cancel any existing timer
+    _detourTimer?.cancel();
     _detourTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       _detourElapsedSeconds++;
-      // Calculate a "virtual" position based on where the detour started
       final virtualPosition =
           _detourTriggerPosition + Duration(seconds: _detourElapsedSeconds);
       _checkForDetourAudio(virtualPosition);
@@ -958,6 +968,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   void _checkForPacingAudio(Duration position) {
+    // Add this guard clause to disable normal pacing during a detour
+    if (_isInDetour) return;
+
     if (!_currentAudioStarted) return;
 
     final int previousAudiosDuration = _currentAudioIndex * 5;
@@ -972,24 +985,17 @@ class _PlayerScreenState extends State<PlayerScreen> {
         break;
       }
     }
-
     if (newSegment != _currentPacingSegment) {
       _audioManager.stopPacing();
       _currentPacingSegment = newSegment;
 
       if (_currentPacingSegment != -1 &&
           _currentPacingSegment < _pacingAudioFiles.length) {
-        // Main condition: Play if not in detour, OR if in detour AND it's the 2nd segment
-        if (!_isInDetour || _currentPacingSegment == 1) {
-          String pacingAudioPath =
-              'assets/audio/pacing/${_pacingAudioFiles[_currentPacingSegment]}';
-          _audioManager.playPacingLoop(pacingAudioPath);
-          debugPrint(
-              'Playing pacing audio (segment $_currentPacingSegment): $pacingAudioPath');
-        } else {
-          debugPrint(
-              'In detour, skipping pacing audio for segment $_currentPacingSegment');
-        }
+        String pacingAudioPath =
+            'assets/audio/pacing/${_pacingAudioFiles[_currentPacingSegment]}';
+        _audioManager.playPacingLoop(pacingAudioPath);
+        debugPrint(
+            'Playing pacing audio (segment $_currentPacingSegment): $pacingAudioPath');
       }
     }
   }
