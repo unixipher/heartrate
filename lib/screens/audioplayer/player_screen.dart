@@ -45,6 +45,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   // --- START: Detour Feature Variables ---
   int _outOfZoneCount = 0;
   bool _isInDetour = false;
+  bool _isCompleting = false;
   Duration _detourStartPosition = Duration.zero;
   List<Duration> _detourTimestamps = [];
   List<bool> _detourTriggered = [];
@@ -483,6 +484,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
         });
       }
     } else {
+      // --- ADD THIS NEW BLOCK ---
+      // If we are in a detour and the user gets back in zone, end it early.
+      if (_isInDetour) {
+        _endDetourEarly();
+        return; // Exit to prevent resuming music immediately
+      }
+      // --- END OF NEW BLOCK ---
       if (!_audioManager.isPlaying && _introCompleted && !_isInDetour) {
         _audioManager.resume();
         _audioManager.resumePacing();
@@ -570,23 +578,20 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Future<void> _startDetour() async {
     setState(() {
       _isInDetour = true;
-      _detourTriggerPosition = _currentPosition;
+      _detourStartPosition = _currentPosition; // Note the exact position
       _detourElapsedSeconds = 0;
       _detourTriggered = List<bool>.filled(_detourTimestamps.length, false);
     });
 
-    await _audioManager.setVolume(0);
-    await _audioManager.stopPacing(); // Stop any regular pacing
+    await _audioManager.pause(); // Pause the main audio player
+    await _audioManager.stopPacing();
 
-    // --- ADD THIS BLOCK ---
-    // Start the specific pacing audio for the detour
+    // Start the special detour pacing audio
     if (_pacingAudioFiles.length > 1) {
-      // Safety check
       String detourPacingPath = 'assets/audio/pacing/${_pacingAudioFiles[1]}';
       _audioManager.playPacingLoop(detourPacingPath);
       debugPrint('Playing detour pacing audio: $detourPacingPath');
     }
-    // --- END OF BLOCK ---
 
     debugPrint('--- DETOUR STARTED ---');
     _showCenterNotification('Detour Started');
@@ -595,7 +600,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _detourTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       _detourElapsedSeconds++;
       final virtualPosition =
-          _detourTriggerPosition + Duration(seconds: _detourElapsedSeconds);
+          _detourStartPosition + Duration(seconds: _detourElapsedSeconds);
       _checkForDetourAudio(virtualPosition);
     });
   }
@@ -609,21 +614,52 @@ class _PlayerScreenState extends State<PlayerScreen> {
       _currentDetourIndex = -1;
     });
 
-    await _audioManager.setVolume(1);
+    // Seek back to where the detour started and then resume
+    await _audioManager.audioPlayer.seek(_detourStartPosition);
+    await _audioManager.resume();
+
     await _audioManager.stopPacing();
 
     debugPrint('--- DETOUR ENDED ---');
     _showCenterNotification('Resuming Challenge');
 
-    // ADD THIS BLOCK
-    // After the detour, check if the main audio had already finished.
-    // If so, manually trigger the completion logic.
     if (_audioManager.audioPlayer.processingState ==
         ProcessingState.completed) {
       debugPrint(
           'Main audio finished during detour. Triggering completion now.');
       _handleAudioCompletion();
     }
+  }
+
+  void _endDetourEarly() {
+    if (!_isInDetour) return; // Prevent this from running more than once
+
+    debugPrint('User is back in zone. Ending detour early.');
+
+    // Get the path for dstop.wav
+    final currentAudio = widget.audioData[_currentAudioIndex];
+    final int storyId = currentAudio['storyId'];
+    String dstopPath;
+    switch (storyId) {
+      case 1:
+        dstopPath = 'assets/audio/detour/dstop.wav';
+        break;
+      case 2:
+        dstopPath = 'assets/audio/detour/dstop.wav';
+        break;
+      case 3:
+        dstopPath = 'assets/audio/detour/dstop.wav';
+        break;
+      case 4:
+        dstopPath = 'assets/audio/detour/dstop.wav';
+        break;
+      default:
+        dstopPath = 'assets/audio/detour/dstop.wav';
+    }
+
+    // Play the final sound and immediately end the detour
+    _audioManager.playOverlay(dstopPath, volume: 2.0);
+    _endDetour();
   }
   // --- END: Detour Management Functions ---
 
@@ -707,6 +743,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   Future<void> _handleAudioCompletion() async {
+    // ADD THIS GUARD CLAUSE
+    if (_isCompleting) return;
+    setState(() {
+      _isCompleting = true;
+    });
+    // ---
+
     _consecutiveChallengeCompletions++;
 
     int challengeCompletionScore;
@@ -866,6 +909,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
   void _checkForDetourAudio(Duration position) {
     final currentAudio = widget.audioData[_currentAudioIndex];
     final int storyId = currentAudio['storyId'];
+    final filteredChallenges = widget.audioData;
+    final challengeId = filteredChallenges.indexWhere(
+      (c) => c['id'] == currentAudio['id'],
+    );
 
     for (int i = 0; i < _detourTimestamps.length; i++) {
       if (!_detourTriggered[i] &&
@@ -937,24 +984,26 @@ class _PlayerScreenState extends State<PlayerScreen> {
             : isLastAudio
                 ? 'dstop'
                 : 'd$i';
-
+        // Update the switch statement with the new indexed path
         switch (storyId) {
           case 1:
-            detourPath = 'assets/audio/aradium/detour/$audioName.wav';
+            detourPath =
+                'assets/audio/aradium/detour/$challengeId/$audioName.wav';
             break;
           case 2:
-            detourPath = 'assets/audio/smm/detour/$audioName.wav';
+            detourPath = 'assets/audio/smm/detour/$challengeId/$audioName.wav';
             break;
           case 3:
-            detourPath = 'assets/audio/luther/detour/$audioName.wav';
+            detourPath =
+                'assets/audio/luther/detour/$challengeId/$audioName.wav';
             break;
           case 4:
-            detourPath = 'assets/audio/dare/detour/$audioName.wav';
+            detourPath = 'assets/audio/dare/detour/$challengeId/$audioName.wav';
             break;
           default:
-            detourPath = 'assets/audio/aradium/detour/$audioName.wav';
+            detourPath =
+                'assets/audio/aradium/detour/$challengeId/$audioName.wav';
         }
-
         // Play the audio
         _audioManager.playOverlay(detourPath, volume: 2.0);
         debugPrint('Playing detour audio: $detourPath');

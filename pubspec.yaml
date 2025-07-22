@@ -122,9 +122,24 @@ flutter:
     - assets/audio/aradium/
     - assets/audio/dare/
     - assets/audio/smm/
-    - assets/audio/smm/detour/
-    - assets/audio/aradium/detour/
-    - assets/audio/luther/detour/
+    - assets/audio/smm/detour/0/
+    - assets/audio/smm/detour/1/
+    - assets/audio/smm/detour/2/
+    - assets/audio/smm/detour/3/
+    - assets/audio/smm/detour/4/
+    - assets/audio/smm/detour/5/
+    - assets/audio/aradium/detour/0/
+    - assets/audio/aradium/detour/1/
+    - assets/audio/aradium/detour/2/
+    - assets/audio/aradium/detour/3/
+    - assets/audio/aradium/detour/4/
+    - assets/audio/aradium/detour/5/
+    - assets/audio/luther/detour/0/
+    - assets/audio/luther/detour/1/
+    - assets/audio/luther/detour/2/
+    - assets/audio/luther/detour/3/
+    - assets/audio/luther/detour/4/
+    - assets/audio/luther/detour/5/
     - assets/audio/luther/
     - shorebird.yaml
   fonts:
