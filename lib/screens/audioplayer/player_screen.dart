@@ -939,16 +939,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
             int lowerBound = 0, upperBound = 0;
             switch (zoneId) {
               case 1:
-                lowerBound = (72 + (_maxHR! - 72) * 0.35).toInt();
-                upperBound = (72 + (_maxHR! - 72) * 0.75).toInt();
+                lowerBound = (72 + (_maxHR! - 72) * 0.5).toInt();
+                upperBound = (72 + (_maxHR! - 72) * 0.6).toInt();
                 break;
               case 2:
-                lowerBound = (72 + (_maxHR! - 72) * 0.45).toInt();
-                upperBound = (72 + (_maxHR! - 72) * 0.85).toInt();
+                lowerBound = (72 + (_maxHR! - 72) * 0.6).toInt();
+                upperBound = (72 + (_maxHR! - 72) * 0.7).toInt();
                 break;
               case 3:
-                lowerBound = (72 + (_maxHR! - 72) * 0.55).toInt();
-                upperBound = (72 + (_maxHR! - 72) * 0.95).toInt();
+                lowerBound = (72 + (_maxHR! - 72) * 0.7).toInt();
+                upperBound = (72 + (_maxHR! - 72) * 0.8).toInt();
                 break;
             }
             isOutOfZone = _currentHR! < lowerBound || _currentHR! > upperBound;
@@ -1085,16 +1085,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
         int lowerBound = 0, upperBound = 0;
         switch (zoneId) {
           case 1:
-            lowerBound = (72 + (_maxHR! - 72) * 0.35).toInt();
-            upperBound = (72 + (_maxHR! - 72) * 0.75).toInt();
+            lowerBound = (72 + (_maxHR! - 72) * 0.5).toInt();
+            upperBound = (72 + (_maxHR! - 72) * 0.6).toInt();
             break;
           case 2:
-            lowerBound = (72 + (_maxHR! - 72) * 0.45).toInt();
-            upperBound = (72 + (_maxHR! - 72) * 0.85).toInt();
+            lowerBound = (72 + (_maxHR! - 72) * 0.6).toInt();
+            upperBound = (72 + (_maxHR! - 72) * 0.7).toInt();
             break;
           case 3:
-            lowerBound = (72 + (_maxHR! - 72) * 0.55).toInt();
-            upperBound = (72 + (_maxHR! - 72) * 0.95).toInt();
+            lowerBound = (72 + (_maxHR! - 72) * 0.7).toInt();
+            upperBound = (72 + (_maxHR! - 72) * 0.8).toInt();
             break;
         }
         overlayType = (_currentHR! >= lowerBound && _currentHR! <= upperBound)
