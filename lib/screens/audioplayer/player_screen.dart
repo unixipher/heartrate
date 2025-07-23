@@ -370,13 +370,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
       // --- MODIFICATION START: Removed 'await' to allow concurrent playback ---
       _audioManager.playIntro(introAudioPath, volume: 1.0);
       debugPrint('Playing intro audio: $introAudioPath');
-      
+
       // Play 100bpm pacing during the intro
       String introPacingPath = 'assets/audio/pacing/100.mp3';
       _audioManager.playPacingLoop(introPacingPath);
       debugPrint('Playing intro pacing audio: $introPacingPath');
       // --- MODIFICATION END ---
-
     } catch (e) {
       debugPrint('Error playing intro befell: $e');
       _startMainAudio();
@@ -495,12 +494,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
     if (currentHeartRate != null &&
         (currentHeartRate < lowerBound || currentHeartRate > upperBound)) {
-      if (!_isInDetour) {
-        setState(() {
-          _outOfZoneCount++;
-          debugPrint('Heart rate out of zone, count: $_outOfZoneCount');
-        });
-      }
       if (_audioManager.isPlaying && !_isPlayingIntro && !_isInDetour) {
         Future.delayed(const Duration(seconds: 10), () {
           if (_currentHR != null &&
@@ -531,13 +524,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
         _audioManager.resumePacing();
         debugPrint('Music resumed due to heart rate in range');
       }
-    }
-
-    // Check for detour trigger
-    if (!_isInDetour &&
-        _outOfZoneCount >= 3 &&
-        _currentPosition >= const Duration(minutes: 4, seconds: 20)) {
-      _startDetour();
     }
   }
 
@@ -575,12 +561,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
         debugPrint('Music resumed due to speed in range');
       }
     } else {
-      if (!_isInDetour) {
-        setState(() {
-          _outOfZoneCount++;
-          debugPrint('Speed out of zone, count: $_outOfZoneCount');
-        });
-      }
       if (_audioManager.isPlaying && !_isPlayingIntro && !_isInDetour) {
         Future.delayed(const Duration(seconds: 10), () {
           if (_currentSpeedKmph != null &&
@@ -599,13 +579,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
           }
         });
       }
-    }
-
-    // Check for detour trigger
-    if (!_isInDetour &&
-        _outOfZoneCount >= 3 &&
-        _currentPosition >= const Duration(minutes: 4, seconds: 20)) {
-      _startDetour();
     }
   }
 
@@ -958,7 +931,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
         bool isLastAudio = (i == _detourTimestamps.length - 1);
 
-        // For d1 to d8, check if user is out of zone
+        // For d1 to d8, check if user is out of zone and apply scoring
         if (i > 0 && !isLastAudio) {
           bool isOutOfZone = false;
           // Check HR if using socket
@@ -1006,10 +979,19 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 _currentSpeedKmph! > upperBound;
           }
 
-          // If not out of zone, don't play d1-d8 and continue to next check
-          if (!isOutOfZone) {
+          // Apply scoring based on whether the user is in or out of zone
+          if (isOutOfZone) {
+            // User is out of zone: -1 point
+            _currentScore -= 1;
+            debugPrint(
+                'Score -1: Out of zone during detour. Total: $_currentScore');
+          } else {
+            // User is in zone: +5 points
+            _currentScore += 5;
+            debugPrint(
+                'Score +5: In zone during detour. Total: $_currentScore');
             debugPrint("Skipping detour audio d$i because user is in zone.");
-            continue;
+            continue; // Skip playing the out-of-zone audio cue
           }
         }
 
@@ -1119,7 +1101,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
         overlayType = (_currentHR! >= lowerBound && _currentHR! <= upperBound)
             ? 'A'
             : 'S';
-        debugPrint("Decision based on Heart Rate. In zone: ${overlayType == 'A'}");
+        debugPrint(
+            "Decision based on Heart Rate. In zone: ${overlayType == 'A'}");
       }
       // 2. Fallback to Pedometer Speed
       else if (speedAvailable) {
@@ -1146,7 +1129,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 _currentSpeedKmph! <= upperBound)
             ? 'A'
             : 'S';
-        debugPrint("Decision based on Pedometer Speed. In zone: ${overlayType == 'A'}");
+        debugPrint(
+            "Decision based on Pedometer Speed. In zone: ${overlayType == 'A'}");
       }
     }
     // For Android, use GPS speed only.
@@ -1175,10 +1159,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 _currentSpeedKmph! <= upperBound)
             ? 'A'
             : 'S';
-        debugPrint("Decision based on GPS Speed. In zone: ${overlayType == 'A'}");
+        debugPrint(
+            "Decision based on GPS Speed. In zone: ${overlayType == 'A'}");
       }
     }
-
 
     for (int i = 0; i < _timestamps.length; i++) {
       if (!_triggered[i] && _isInTimestampRange(position, _timestamps[i])) {
@@ -1194,10 +1178,19 @@ class _PlayerScreenState extends State<PlayerScreen> {
           _currentScore -= 1;
           debugPrint(
               'Score -1: Outside zone at timestamp. Total: $_currentScore');
+
+          // MODIFICATION: Increment out-of-zone count here
+          if (!_isInDetour) {
+            setState(() {
+              _outOfZoneCount++;
+              debugPrint('Out of zone at overlay, count: $_outOfZoneCount');
+            });
+          }
         }
 
         String overlayPath;
-        const int overlayIndex = 0; // Use the same overlay (index 0) for all challenges
+        const int overlayIndex =
+            0; // Use the same overlay (index 0) for all challenges
         switch (storyId) {
           case 1:
             overlayPath =
@@ -1259,8 +1252,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         _stopBlinking();
         debugPrint('Intro audio and pacing resumed');
       }
-    } 
-    else {
+    } else {
       if (_audioManager.isPlaying) {
         await _audioManager.pause();
         _startBlinking();
