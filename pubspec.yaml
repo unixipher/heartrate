@@ -3,7 +3,7 @@ description: "A new Flutter project."
 
 publish_to: 'none'
 
-version: 6.0.0+1
+version: 7.0.0+1
 
 environment:
   sdk: ^3.5.4
@@ -128,18 +128,6 @@ flutter:
     - assets/audio/smm/detour/3/
     - assets/audio/smm/detour/4/
     - assets/audio/smm/detour/5/
-    - assets/audio/aradium/detour/0/
-    - assets/audio/aradium/detour/1/
-    - assets/audio/aradium/detour/2/
-    - assets/audio/aradium/detour/3/
-    - assets/audio/aradium/detour/4/
-    - assets/audio/aradium/detour/5/
-    - assets/audio/luther/detour/0/
-    - assets/audio/luther/detour/1/
-    - assets/audio/luther/detour/2/
-    - assets/audio/luther/detour/3/
-    - assets/audio/luther/detour/4/
-    - assets/audio/luther/detour/5/
     - assets/audio/luther/
     - shorebird.yaml
   fonts:
