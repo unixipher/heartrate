@@ -1146,29 +1146,28 @@ class _PlayerScreenState extends State<PlayerScreen> {
         }
 
         String overlayPath;
-        final filteredChallenges = widget.audioData;
-        final challengeId =
-            filteredChallenges.indexWhere((c) => c['id'] == currentAudio['id']);
+        // Use the same overlay (index 0) for all challenges
+        const int overlayIndex = 0;
         switch (storyId) {
           case 1:
             overlayPath =
-                'assets/audio/aradium/overlay/${challengeId}/${overlayType}_$i.wav';
+                'assets/audio/aradium/overlay/${overlayIndex}/${overlayType}_$i.wav';
             break;
           case 2:
             overlayPath =
-                'assets/audio/smm/overlay/${challengeId}/${overlayType}_$i.wav';
+                'assets/audio/smm/overlay/${overlayIndex}/${overlayType}_$i.wav';
             break;
           case 3:
             overlayPath =
-                'assets/audio/luther/overlay/${challengeId}/${overlayType}_$i.wav';
+                'assets/audio/luther/overlay/${overlayIndex}/${overlayType}_$i.wav';
             break;
           case 4:
             overlayPath =
-                'assets/audio/dare/overlay/${challengeId}/${overlayType}_$i.wav';
+                'assets/audio/dare/overlay/${overlayIndex}/${overlayType}_$i.wav';
             break;
           default:
             overlayPath =
-                'assets/audio/overlay/${challengeId}/${overlayType}_$i.wav';
+                'assets/audio/overlay/${overlayIndex}/${overlayType}_$i.wav';
         }
         if (storyId == 1 || storyId == 2 || storyId == 3 || storyId == 4) {
           _audioManager.playOverlay(overlayPath, volume: 2.0);
