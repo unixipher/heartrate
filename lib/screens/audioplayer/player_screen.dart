@@ -367,8 +367,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
           introAudioPath = 'assets/audio/aradium/intro.wav';
       }
 
-      await _audioManager.playIntro(introAudioPath, volume: 1.0);
+      // --- MODIFICATION START: Removed 'await' to allow concurrent playback ---
+      _audioManager.playIntro(introAudioPath, volume: 1.0);
       debugPrint('Playing intro audio: $introAudioPath');
+      
+      // Play 100bpm pacing during the intro
+      String introPacingPath = 'assets/audio/pacing/100.mp3';
+      _audioManager.playPacingLoop(introPacingPath);
+      debugPrint('Playing intro pacing audio: $introPacingPath');
+      // --- MODIFICATION END ---
+
     } catch (e) {
       debugPrint('Error playing intro befell: $e');
       _startMainAudio();
@@ -406,6 +414,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
       _isPlayingIntro = false;
       _introCompleted = true;
     });
+
+    // Stop intro pacing audio
+    await _audioManager.stopPacing();
+    debugPrint('Intro pacing audio stopped.');
+
     await _audioManager.stopIntro();
     _startMainAudio();
   }
@@ -1077,10 +1090,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
     final currentAudio = widget.audioData[_currentAudioIndex];
     final int storyId = currentAudio['storyId'];
-    String overlayType = 'A'; // Assume in zone
+    String overlayType = 'A'; // Assume in zone, or if no data is available
 
-    if (_useSocket) {
-      if (_currentHR != null && _maxHR != null) {
+    // --- Platform-specific decision logic ---
+    // For iOS, prioritize Heart Rate. If not available, fall back to Pedometer speed.
+    if (Platform.isIOS) {
+      bool hrAvailable = _currentHR != null && _maxHR != null;
+      bool speedAvailable = _currentSpeedKmph != null;
+
+      // 1. Prioritize Heart Rate
+      if (hrAvailable) {
         final int zoneId = currentAudio['zoneId'];
         int lowerBound = 0, upperBound = 0;
         switch (zoneId) {
@@ -1100,9 +1119,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
         overlayType = (_currentHR! >= lowerBound && _currentHR! <= upperBound)
             ? 'A'
             : 'S';
+        debugPrint("Decision based on Heart Rate. In zone: ${overlayType == 'A'}");
       }
-    } else {
-      if (_currentSpeedKmph != null) {
+      // 2. Fallback to Pedometer Speed
+      else if (speedAvailable) {
         final int zoneId = currentAudio['zoneId'];
         double lowerBound, upperBound;
         switch (zoneId) {
@@ -1111,11 +1131,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
             upperBound = 6.0;
             break;
           case 2:
-            lowerBound = 6.0;
+            lowerBound = 6.01;
             upperBound = 8.0;
             break;
           case 3:
-            lowerBound = 8.0;
+            lowerBound = 8.01;
             upperBound = 12.0;
             break;
           default:
@@ -1126,8 +1146,39 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 _currentSpeedKmph! <= upperBound)
             ? 'A'
             : 'S';
+        debugPrint("Decision based on Pedometer Speed. In zone: ${overlayType == 'A'}");
       }
     }
+    // For Android, use GPS speed only.
+    else if (Platform.isAndroid) {
+      if (_currentSpeedKmph != null) {
+        final int zoneId = currentAudio['zoneId'];
+        double lowerBound, upperBound;
+        switch (zoneId) {
+          case 1:
+            lowerBound = 4.0;
+            upperBound = 6.0;
+            break;
+          case 2:
+            lowerBound = 6.01;
+            upperBound = 8.0;
+            break;
+          case 3:
+            lowerBound = 8.01;
+            upperBound = 12.0;
+            break;
+          default:
+            lowerBound = 0.0;
+            upperBound = 0.0;
+        }
+        overlayType = (_currentSpeedKmph! >= lowerBound &&
+                _currentSpeedKmph! <= upperBound)
+            ? 'A'
+            : 'S';
+        debugPrint("Decision based on GPS Speed. In zone: ${overlayType == 'A'}");
+      }
+    }
+
 
     for (int i = 0; i < _timestamps.length; i++) {
       if (!_triggered[i] && _isInTimestampRange(position, _timestamps[i])) {
@@ -1135,7 +1186,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         totalNudges++;
         currentTrackNudges++;
 
-        // Scoring logic
+        // Scoring logic now uses the correctly determined overlayType
         if (overlayType == 'A') {
           _currentScore += 5;
           debugPrint('Score +5: In zone at timestamp. Total: $_currentScore');
@@ -1146,8 +1197,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         }
 
         String overlayPath;
-        // Use the same overlay (index 0) for all challenges
-        const int overlayIndex = 0;
+        const int overlayIndex = 0; // Use the same overlay (index 0) for all challenges
         switch (storyId) {
           case 1:
             overlayPath =
@@ -1198,14 +1248,19 @@ class _PlayerScreenState extends State<PlayerScreen> {
     if (_isPlayingIntro) {
       if (_audioManager.introPlayer.playing) {
         await _audioManager.introPlayer.pause();
+        await _audioManager.stopPacing(); // Pause intro pacing
         _startBlinking();
-        debugPrint('Intro audio paused');
+        debugPrint('Intro audio and pacing paused');
       } else {
         await _audioManager.introPlayer.play();
+        // Resume intro pacing
+        String introPacingPath = 'assets/audio/pacing/100.mp3';
+        _audioManager.playPacingLoop(introPacingPath);
         _stopBlinking();
-        debugPrint('Intro audio resumed');
+        debugPrint('Intro audio and pacing resumed');
       }
-    } else {
+    } 
+    else {
       if (_audioManager.isPlaying) {
         await _audioManager.pause();
         _startBlinking();
@@ -1523,7 +1578,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                                 child: Column(
                                   children: [
                                     const Text(
-                                      "Pacing",
+                                      "Speed",
                                       style: TextStyle(
                                         color: Colors.white70,
                                         fontSize: 16,
@@ -1775,7 +1830,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                                 child: Column(
                                   children: [
                                     const Text(
-                                      "Pacing",
+                                      "Speed",
                                       style: TextStyle(
                                         color: Colors.white70,
                                         fontSize: 16,
