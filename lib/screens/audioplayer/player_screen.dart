@@ -84,6 +84,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
   List<Duration> _pacingSegmentEnds = [];
   bool _useSocket = false;
 
+  // Distance tracking variables
+  double _totalDistanceKm = 0.0;
+  Timer? _distanceUpdateTimer;
+
   late StreamSubscription<Duration> _positionSubscription;
   late StreamSubscription<Duration?> _durationSubscription;
   late StreamSubscription<PlayerState> _playerStateSubscription;
@@ -125,6 +129,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _initializePlayer();
     _initializeService();
     _initializeDetourTimestamps(); // Initialize detour timestamps
+    _initializeDistanceTracking(); // Initialize distance tracking
 
     // Initialize pedometer for iOS
     if (Platform.isIOS) {
@@ -198,6 +203,23 @@ class _PlayerScreenState extends State<PlayerScreen> {
   void _handlePedometerError(error) {
     debugPrint('Pedometer error: $error');
     _pedometerData.value = null;
+  }
+
+  void _initializeDistanceTracking() {
+    // Initialize distance tracking with periodic updates
+    _distanceUpdateTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      _updateDistance();
+    });
+  }
+
+  void _updateDistance() {
+    if (_currentSpeedKmph != null &&
+        _audioManager.isPlaying &&
+        !_isPlayingIntro) {
+      // Convert speed to distance per second and add to total
+      double distancePerSecond = _currentSpeedKmph! / 3600; // km per second
+      _totalDistanceKm += distancePerSecond;
+    }
   }
 
   String get _activeServiceLabel {
@@ -1205,6 +1227,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _blinkTimer?.cancel();
     _unlockTimer?.cancel();
     _dataSubscription?.cancel();
+    _distanceUpdateTimer?.cancel();
 
     _audioManager.dispose();
     _positionSubscription.cancel();
@@ -1453,70 +1476,144 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   const SizedBox(height: 20),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                    child: Row(
+                    child: Column(
                       children: [
-                        Expanded(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            padding: const EdgeInsets.all(10),
-                            child: Column(
-                              children: [
-                                const Text(
-                                  "Heart Rate",
-                                  style: TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                        // First row - Heart Rate and Pacing
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(10),
                                 ),
-                                const SizedBox(height: 5),
-                                Text(
-                                  _currentHR != null ? "$_currentHR bpm" : "--",
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                padding: const EdgeInsets.all(10),
+                                child: Column(
+                                  children: [
+                                    const Text(
+                                      "Heart Rate",
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 5),
+                                    Text(
+                                      _currentHR != null
+                                          ? "$_currentHR bpm"
+                                          : "--",
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ],
+                              ),
                             ),
-                          ),
+                            const SizedBox(width: 20),
+                            Expanded(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                padding: const EdgeInsets.all(10),
+                                child: Column(
+                                  children: [
+                                    const Text(
+                                      "Pacing",
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 5),
+                                    Text(
+                                      _currentSpeedKmph != null
+                                          ? "${_currentSpeedKmph!.toStringAsFixed(1)} km/h"
+                                          : "--",
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 20),
-                        Expanded(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            padding: const EdgeInsets.all(10),
-                            child: Column(
-                              children: [
-                                const Text(
-                                  "Pacing",
-                                  style: TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                        const SizedBox(height: 15),
+                        // Second row - Live Score and Distance
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(10),
                                 ),
-                                const SizedBox(height: 5),
-                                Text(
-                                  _currentSpeedKmph != null
-                                      ? "${_currentSpeedKmph!.toStringAsFixed(1)} km/h"
-                                      : "--",
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                padding: const EdgeInsets.all(10),
+                                child: Column(
+                                  children: [
+                                    const Text(
+                                      "Live Score",
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 5),
+                                    Text(
+                                      "$_currentScore",
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ],
+                              ),
                             ),
-                          ),
+                            const SizedBox(width: 20),
+                            Expanded(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                padding: const EdgeInsets.all(10),
+                                child: Column(
+                                  children: [
+                                    const Text(
+                                      "Distance",
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 5),
+                                    Text(
+                                      "${_totalDistanceKm.toStringAsFixed(2)} km",
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -1609,53 +1706,225 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   const Spacer(flex: 1),
                 ],
               ),
-            ] else
-              Container(
-                color: Colors.black,
-                alignment: Alignment.center,
-                child: GestureDetector(
-                  onLongPressStart: (_) => _startUnlockHold(),
-                  onLongPressEnd: (_) => _cancelUnlockHold(),
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      SizedBox(
-                        width: 120,
-                        height: 120,
-                        child: CircularProgressIndicator(
-                          value: _unlockProgress,
-                          strokeWidth: 8,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            Colors.purple,
-                          ),
-                          backgroundColor: Colors.white12,
-                        ),
-                      ),
-                      Container(
-                        width: 90,
-                        height: 90,
-                        decoration: BoxDecoration(
-                          color: Colors.purple,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.purple.withOpacity(0.4),
-                              blurRadius: 20,
-                              spreadRadius: 5,
+            ],
+            // Semi-transparent lock overlay
+            if (_isLocked)
+              Stack(
+                children: [
+                  // Semi-transparent overlay
+                  Container(
+                    color: Colors.black.withOpacity(0.7),
+                  ),
+                  // Show the four info boxes
+                  Positioned(
+                    bottom: 160,
+                    left: 20,
+                    right: 20,
+                    child: Column(
+                      children: [
+                        // First row - Heart Rate and Pacing
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: Colors.white.withOpacity(0.3),
+                                    width: 1,
+                                  ),
+                                ),
+                                padding: const EdgeInsets.all(10),
+                                child: Column(
+                                  children: [
+                                    const Text(
+                                      "Heart Rate",
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 5),
+                                    Text(
+                                      _currentHR != null
+                                          ? "$_currentHR bpm"
+                                          : "--",
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 20),
+                            Expanded(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: Colors.white.withOpacity(0.3),
+                                    width: 1,
+                                  ),
+                                ),
+                                padding: const EdgeInsets.all(10),
+                                child: Column(
+                                  children: [
+                                    const Text(
+                                      "Pacing",
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 5),
+                                    Text(
+                                      _currentSpeedKmph != null
+                                          ? "${_currentSpeedKmph!.toStringAsFixed(1)} km/h"
+                                          : "--",
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
                           ],
                         ),
-                        child: const Center(
-                          child: Icon(
-                            Icons.lock_open,
-                            color: Colors.white,
-                            size: 48,
-                          ),
+                        const SizedBox(height: 15),
+                        // Second row - Live Score and Distance
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: Colors.white.withOpacity(0.3),
+                                    width: 1,
+                                  ),
+                                ),
+                                padding: const EdgeInsets.all(10),
+                                child: Column(
+                                  children: [
+                                    const Text(
+                                      "Live Score",
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 5),
+                                    Text(
+                                      "$_currentScore",
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 20),
+                            Expanded(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: Colors.white.withOpacity(0.3),
+                                    width: 1,
+                                  ),
+                                ),
+                                padding: const EdgeInsets.all(10),
+                                child: Column(
+                                  children: [
+                                    const Text(
+                                      "Distance",
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 5),
+                                    Text(
+                                      "${_totalDistanceKm.toStringAsFixed(2)} km",
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
+                  // Center unlock button
+                  Center(
+                    child: GestureDetector(
+                      onLongPressStart: (_) => _startUnlockHold(),
+                      onLongPressEnd: (_) => _cancelUnlockHold(),
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          SizedBox(
+                            width: 120,
+                            height: 120,
+                            child: CircularProgressIndicator(
+                              value: _unlockProgress,
+                              strokeWidth: 8,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.purple,
+                              ),
+                              backgroundColor: Colors.white12,
+                            ),
+                          ),
+                          Container(
+                            width: 90,
+                            height: 90,
+                            decoration: BoxDecoration(
+                              color: Colors.purple,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.purple.withOpacity(0.4),
+                                  blurRadius: 20,
+                                  spreadRadius: 5,
+                                ),
+                              ],
+                            ),
+                            child: const Center(
+                              child: Icon(
+                                Icons.lock_open,
+                                color: Colors.white,
+                                size: 48,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
           ],
         ),

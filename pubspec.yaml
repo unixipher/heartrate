@@ -129,6 +129,7 @@ flutter:
     - assets/audio/smm/detour/4/
     - assets/audio/smm/detour/5/
     - assets/audio/luther/
+    - assets/audio/detour/
     - shorebird.yaml
   fonts:
     - family: Thewitcher
