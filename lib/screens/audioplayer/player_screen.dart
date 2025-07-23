@@ -85,8 +85,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
   bool _useSocket = false;
 
   // Distance tracking variables
+  // Distance tracking variables
   double _totalDistanceKm = 0.0;
-  Timer? _distanceUpdateTimer;
+  double _initialPedometerDistance = -1.0;
 
   late StreamSubscription<Duration> _positionSubscription;
   late StreamSubscription<Duration?> _durationSubscription;
@@ -129,7 +130,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _initializePlayer();
     _initializeService();
     _initializeDetourTimestamps(); // Initialize detour timestamps
-    _initializeDistanceTracking(); // Initialize distance tracking
 
     // Initialize pedometer for iOS
     if (Platform.isIOS) {
@@ -182,8 +182,24 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   void _handlePedometerUpdate(CMPedometerData data) {
-    debugPrint('Pedometer data: ${data.numberOfSteps} steps');
+    debugPrint(
+        'Pedometer data: ${data.numberOfSteps} steps, distance: ${data.distance}m');
     _pedometerData.value = data;
+
+    // --- START: NEW DISTANCE LOGIC ---
+    if (data.distance != null) {
+      if (_initialPedometerDistance < 0) {
+        // Set the initial distance on the first reading
+        _initialPedometerDistance = data.distance!;
+      }
+
+      // Calculate distance covered since the session started
+      final sessionDistanceMeters = data.distance! - _initialPedometerDistance;
+      setState(() {
+        _totalDistanceKm = sessionDistanceMeters / 1000.0;
+      });
+    }
+    // --- END: NEW DISTANCE LOGIC ---
 
     // Calculate speed from current pace
     double? currentPace = data.currentPace; // seconds per meter
@@ -203,23 +219,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
   void _handlePedometerError(error) {
     debugPrint('Pedometer error: $error');
     _pedometerData.value = null;
-  }
-
-  void _initializeDistanceTracking() {
-    // Initialize distance tracking with periodic updates
-    _distanceUpdateTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      _updateDistance();
-    });
-  }
-
-  void _updateDistance() {
-    if (_currentSpeedKmph != null &&
-        _audioManager.isPlaying &&
-        !_isPlayingIntro) {
-      // Convert speed to distance per second and add to total
-      double distancePerSecond = _currentSpeedKmph! / 3600; // km per second
-      _totalDistanceKm += distancePerSecond;
-    }
   }
 
   String get _activeServiceLabel {
@@ -1273,7 +1272,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _blinkTimer?.cancel();
     _unlockTimer?.cancel();
     _dataSubscription?.cancel();
-    _distanceUpdateTimer?.cancel();
 
     _audioManager.dispose();
     _positionSubscription.cancel();
