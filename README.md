@@ -1,4 +1,4 @@
-# Aexlrt (testingheartrate)
+# Aexlrt
 
 A Flutter app for interactive audio-based fitness adventures, featuring story-driven challenges, heart rate tracking, advanced analytics, and seamless user experience. This documentation covers all technical details, APIs, and app workflows to help developers and maintainers onboard and contribute efficiently.
 
