@@ -85,7 +85,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
   bool _useSocket = false;
 
   // Distance tracking variables
-  // Distance tracking variables
   double _totalDistanceKm = 0.0;
   double _initialPedometerDistance = -1.0;
 
@@ -434,7 +433,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
   }
 
-  void _initializeService() async {
+  Future<void> _initializeService() async {
     _socketService = SocketService(
       onLoadingChanged: (isLoading) => debugPrint('Socket loading: $isLoading'),
       onErrorChanged: (error) => debugPrint('Socket error: $error'),
@@ -476,6 +475,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final int zoneId = currentAudio['zoneId'];
     final currentHeartRate = _currentHR;
 
+    // Bounds for pausing/resuming audio and early detour exit
     int lowerBound = 0, upperBound = 0;
     switch (zoneId) {
       case 1:
@@ -489,6 +489,23 @@ class _PlayerScreenState extends State<PlayerScreen> {
       case 3:
         lowerBound = (72 + (_maxHR! - 72) * 0.55).toInt();
         upperBound = (72 + (_maxHR! - 72) * 0.95).toInt();
+        break;
+    }
+
+    // Bounds for detour scoring and audio triggers
+    int detourLowerBound = 0, detourUpperBound = 0;
+    switch (zoneId) {
+      case 1:
+        detourLowerBound = (72 + (_maxHR! - 72) * 0.5).toInt();
+        detourUpperBound = (72 + (_maxHR! - 72) * 0.6).toInt();
+        break;
+      case 2:
+        detourLowerBound = (72 + (_maxHR! - 72) * 0.6).toInt();
+        detourUpperBound = (72 + (_maxHR! - 72) * 0.7).toInt();
+        break;
+      case 3:
+        detourLowerBound = (72 + (_maxHR! - 72) * 0.7).toInt();
+        detourUpperBound = (72 + (_maxHR! - 72) * 0.8).toInt();
         break;
     }
 
@@ -512,13 +529,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
         });
       }
     } else {
-      // --- ADD THIS NEW BLOCK ---
-      // If we are in a detour and the user gets back in zone, end it early.
-      if (_isInDetour) {
+      // Check for early detour exit using detour bounds
+      if (_isInDetour && currentHeartRate != null &&
+          currentHeartRate >= detourLowerBound && currentHeartRate <= detourUpperBound) {
         _endDetourEarly();
         return; // Exit to prevent resuming music immediately
       }
-      // --- END OF NEW BLOCK ---
       if (!_audioManager.isPlaying && _introCompleted && !_isInDetour) {
         _audioManager.resume();
         _audioManager.resumePacing();
@@ -555,6 +571,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
 
     if (speedKmph >= lowerBound && speedKmph <= upperBound) {
+      // Check for early detour exit using the same bounds
+      if (_isInDetour) {
+        _endDetourEarly();
+        return; // Exit to prevent resuming music immediately
+      }
       if (!_audioManager.isPlaying && _introCompleted && !_isInDetour) {
         _audioManager.resume();
         _audioManager.resumePacing();
