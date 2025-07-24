@@ -198,22 +198,22 @@ class _PlayerScreenState extends State<PlayerScreen> {
         _totalDistanceKm = sessionDistanceMeters / 1000.0;
       });
     }
-    // --- END: NEW DISTANCE LOGIC ---
 
-    // Calculate speed from current pace
-    double? currentPace = data.currentPace; // seconds per meter
-    if (currentPace != null) {
-      double speedKmph = 0.0;
-      if (currentPace > 0) {
-        double speedMs = 1 / currentPace; // meters per second
-        speedKmph = speedMs * 3.6; // km/h
-      }
-      _handleSpeedUpdate(speedKmph);
-      if (_socketService != null) {
-        _socketService!.sendSpeed(speedKmph);
-        debugPrint('Sent Pedometer speed data to server: $speedKmph km/h');
-      }
+    // --- START: MODIFIED SPEED LOGIC ---
+    double speedKmph = 0.0; // Default to 0 when no pace
+    if (data.currentPace != null && data.currentPace! > 0) {
+      double speedMs = 1 / data.currentPace!; // meters per second
+      speedKmph = speedMs * 3.6; // km/h
     }
+    setState(() {
+      _currentSpeedKmph = speedKmph; // Update speed, set to 0 if no pace
+    });
+    _handleSpeedUpdate(speedKmph);
+    if (_socketService != null) {
+      _socketService!.sendSpeed(speedKmph);
+      debugPrint('Sent Pedometer speed data to server: $speedKmph km/h');
+    }
+    // --- END: MODIFIED SPEED LOGIC ---
   }
 
   void _handlePedometerError(error) {
@@ -366,7 +366,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
           introAudioPath = 'assets/audio/aradium/intro.wav';
       }
 
-      // --- MODIFICATION START: Removed 'await' to allow concurrent playback ---
       _audioManager.playIntro(introAudioPath, volume: 1.0);
       debugPrint('Playing intro audio: $introAudioPath');
 
@@ -374,7 +373,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
       String introPacingPath = 'assets/audio/pacing/100.mp3';
       _audioManager.playPacingLoop(introPacingPath);
       debugPrint('Playing intro pacing audio: $introPacingPath');
-      // --- MODIFICATION END ---
     } catch (e) {
       debugPrint('Error playing intro befell: $e');
       _startMainAudio();
@@ -475,7 +473,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final int zoneId = currentAudio['zoneId'];
     final currentHeartRate = _currentHR;
 
-    // Bounds for pausing/resuming audio and early detour exit
+    // Bounds for pausing/resuming audio
     int lowerBound = 0, upperBound = 0;
     switch (zoneId) {
       case 1:
@@ -492,7 +490,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         break;
     }
 
-    // Bounds for detour scoring and audio triggers
+    // Bounds for detour scoring and early exit
     int detourLowerBound = 0, detourUpperBound = 0;
     switch (zoneId) {
       case 1:
@@ -530,8 +528,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
       }
     } else {
       // Check for early detour exit using detour bounds
-      if (_isInDetour && currentHeartRate != null &&
-          currentHeartRate >= detourLowerBound && currentHeartRate <= detourUpperBound) {
+      if (_isInDetour &&
+          currentHeartRate != null &&
+          currentHeartRate >= detourLowerBound &&
+          currentHeartRate <= detourUpperBound) {
         _endDetourEarly();
         return; // Exit to prevent resuming music immediately
       }
@@ -772,12 +772,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   Future<void> _handleAudioCompletion() async {
-    // ADD THIS GUARD CLAUSE
     if (_isCompleting) return;
     setState(() {
       _isCompleting = true;
     });
-    // ---
 
     _consecutiveChallengeCompletions++;
 
@@ -788,8 +786,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
       challengeCompletionScore = 20 * _consecutiveChallengeCompletions;
     }
 
-    _currentScore += challengeCompletionScore;
-    _challengeScores.add(challengeCompletionScore);
+    setState(() {
+      _currentScore += challengeCompletionScore;
+      _challengeScores.add(challengeCompletionScore);
+    });
 
     debugPrint(
       'Challenge completed! Score +$challengeCompletionScore (Challenge #$_consecutiveChallengeCompletions). Total: $_currentScore',
@@ -915,22 +915,17 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   void _handlePositionUpdate(Duration position) {
-    // This is now the main router for updates based on game state
     if (_introCompleted && !_isPlayingIntro) {
-      // ADD THIS BLOCK HERE
-      // This check now runs continuously with the audio timer.
       if (!_isInDetour &&
           _outOfZoneCount >= 3 &&
           position >= const Duration(minutes: 4, seconds: 20)) {
         _startDetour();
       }
-      // END of new block
       if (_isInDetour) {
         _checkForDetourAudio(position);
       } else {
         _checkForOverlayTrigger(position);
       }
-      // Pacing is checked in both modes, but with different rules.
       _checkForPacingAudio(position);
     }
   }
@@ -1003,12 +998,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
           // Apply scoring based on whether the user is in or out of zone
           if (isOutOfZone) {
             // User is out of zone: -1 point
-            _currentScore -= 1;
+            setState(() {
+              _currentScore -= 1;
+            });
             debugPrint(
                 'Score -1: Out of zone during detour. Total: $_currentScore');
           } else {
             // User is in zone: +5 points
-            _currentScore += 5;
+            setState(() {
+              _currentScore += 5;
+            });
             debugPrint(
                 'Score +5: In zone during detour. Total: $_currentScore');
             debugPrint("Skipping detour audio d$i because user is in zone.");
@@ -1022,7 +1021,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
             : isLastAudio
                 ? 'dstop'
                 : 'd$i';
-        // Update the switch statement with the new indexed path
         switch (storyId) {
           case 1:
             detourPath =
@@ -1055,7 +1053,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   void _checkForPacingAudio(Duration position) {
-    // Add this guard clause to disable normal pacing during a detour
     if (_isInDetour) return;
 
     if (!_currentAudioStarted) return;
@@ -1088,7 +1085,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   void _checkForOverlayTrigger(Duration position) {
-    // This function is only called when not in a detour.
     if (_isInDetour) return;
 
     final currentAudio = widget.audioData[_currentAudioIndex];
@@ -1096,12 +1092,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
     String overlayType = 'A'; // Assume in zone, or if no data is available
 
     // --- Platform-specific decision logic ---
-    // For iOS, prioritize Heart Rate. If not available, fall back to Pedometer speed.
     if (Platform.isIOS) {
       bool hrAvailable = _currentHR != null && _maxHR != null;
       bool speedAvailable = _currentSpeedKmph != null;
 
-      // 1. Prioritize Heart Rate
       if (hrAvailable) {
         final int zoneId = currentAudio['zoneId'];
         int lowerBound = 0, upperBound = 0;
@@ -1125,9 +1119,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         } else {
           debugPrint("Outside zone & Overlay Type: $overlayType");
         }
-      }
-      // 2. Fallback to Pedometer Speed
-      else if (speedAvailable) {
+      } else if (speedAvailable) {
         final int zoneId = currentAudio['zoneId'];
         double lowerBound, upperBound;
         switch (zoneId) {
@@ -1155,9 +1147,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           debugPrint("Outside zone & Overlay Type: $overlayType");
         }
       }
-    }
-    // For Android, use GPS speed only.
-    else if (Platform.isAndroid) {
+    } else if (Platform.isAndroid) {
       if (_currentSpeedKmph != null) {
         final int zoneId = currentAudio['zoneId'];
         double lowerBound, upperBound;
@@ -1233,14 +1223,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
         totalNudges++;
         currentTrackNudges++;
 
-        // Scoring logic now uses the correctly determined overlayType
-        // if (overlayType == 'A') {
-        //   _currentScore += 5;
-        //   debugPrint('Score +5: In zone at timestamp. Total: $_currentScore');
-        // } else {
-        //   _currentScore -= 1;
-        //   debugPrint(
-        //       'Score -1: Outside zone at timestamp. Total: $_currentScore');
         bool inZone = false;
         if (Platform.isIOS && _currentHR != null && _maxHR != null) {
           inZone = (_currentHR! <= upperBound && _currentHR! >= lowerBound);
@@ -1250,21 +1232,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
         }
 
         if (inZone) {
-          _currentScore += 5;
           setState(() {
-            _currentScore = _currentScore;
+            _currentScore += 5;
           });
           debugPrint('Score +5: In zone at overlay, total: $_currentScore');
         } else {
-          _currentScore -= 1;
           setState(() {
-            _currentScore = _currentScore;
+            _currentScore -= 1;
           });
           debugPrint(
               'Score -1: Outside zone at overlay, total: $_currentScore');
         }
 
-        // MODIFICATION: Increment out-of-zone count here
         if (!_isInDetour && !inZone) {
           setState(() {
             _outOfZoneCount++;
@@ -1273,8 +1252,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         }
 
         String overlayPath;
-        const int overlayIndex =
-            0; // Use the same overlay (index 0) for all challenges
+        const int overlayIndex = 0;
         switch (storyId) {
           case 1:
             overlayPath =
@@ -1316,7 +1294,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   void _togglePlayPause() async {
-    // Prevent play/pause during a detour
     if (_isInDetour) {
       _showCenterNotification('Cannot pause during detour', seconds: 2);
       return;
@@ -1325,12 +1302,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
     if (_isPlayingIntro) {
       if (_audioManager.introPlayer.playing) {
         await _audioManager.introPlayer.pause();
-        await _audioManager.stopPacing(); // Pause intro pacing
+        await _audioManager.stopPacing();
         _startBlinking();
         debugPrint('Intro audio and pacing paused');
       } else {
         await _audioManager.introPlayer.play();
-        // Resume intro pacing
         String introPacingPath = 'assets/audio/pacing/100.mp3';
         _audioManager.playPacingLoop(introPacingPath);
         _stopBlinking();
@@ -1748,7 +1724,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     ),
                   ),
                   const Spacer(flex: 2),
-                  // Hide progress bar during detour
                   if (!_isInDetour) ...[
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1776,7 +1751,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
                                 overlayRadius: 28.0,
                               ),
                             ),
-                            // Disable slider seeking during detour
                             child: Slider(
                               value: _isPlayingIntro
                                   ? _introPosition.inSeconds.toDouble()
@@ -1836,22 +1810,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 ],
               ),
             ],
-            // Semi-transparent lock overlay
             if (_isLocked)
               Stack(
                 children: [
-                  // Semi-transparent overlay
                   Container(
                     color: Colors.black.withOpacity(0.7),
                   ),
-                  // Show the four info boxes
                   Positioned(
                     bottom: 160,
                     left: 20,
                     right: 20,
                     child: Column(
                       children: [
-                        // First row - Heart Rate and Pacing
                         Row(
                           children: [
                             Expanded(
@@ -1930,7 +1900,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
                           ],
                         ),
                         const SizedBox(height: 15),
-                        // Second row - Live Score and Distance
                         Row(
                           children: [
                             Expanded(
@@ -2007,7 +1976,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
                       ],
                     ),
                   ),
-                  // Center unlock button
                   Center(
                     child: GestureDetector(
                       onLongPressStart: (_) => _startUnlockHold(),
