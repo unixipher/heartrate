@@ -1097,11 +1097,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
             upperBound = (72 + (_maxHR! - 72) * 0.8).toInt();
             break;
         }
-        overlayType = (_currentHR! >= lowerBound && _currentHR! <= upperBound)
-            ? 'A'
-            : 'S';
-        debugPrint(
-            "Decision based on Heart Rate. In zone: ${overlayType == 'A'}");
+        overlayType = (_currentHR! <= upperBound) ? 'A' : 'S';
+        if (_currentHR! <= upperBound && _currentHR! >= lowerBound) {
+          debugPrint("Inside zone & Overlay Type: $overlayType");
+        } else {
+          debugPrint("Outside zone & Overlay Type: $overlayType");
+        }
       }
       // 2. Fallback to Pedometer Speed
       else if (speedAvailable) {
@@ -1124,12 +1125,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
             lowerBound = 0.0;
             upperBound = 0.0;
         }
-        overlayType = (_currentSpeedKmph! >= lowerBound &&
-                _currentSpeedKmph! <= upperBound)
-            ? 'A'
-            : 'S';
-        debugPrint(
-            "Decision based on Pedometer Speed. In zone: ${overlayType == 'A'}");
+        overlayType = (_currentSpeedKmph! <= upperBound) ? 'A' : 'S';
+        if (_currentSpeedKmph! <= upperBound &&
+            _currentSpeedKmph! >= lowerBound) {
+          debugPrint("Inside zone & Overlay Type: $overlayType");
+        } else {
+          debugPrint("Outside zone & Overlay Type: $overlayType");
+        }
       }
     }
     // For Android, use GPS speed only.
@@ -1154,12 +1156,52 @@ class _PlayerScreenState extends State<PlayerScreen> {
             lowerBound = 0.0;
             upperBound = 0.0;
         }
-        overlayType = (_currentSpeedKmph! >= lowerBound &&
-                _currentSpeedKmph! <= upperBound)
-            ? 'A'
-            : 'S';
-        debugPrint(
-            "Decision based on GPS Speed. In zone: ${overlayType == 'A'}");
+        overlayType = (_currentSpeedKmph! <= upperBound) ? 'A' : 'S';
+        if (_currentSpeedKmph! <= upperBound &&
+            _currentSpeedKmph! >= lowerBound) {
+          debugPrint("Inside zone & Overlay Type: $overlayType");
+        } else {
+          debugPrint("Outside zone & Overlay Type: $overlayType");
+        }
+      }
+    }
+
+    // Define lowerBound and upperBound for scoring logic
+    double lowerBound = 0.0, upperBound = 0.0;
+    if (Platform.isIOS && _maxHR != null) {
+      final int zoneId = currentAudio['zoneId'];
+      switch (zoneId) {
+        case 1:
+          lowerBound = (72 + (_maxHR! - 72) * 0.5);
+          upperBound = (72 + (_maxHR! - 72) * 0.6);
+          break;
+        case 2:
+          lowerBound = (72 + (_maxHR! - 72) * 0.6);
+          upperBound = (72 + (_maxHR! - 72) * 0.7);
+          break;
+        case 3:
+          lowerBound = (72 + (_maxHR! - 72) * 0.7);
+          upperBound = (72 + (_maxHR! - 72) * 0.8);
+          break;
+      }
+    } else if (Platform.isAndroid && _currentSpeedKmph != null) {
+      final int zoneId = currentAudio['zoneId'];
+      switch (zoneId) {
+        case 1:
+          lowerBound = 4.0;
+          upperBound = 6.0;
+          break;
+        case 2:
+          lowerBound = 6.01;
+          upperBound = 8.0;
+          break;
+        case 3:
+          lowerBound = 8.01;
+          upperBound = 12.0;
+          break;
+        default:
+          lowerBound = 0.0;
+          upperBound = 0.0;
       }
     }
 
@@ -1170,21 +1212,42 @@ class _PlayerScreenState extends State<PlayerScreen> {
         currentTrackNudges++;
 
         // Scoring logic now uses the correctly determined overlayType
-        if (overlayType == 'A') {
+        // if (overlayType == 'A') {
+        //   _currentScore += 5;
+        //   debugPrint('Score +5: In zone at timestamp. Total: $_currentScore');
+        // } else {
+        //   _currentScore -= 1;
+        //   debugPrint(
+        //       'Score -1: Outside zone at timestamp. Total: $_currentScore');
+        bool inZone = false;
+        if (Platform.isIOS && _currentHR != null && _maxHR != null) {
+          inZone = (_currentHR! <= upperBound && _currentHR! >= lowerBound);
+        } else if (Platform.isAndroid && _currentSpeedKmph != null) {
+          inZone = (_currentSpeedKmph! <= upperBound && _currentSpeedKmph! >= lowerBound);
+        }
+
+        if (inZone) {
           _currentScore += 5;
-          debugPrint('Score +5: In zone at timestamp. Total: $_currentScore');
+          setState(() {
+            _currentScore = _currentScore;
+          });
+          debugPrint(
+              'Score +5: In zone at overlay, total: $_currentScore');
         } else {
           _currentScore -= 1;
+          setState(() {
+            _currentScore = _currentScore;
+          });
           debugPrint(
-              'Score -1: Outside zone at timestamp. Total: $_currentScore');
+              'Score -1: Outside zone at overlay, total: $_currentScore');
+        }
 
-          // MODIFICATION: Increment out-of-zone count here
-          if (!_isInDetour) {
-            setState(() {
-              _outOfZoneCount++;
-              debugPrint('Out of zone at overlay, count: $_outOfZoneCount');
-            });
-          }
+        // MODIFICATION: Increment out-of-zone count here
+        if (!_isInDetour && !inZone) {
+          setState(() {
+            _outOfZoneCount++;
+            debugPrint('Out of zone at overlay, count: $_outOfZoneCount');
+          });
         }
 
         String overlayPath;
