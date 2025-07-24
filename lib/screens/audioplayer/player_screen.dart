@@ -203,12 +203,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
     // Calculate speed from current pace
     double? currentPace = data.currentPace; // seconds per meter
-    if (currentPace != null && currentPace > 0) {
-      double speedMs = 1 / currentPace; // meters per second
-      double speedKmph = speedMs * 3.6; // km/h
+    if (currentPace != null) {
+      double speedKmph = 0.0;
+      if (currentPace > 0) {
+        double speedMs = 1 / currentPace; // meters per second
+        speedKmph = speedMs * 3.6; // km/h
+      }
       _handleSpeedUpdate(speedKmph);
-
-      // Send speed data to socket server
       if (_socketService != null) {
         _socketService!.sendSpeed(speedKmph);
         debugPrint('Sent Pedometer speed data to server: $speedKmph km/h');
@@ -1223,7 +1224,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
         if (Platform.isIOS && _currentHR != null && _maxHR != null) {
           inZone = (_currentHR! <= upperBound && _currentHR! >= lowerBound);
         } else if (Platform.isAndroid && _currentSpeedKmph != null) {
-          inZone = (_currentSpeedKmph! <= upperBound && _currentSpeedKmph! >= lowerBound);
+          inZone = (_currentSpeedKmph! <= upperBound &&
+              _currentSpeedKmph! >= lowerBound);
         }
 
         if (inZone) {
@@ -1231,8 +1233,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           setState(() {
             _currentScore = _currentScore;
           });
-          debugPrint(
-              'Score +5: In zone at overlay, total: $_currentScore');
+          debugPrint('Score +5: In zone at overlay, total: $_currentScore');
         } else {
           _currentScore -= 1;
           setState(() {
