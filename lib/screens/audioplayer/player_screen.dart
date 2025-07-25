@@ -1098,7 +1098,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
     final currentAudio = widget.audioData[_currentAudioIndex];
     final int storyId = currentAudio['storyId'];
-    String overlayType = 'A'; // Assume in zone, or if no data is available
+    String overlayType; // No longer default to 'A'
 
     // Define bounds for scoring and overlay logic
     double lowerBound = 0.0, upperBound = 0.0;
@@ -1121,9 +1121,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
           upperBound = (72 + (_maxHR! - 72) * 0.8);
           break;
       }
+      // Scoring is based on being between lower and upper bounds.
       inZone = (_currentHR! <= upperBound && _currentHR! >= lowerBound);
-      overlayType = inZone ? 'A' : 'S';
-      debugPrint("Heart rate based - Inside zone: $inZone, Overlay Type: $overlayType");
+      // **MODIFIED LOGIC**: Overlay 'S' only plays if HR is above the upper bound.
+      overlayType = (_currentHR! > upperBound) ? 'S' : 'A';
+      debugPrint("Heart rate based - Inside zone (for scoring): $inZone, Overlay Type: $overlayType");
     }
     // Fallback to speed for iOS if heart rate unavailable, or use speed for Android
     else if ((Platform.isIOS && _currentHR == null && _currentSpeedKmph != null) || Platform.isAndroid) {
@@ -1145,9 +1147,15 @@ class _PlayerScreenState extends State<PlayerScreen> {
           lowerBound = 0.0;
           upperBound = 0.0;
       }
+      // Scoring is based on being between lower and upper bounds.
       inZone = (_currentSpeedKmph! <= upperBound && _currentSpeedKmph! >= lowerBound);
-      overlayType = inZone ? 'A' : 'S';
-      debugPrint("Speed based - Inside zone: $inZone, Overlay Type: $overlayType");
+      // **MODIFIED LOGIC**: Overlay 'S' only plays if speed is above the upper bound.
+      overlayType = (_currentSpeedKmph! > upperBound) ? 'S' : 'A';
+      debugPrint("Speed based - Inside zone (for scoring): $inZone, Overlay Type: $overlayType");
+    } else {
+      // Default case if no sensor data is available
+      overlayType = 'A';
+      inZone = true; // Assume in zone for scoring if no data
     }
 
     for (int i = 0; i < _timestamps.length; i++) {
@@ -1156,7 +1164,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         totalNudges++;
         currentTrackNudges++;
 
-        // Apply scoring based on inZone status
+        // Apply scoring based on inZone status (between lower and upper bounds)
         if (inZone) {
           setState(() {
             _currentScore += 5;
