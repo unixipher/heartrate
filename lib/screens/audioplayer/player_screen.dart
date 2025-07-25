@@ -205,10 +205,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
       double speedMs = 1 / data.currentPace!; // meters per second
       speedKmph = speedMs * 3.6; // km/h
     }
-    setState(() {
-      _currentSpeedKmph = speedKmph; // Update speed, set to 0 if no pace
-    });
-    _handleSpeedUpdate(speedKmph);
+  setState(() {
+    _currentSpeedKmph = speedKmph; // Update speed, set to 0 if no pace
+  });
+
+    // Only update speed-based logic if heart rate is not available on iOS
+    if (!Platform.isIOS || _currentHR == null) {
+      _handleSpeedUpdate(speedKmph);
+    }
     if (_socketService != null) {
       _socketService!.sendSpeed(speedKmph);
       debugPrint('Sent Pedometer speed data to server: $speedKmph km/h');
@@ -471,7 +475,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
     final currentAudio = widget.audioData[_currentAudioIndex];
     final int zoneId = currentAudio['zoneId'];
-    final currentHeartRate = _currentHR;
 
     // Bounds for pausing/resuming audio
     int lowerBound = 0, upperBound = 0;
@@ -507,38 +510,40 @@ class _PlayerScreenState extends State<PlayerScreen> {
         break;
     }
 
-    if (currentHeartRate != null &&
-        (currentHeartRate < lowerBound || currentHeartRate > upperBound)) {
-      if (_audioManager.isPlaying && !_isPlayingIntro && !_isInDetour) {
-        Future.delayed(const Duration(seconds: 10), () {
-          if (_currentHR != null &&
-              (_currentHR! < lowerBound || _currentHR! > upperBound) &&
-              !_isPlayingIntro &&
-              !_isInDetour) {
-            _audioManager.pause();
-            if (_currentHR! < lowerBound) {
-              _playLowerOutOfRangeAudio('heart');
-            } else {
-              _playUpperOutOfRangeAudio('heart');
+    // Always use heart rate for iOS when available
+    if (Platform.isIOS && _currentHR != null) {
+      if (_currentHR! < lowerBound || _currentHR! > upperBound) {
+        if (_audioManager.isPlaying && !_isPlayingIntro && !_isInDetour) {
+          Future.delayed(const Duration(seconds: 10), () {
+            if (_currentHR != null &&
+                (_currentHR! < lowerBound || _currentHR! > upperBound) &&
+                !_isPlayingIntro &&
+                !_isInDetour) {
+              _audioManager.pause();
+              if (_currentHR! < lowerBound) {
+                _playLowerOutOfRangeAudio('heart');
+              } else {
+                _playUpperOutOfRangeAudio('heart');
+              }
+              _showCenterNotification('Music paused');
+              debugPrint('Music paused due to heart rate out of range');
             }
-            _showCenterNotification('Music paused');
-            debugPrint('Music paused due to heart rate out of range');
-          }
-        });
-      }
-    } else {
-      // Check for early detour exit using detour bounds
-      if (_isInDetour &&
-          currentHeartRate != null &&
-          currentHeartRate >= detourLowerBound &&
-          currentHeartRate <= detourUpperBound) {
-        _endDetourEarly();
-        return; // Exit to prevent resuming music immediately
-      }
-      if (!_audioManager.isPlaying && _introCompleted && !_isInDetour) {
-        _audioManager.resume();
-        _audioManager.resumePacing();
-        debugPrint('Music resumed due to heart rate in range');
+          });
+        }
+      } else {
+        // Check for early detour exit using detour bounds
+        if (_isInDetour &&
+            _currentHR != null &&
+            _currentHR! >= detourLowerBound &&
+            _currentHR! <= detourUpperBound) {
+          _endDetourEarly();
+          return; // Exit to prevent resuming music immediately
+        }
+        if (!_audioManager.isPlaying && _introCompleted && !_isInDetour) {
+          _audioManager.resume();
+          _audioManager.resumePacing();
+          debugPrint('Music resumed due to heart rate in range');
+        }
       }
     }
   }
@@ -554,51 +559,54 @@ class _PlayerScreenState extends State<PlayerScreen> {
     double lowerBound, upperBound;
     switch (zoneId) {
       case 1:
-        lowerBound = 4.0;
-        upperBound = 6.0;
+        lowerBound = 3.0;
+        upperBound = 7.0;
         break;
       case 2:
-        lowerBound = 6.01;
-        upperBound = 8.0;
+        lowerBound = 5.0;
+        upperBound = 9.0;
         break;
       case 3:
-        lowerBound = 8.01;
-        upperBound = 12.0;
+        lowerBound = 7.0;
+        upperBound = 13.0;
         break;
       default:
         lowerBound = 0.0;
         upperBound = 0.0;
     }
 
-    if (speedKmph >= lowerBound && speedKmph <= upperBound) {
-      // Check for early detour exit using the same bounds
-      if (_isInDetour) {
-        _endDetourEarly();
-        return; // Exit to prevent resuming music immediately
-      }
-      if (!_audioManager.isPlaying && _introCompleted && !_isInDetour) {
-        _audioManager.resume();
-        _audioManager.resumePacing();
-        debugPrint('Music resumed due to speed in range');
-      }
-    } else {
-      if (_audioManager.isPlaying && !_isPlayingIntro && !_isInDetour) {
-        Future.delayed(const Duration(seconds: 10), () {
-          if (_currentSpeedKmph != null &&
-              (_currentSpeedKmph! < lowerBound ||
-                  _currentSpeedKmph! > upperBound) &&
-              !_isPlayingIntro &&
-              !_isInDetour) {
-            _audioManager.pause();
-            if (_currentSpeedKmph! < lowerBound) {
-              _playLowerOutOfRangeAudio('speed');
-            } else {
-              _playUpperOutOfRangeAudio('speed');
+    // Use speed only on Android or on iOS when heart rate is unavailable
+    if (Platform.isAndroid || (Platform.isIOS && _currentHR == null)) {
+      if (speedKmph >= lowerBound && speedKmph <= upperBound) {
+        // Check for early detour exit using the same bounds
+        if (_isInDetour) {
+          _endDetourEarly();
+          return; // Exit to prevent resuming music immediately
+        }
+        if (!_audioManager.isPlaying && _introCompleted && !_isInDetour) {
+          _audioManager.resume();
+          _audioManager.resumePacing();
+          debugPrint('Music resumed due to speed in range');
+        }
+      } else {
+        if (_audioManager.isPlaying && !_isPlayingIntro && !_isInDetour) {
+          Future.delayed(const Duration(seconds: 10), () {
+            if (_currentSpeedKmph != null &&
+                (_currentSpeedKmph! < lowerBound ||
+                    _currentSpeedKmph! > upperBound) &&
+                !_isPlayingIntro &&
+                !_isInDetour) {
+              _audioManager.pause();
+              if (_currentSpeedKmph! < lowerBound) {
+                _playLowerOutOfRangeAudio('speed');
+              } else {
+                _playUpperOutOfRangeAudio('speed');
+              }
+              _showCenterNotification('Music paused');
+              debugPrint('Music paused due to speed out of range');
             }
-            _showCenterNotification('Music paused');
-            debugPrint('Music paused due to speed out of range');
-          }
-        });
+          });
+        }
       }
     }
   }
@@ -615,7 +623,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     await _audioManager.pause(); // Pause the main audio player
     await _audioManager.stopPacing();
 
-    // Start the special detour pacing audio
+    // Start the special detour pacing audio based on heart rate or speed
     if (_pacingAudioFiles.length > 1) {
       String detourPacingPath = 'assets/audio/pacing/${_pacingAudioFiles[1]}';
       _audioManager.playPacingLoop(detourPacingPath);
@@ -950,8 +958,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
         // For d1 to d8, check if user is out of zone and apply scoring
         if (i > 0 && !isLastAudio) {
           bool isOutOfZone = false;
-          // Check HR if using socket
-          if (_useSocket && _currentHR != null && _maxHR != null) {
+          // Prioritize heart rate for iOS
+          if (Platform.isIOS && _currentHR != null && _maxHR != null) {
             final int zoneId = currentAudio['zoneId'];
             int lowerBound = 0, upperBound = 0;
             switch (zoneId) {
@@ -970,8 +978,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
             }
             isOutOfZone = _currentHR! < lowerBound || _currentHR! > upperBound;
           }
-          // Check Speed if not using socket
-          else if (!_useSocket && _currentSpeedKmph != null) {
+          // Fallback to speed for iOS if heart rate unavailable, or use speed for Android
+          else if ((Platform.isIOS && _currentHR == null && _currentSpeedKmph != null) || Platform.isAndroid) {
             final int zoneId = currentAudio['zoneId'];
             double lowerBound, upperBound;
             switch (zoneId) {
@@ -1073,6 +1081,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       _audioManager.stopPacing();
       _currentPacingSegment = newSegment;
 
+      // Select pacing audio based on heart rate for iOS, speed for Android or iOS fallback
       if (_currentPacingSegment != -1 &&
           _currentPacingSegment < _pacingAudioFiles.length) {
         String pacingAudioPath =
@@ -1091,96 +1100,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
     final int storyId = currentAudio['storyId'];
     String overlayType = 'A'; // Assume in zone, or if no data is available
 
-    // --- Platform-specific decision logic ---
-    if (Platform.isIOS) {
-      bool hrAvailable = _currentHR != null && _maxHR != null;
-      bool speedAvailable = _currentSpeedKmph != null;
-
-      if (hrAvailable) {
-        final int zoneId = currentAudio['zoneId'];
-        int lowerBound = 0, upperBound = 0;
-        switch (zoneId) {
-          case 1:
-            lowerBound = (72 + (_maxHR! - 72) * 0.5).toInt();
-            upperBound = (72 + (_maxHR! - 72) * 0.6).toInt();
-            break;
-          case 2:
-            lowerBound = (72 + (_maxHR! - 72) * 0.6).toInt();
-            upperBound = (72 + (_maxHR! - 72) * 0.7).toInt();
-            break;
-          case 3:
-            lowerBound = (72 + (_maxHR! - 72) * 0.7).toInt();
-            upperBound = (72 + (_maxHR! - 72) * 0.8).toInt();
-            break;
-        }
-        overlayType = (_currentHR! <= upperBound) ? 'A' : 'S';
-        if (_currentHR! <= upperBound && _currentHR! >= lowerBound) {
-          debugPrint("Inside zone & Overlay Type: $overlayType");
-        } else {
-          debugPrint("Outside zone & Overlay Type: $overlayType");
-        }
-      } else if (speedAvailable) {
-        final int zoneId = currentAudio['zoneId'];
-        double lowerBound, upperBound;
-        switch (zoneId) {
-          case 1:
-            lowerBound = 4.0;
-            upperBound = 6.0;
-            break;
-          case 2:
-            lowerBound = 6.01;
-            upperBound = 8.0;
-            break;
-          case 3:
-            lowerBound = 8.01;
-            upperBound = 12.0;
-            break;
-          default:
-            lowerBound = 0.0;
-            upperBound = 0.0;
-        }
-        overlayType = (_currentSpeedKmph! <= upperBound) ? 'A' : 'S';
-        if (_currentSpeedKmph! <= upperBound &&
-            _currentSpeedKmph! >= lowerBound) {
-          debugPrint("Inside zone & Overlay Type: $overlayType");
-        } else {
-          debugPrint("Outside zone & Overlay Type: $overlayType");
-        }
-      }
-    } else if (Platform.isAndroid) {
-      if (_currentSpeedKmph != null) {
-        final int zoneId = currentAudio['zoneId'];
-        double lowerBound, upperBound;
-        switch (zoneId) {
-          case 1:
-            lowerBound = 4.0;
-            upperBound = 6.0;
-            break;
-          case 2:
-            lowerBound = 6.01;
-            upperBound = 8.0;
-            break;
-          case 3:
-            lowerBound = 8.01;
-            upperBound = 12.0;
-            break;
-          default:
-            lowerBound = 0.0;
-            upperBound = 0.0;
-        }
-        overlayType = (_currentSpeedKmph! <= upperBound) ? 'A' : 'S';
-        if (_currentSpeedKmph! <= upperBound &&
-            _currentSpeedKmph! >= lowerBound) {
-          debugPrint("Inside zone & Overlay Type: $overlayType");
-        } else {
-          debugPrint("Outside zone & Overlay Type: $overlayType");
-        }
-      }
-    }
-
-    // Define lowerBound and upperBound for scoring logic
+    // Define bounds for scoring and overlay logic
     double lowerBound = 0.0, upperBound = 0.0;
-    if (Platform.isIOS && _maxHR != null) {
+    bool inZone = false;
+
+    // Prioritize heart rate for iOS
+    if (Platform.isIOS && _currentHR != null && _maxHR != null) {
       final int zoneId = currentAudio['zoneId'];
       switch (zoneId) {
         case 1:
@@ -1196,7 +1121,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
           upperBound = (72 + (_maxHR! - 72) * 0.8);
           break;
       }
-    } else if (Platform.isAndroid && _currentSpeedKmph != null) {
+      inZone = (_currentHR! <= upperBound && _currentHR! >= lowerBound);
+      overlayType = inZone ? 'A' : 'S';
+      debugPrint("Heart rate based - Inside zone: $inZone, Overlay Type: $overlayType");
+    }
+    // Fallback to speed for iOS if heart rate unavailable, or use speed for Android
+    else if ((Platform.isIOS && _currentHR == null && _currentSpeedKmph != null) || Platform.isAndroid) {
       final int zoneId = currentAudio['zoneId'];
       switch (zoneId) {
         case 1:
@@ -1215,6 +1145,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
           lowerBound = 0.0;
           upperBound = 0.0;
       }
+      inZone = (_currentSpeedKmph! <= upperBound && _currentSpeedKmph! >= lowerBound);
+      overlayType = inZone ? 'A' : 'S';
+      debugPrint("Speed based - Inside zone: $inZone, Overlay Type: $overlayType");
     }
 
     for (int i = 0; i < _timestamps.length; i++) {
@@ -1223,14 +1156,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         totalNudges++;
         currentTrackNudges++;
 
-        bool inZone = false;
-        if (Platform.isIOS && _currentHR != null && _maxHR != null) {
-          inZone = (_currentHR! <= upperBound && _currentHR! >= lowerBound);
-        } else if (Platform.isAndroid && _currentSpeedKmph != null) {
-          inZone = (_currentSpeedKmph! <= upperBound &&
-              _currentSpeedKmph! >= lowerBound);
-        }
-
+        // Apply scoring based on inZone status
         if (inZone) {
           setState(() {
             _currentScore += 5;
@@ -1239,16 +1165,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
         } else {
           setState(() {
             _currentScore -= 1;
+            _outOfZoneCount++;
           });
           debugPrint(
-              'Score -1: Outside zone at overlay, total: $_currentScore');
-        }
-
-        if (!_isInDetour && !inZone) {
-          setState(() {
-            _outOfZoneCount++;
-            debugPrint('Out of zone at overlay, count: $_outOfZoneCount');
-          });
+              'Score -1: Outside zone at overlay, total: $_currentScore, Out of zone count: $_outOfZoneCount');
         }
 
         String overlayPath;
@@ -1256,23 +1176,23 @@ class _PlayerScreenState extends State<PlayerScreen> {
         switch (storyId) {
           case 1:
             overlayPath =
-                'assets/audio/aradium/overlay/${overlayIndex}/${overlayType}_$i.wav';
+                'assets/audio/aradium/overlay/$overlayIndex/${overlayType}_$i.wav';
             break;
           case 2:
             overlayPath =
-                'assets/audio/smm/overlay/${overlayIndex}/${overlayType}_$i.wav';
+                'assets/audio/smm/overlay/$overlayIndex/${overlayType}_$i.wav';
             break;
           case 3:
             overlayPath =
-                'assets/audio/luther/overlay/${overlayIndex}/${overlayType}_$i.wav';
+                'assets/audio/luther/overlay/$overlayIndex/${overlayType}_$i.wav';
             break;
           case 4:
             overlayPath =
-                'assets/audio/dare/overlay/${overlayIndex}/${overlayType}_$i.wav';
+                'assets/audio/dare/overlay/$overlayIndex/${overlayType}_$i.wav';
             break;
           default:
             overlayPath =
-                'assets/audio/overlay/${overlayIndex}/${overlayType}_$i.wav';
+                'assets/audio/overlay/$overlayIndex/${overlayType}_$i.wav';
         }
         if (storyId == 1 || storyId == 2 || storyId == 3 || storyId == 4) {
           _audioManager.playOverlay(overlayPath, volume: 2.0);
