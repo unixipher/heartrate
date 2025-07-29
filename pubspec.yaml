@@ -111,6 +111,12 @@ flutter:
     - assets/audio/smm/detour/3/
     - assets/audio/smm/detour/4/
     - assets/audio/smm/detour/5/
+    - assets/audio/smm/detour/6/
+    - assets/audio/smm/detour/7/
+    - assets/audio/smm/detour/8/
+    - assets/audio/smm/detour/9/
+    - assets/audio/smm/detour/10/
+    - assets/audio/smm/detour/11/
     - assets/audio/luther/
     - assets/audio/detour/
     - shorebird.yaml
