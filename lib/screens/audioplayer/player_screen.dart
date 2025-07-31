@@ -74,6 +74,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   double? _maxHR;
   double? _currentSpeedKmph;
   StreamSubscription? _dataSubscription;
+  StreamSubscription? _distanceSubscription; // For GPS distance on Android
   List<Duration> _timestamps = [];
   List<bool> _triggered = [];
   bool _hasMaxHR = false;
@@ -471,6 +472,15 @@ class _PlayerScreenState extends State<PlayerScreen> {
         if (_socketService != null) {
           _socketService!.sendSpeed(speedKmph);
           debugPrint('Sent GPS speed data to server: $speedKmph km/h');
+        }
+      });
+      // Subscribe to the distance stream for Android
+      _distanceSubscription =
+          GeolocationSpeedService().distanceStream.listen((distanceInMeters) {
+        if (mounted) {
+          setState(() {
+            _totalDistanceKm = distanceInMeters / 1000.0;
+          });
         }
       });
     } else if (Platform.isIOS) {
@@ -1282,6 +1292,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _blinkTimer?.cancel();
     _unlockTimer?.cancel();
     _dataSubscription?.cancel();
+    _distanceSubscription?.cancel(); // Cancel the new subscription
 
     _audioManager.dispose();
     _positionSubscription.cancel();
