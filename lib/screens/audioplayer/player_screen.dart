@@ -329,12 +329,26 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
       await _audioManager.initializePlaylist(widget.audioData);
       _initializeAudioListeners();
-      _initializeIntroAudioListeners();
 
-      await _playIntroAudio();
+      // Check story ID to decide on playing intro
+      final int storyId = widget.audioData.first['storyId'];
+      if (storyId == 1 || storyId == 3) {
+        // Skip intro for story 1 and 3
+        debugPrint('Story ID is $storyId. Skipping intro audio.');
+        setState(() {
+          _isPlayingIntro = false;
+          _introCompleted = true;
+        });
+        await _startMainAudio();
+      } else {
+        // Play intro for other stories
+        debugPrint('Story ID is $storyId. Playing intro audio.');
+        _initializeIntroAudioListeners();
+        await _playIntroAudio();
+      }
 
       _initializeTimestamps();
-      debugPrint('Playlist initialized and intro started');
+      debugPrint('Playlist initialized and ready.');
     } catch (e) {
       debugPrint('Initialization error: $e');
       _showCenterNotification('Initialization failed');
@@ -924,11 +938,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   void _handlePositionUpdate(Duration position) {
     if (_introCompleted && !_isPlayingIntro) {
-      if (!_isInDetour &&
-          _outOfZoneCount >= 3 &&
-          position >= const Duration(minutes: 4, seconds: 20)) {
-        _startDetour();
+      // Get the storyId from the current audio data
+      final int storyId = widget.audioData[_currentAudioIndex]['storyId'];
+
+      // Only trigger detour logic if storyId is not 1 or 3
+      if (storyId != 1 && storyId != 3) {
+        if (!_isInDetour &&
+            _outOfZoneCount >= 3 &&
+            position >= const Duration(minutes: 4, seconds: 20)) {
+          _startDetour();
+        }
       }
+
       if (_isInDetour) {
         _checkForDetourAudio(position);
       } else {

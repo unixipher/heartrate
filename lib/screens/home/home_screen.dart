@@ -26,44 +26,44 @@ class _HomeScreenState extends State<HomeScreen> {
   int _userScore = 0;
 
   final List<CharacterData> _characters = [
-    // CharacterData(
-    //   name: 'Jarek',
-    //   image: 'assets/images/jarek.png',
-    //   challengeCount: 0,
-    //   storyId: 1,
-    //   description:
-    //       'Jarek is the true heir to the throne of Aradium. He fights powerful enemies with great valour.',
-    //   page: const ChallengeScreen(
-    //     storyId: 1,
-    //     title: 'Aradium',
-    //     characterName: 'Jarek',
-    //     description:
-    //         'Known for its vast sulphur reserves, Aradium is guarded by sacred, unscalable mountains. Jarek must survive the Chakravyuh, brave the enchanted forest, and reach the sulphur peaks to reclaim his legacy and avenge his father’s death',
-    //     storydescription:
-    //         "Known for its vast sulphur reserves, Aradium is guarded by sacred, unscalable mountains. With only his father’s pocket watch to guide him, Jarek must survive the Chakravyuh, brave the enchanted forest, and reach the sulphur peaks to reclaim his legacy and avenge his father’s death.",
-    //     jarekImagePath: 'assets/images/jarek.png',
-    //     backgroundImagePath: 'assets/images/aradium.png',
-    //   ),
-    // ),
-    // CharacterData(
-    //   name: 'Maya',
-    //   image: 'assets/images/maya.png',
-    //   challengeCount: 0,
-    //   storyId: 3,
-    //   description:
-    //       'Maya is the only survivor of a bot attack. She must stop the revolution with her quick wit',
-    //   page: const ChallengeScreen(
-    //     storyId: 3,
-    //     title: 'Luther',
-    //     characterName: 'Maya',
-    //     description:
-    //         'The only survivor in a dystopian world taken over by bots. With only an AI agent Luther to guide her, Maya must take down the uprising before they exterminate the human race.',
-    //     storydescription:
-    //         "The Earth is under siege by rogue bots, clearing entire areas to build factories for their GPUs. Maya and Luther race to stop them, only to uncover a dark secret—these bots are part of a sinister plan to eliminate low-IQ humans. With time running out, they must expose the conspiracy before it’s too late.",
-    //     jarekImagePath: 'assets/images/maya.png',
-    //     backgroundImagePath: 'assets/images/luther.png',
-    //   ),
-    // ),
+    CharacterData(
+      name: 'Jarek',
+      image: 'assets/images/jarek.png',
+      challengeCount: 0,
+      storyId: 1,
+      description:
+          'Jarek is the true heir to the throne of Aradium. He fights powerful enemies with great valour.',
+      page: const ChallengeScreen(
+        storyId: 1,
+        title: 'Aradium',
+        characterName: 'Jarek',
+        description:
+            'Known for its vast sulphur reserves, Aradium is guarded by sacred, unscalable mountains. Jarek must survive the Chakravyuh, brave the enchanted forest, and reach the sulphur peaks to reclaim his legacy and avenge his father’s death',
+        storydescription:
+            "Known for its vast sulphur reserves, Aradium is guarded by sacred, unscalable mountains. With only his father’s pocket watch to guide him, Jarek must survive the Chakravyuh, brave the enchanted forest, and reach the sulphur peaks to reclaim his legacy and avenge his father’s death.",
+        jarekImagePath: 'assets/images/jarek.png',
+        backgroundImagePath: 'assets/images/aradium.png',
+      ),
+    ),
+    CharacterData(
+      name: 'Maya',
+      image: 'assets/images/maya.png',
+      challengeCount: 0,
+      storyId: 3,
+      description:
+          'Maya is the only survivor of a bot attack. She must stop the revolution with her quick wit',
+      page: const ChallengeScreen(
+        storyId: 3,
+        title: 'Luther',
+        characterName: 'Maya',
+        description:
+            'The only survivor in a dystopian world taken over by bots. With only an AI agent Luther to guide her, Maya must take down the uprising before they exterminate the human race.',
+        storydescription:
+            "The Earth is under siege by rogue bots, clearing entire areas to build factories for their GPUs. Maya and Luther race to stop them, only to uncover a dark secret—these bots are part of a sinister plan to eliminate low-IQ humans. With time running out, they must expose the conspiracy before it’s too late.",
+        jarekImagePath: 'assets/images/maya.png',
+        backgroundImagePath: 'assets/images/luther.png',
+      ),
+    ),
     CharacterData(
       name: 'Agent Seahorse',
       image: 'assets/images/horse.png',
