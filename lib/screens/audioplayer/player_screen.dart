@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:testingheartrate/services/audio_manager.dart';
@@ -206,9 +207,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
       double speedMs = 1 / data.currentPace!; // meters per second
       speedKmph = speedMs * 3.6; // km/h
     }
-  setState(() {
-    _currentSpeedKmph = speedKmph; // Update speed, set to 0 if no pace
-  });
+    setState(() {
+      _currentSpeedKmph = speedKmph; // Update speed, set to 0 if no pace
+    });
 
     // Only update speed-based logic if heart rate is not available on iOS
     if (!Platform.isIOS || _currentHR == null) {
@@ -823,6 +824,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
       _challengeScores.add(challengeCompletionScore);
     });
 
+    // Store individual audio completion score in SharedPreferences
+    await _storeAudioCompletionScore(challengeCompletionScore);
+
     debugPrint(
       'Challenge completed! Score +$challengeCompletionScore (Challenge #$_consecutiveChallengeCompletions). Total: $_currentScore',
     );
@@ -942,6 +946,38 @@ class _PlayerScreenState extends State<PlayerScreen> {
     });
   }
 
+  Future<void> _storeAudioCompletionScore(int score) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final currentAudio = widget.audioData[_currentAudioIndex];
+
+      // Create a unique key for this audio completion
+      // Using audio ID, challenge name, and completion number for uniqueness
+      final String audioKey =
+          'audio_completion_${currentAudio['id']}_${currentAudio['challengeName']}_completion_$_consecutiveChallengeCompletions';
+
+      // Store the completion score with timestamp for reference
+      final Map<String, dynamic> completionData = {
+        'score': score,
+        'completionNumber': _consecutiveChallengeCompletions,
+        'audioId': currentAudio['id'],
+        'challengeName': currentAudio['challengeName'],
+        'storyId': currentAudio['storyId'],
+        'zoneId': currentAudio['zoneId'],
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+        'totalNudges': currentTrackNudges,
+      };
+
+      // Store as JSON string
+      await prefs.setString(audioKey, jsonEncode(completionData));
+
+      debugPrint(
+          'Stored audio completion: $audioKey with data: $completionData');
+    } catch (e) {
+      debugPrint('Error storing audio completion score: $e');
+    }
+  }
+
   int roundToNearest10(double value) {
     return (value / 10).round() * 10;
   }
@@ -1010,7 +1046,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
             isOutOfZone = _currentHR! < lowerBound || _currentHR! > upperBound;
           }
           // Fallback to speed for iOS if heart rate unavailable, or use speed for Android
-          else if ((Platform.isIOS && _currentHR == null && _currentSpeedKmph != null) || Platform.isAndroid) {
+          else if ((Platform.isIOS &&
+                  _currentHR == null &&
+                  _currentSpeedKmph != null) ||
+              Platform.isAndroid) {
             final int zoneId = currentAudio['zoneId'];
             double lowerBound, upperBound;
             switch (zoneId) {
@@ -1156,10 +1195,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
       inZone = (_currentHR! <= upperBound && _currentHR! >= lowerBound);
       // **MODIFIED LOGIC**: Overlay 'S' only plays if HR is above the upper bound.
       overlayType = (_currentHR! > upperBound) ? 'S' : 'A';
-      debugPrint("Heart rate based - Inside zone (for scoring): $inZone, Overlay Type: $overlayType");
+      debugPrint(
+          "Heart rate based - Inside zone (for scoring): $inZone, Overlay Type: $overlayType");
     }
     // Fallback to speed for iOS if heart rate unavailable, or use speed for Android
-    else if ((Platform.isIOS && _currentHR == null && _currentSpeedKmph != null) || Platform.isAndroid) {
+    else if ((Platform.isIOS &&
+            _currentHR == null &&
+            _currentSpeedKmph != null) ||
+        Platform.isAndroid) {
       final int zoneId = currentAudio['zoneId'];
       switch (zoneId) {
         case 1:
@@ -1179,10 +1222,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
           upperBound = 0.0;
       }
       // Scoring is based on being between lower and upper bounds.
-      inZone = (_currentSpeedKmph! <= upperBound && _currentSpeedKmph! >= lowerBound);
+      inZone = (_currentSpeedKmph! <= upperBound &&
+          _currentSpeedKmph! >= lowerBound);
       // **MODIFIED LOGIC**: Overlay 'S' only plays if speed is above the upper bound.
       overlayType = (_currentSpeedKmph! > upperBound) ? 'S' : 'A';
-      debugPrint("Speed based - Inside zone (for scoring): $inZone, Overlay Type: $overlayType");
+      debugPrint(
+          "Speed based - Inside zone (for scoring): $inZone, Overlay Type: $overlayType");
     } else {
       // Default case if no sensor data is available
       overlayType = 'A';

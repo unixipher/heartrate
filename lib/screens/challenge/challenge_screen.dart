@@ -42,6 +42,11 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
   final FirebaseAnalytics analytics = FirebaseAnalytics.instance;
   final Map<int, bool> _downloadStatus = {};
   final Map<int, bool> _isDownloading = {};
+  final Map<int, List<int>> _challengeScores =
+      {}; // Store completion scores for each challenge
+  final Map<int, int> _challengePlayCounts =
+      {}; // Store play counts for each challenge
+  int _maxHR = 200; // Default value
 
   @override
   void initState() {
@@ -51,6 +56,14 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
     _displayedDescription = '';
     _startTypewriter();
     _loadDownloadStatus();
+    _loadMaxHR();
+    // Load challenge scores after a brief delay to ensure filteredChallenges is populated
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (filteredChallenges.isNotEmpty) {
+        _loadChallengeScores();
+        _loadChallengePlayCounts();
+      }
+    });
   }
 
   @override
@@ -98,6 +111,104 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
         _isDownloading[id] = false;
       }
     });
+  }
+
+  Future<void> _loadMaxHR() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _maxHR = prefs.getInt('maxhr') ?? 200;
+    });
+  }
+
+  Future<void> _loadChallengeScores() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    for (var challenge in filteredChallenges) {
+      final challengeId = challenge['id'] as int;
+      final challengeName = challenge['title'] as String;
+      List<int> scores = [];
+
+      // Look for all completion entries for this challenge
+      // We'll check up to 10 possible completions (can be adjusted)
+      for (int completion = 1; completion <= 10; completion++) {
+        final String audioKey =
+            'audio_completion_${challengeId}_${challengeName}_completion_$completion';
+        final String? completionDataJson = prefs.getString(audioKey);
+
+        if (completionDataJson != null) {
+          try {
+            final Map<String, dynamic> completionData =
+                jsonDecode(completionDataJson);
+            final int score = completionData['score'] ?? 0;
+            scores.add(score);
+          } catch (e) {
+            debugPrint('Error parsing completion data for $audioKey: $e');
+          }
+        }
+      }
+
+      if (scores.isNotEmpty) {
+        setState(() {
+          _challengeScores[challengeId] = scores;
+        });
+      }
+    }
+
+    debugPrint('Loaded challenge scores: $_challengeScores');
+  }
+
+  Future<void> _loadChallengePlayCounts() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    for (var challenge in filteredChallenges) {
+      final challengeId = challenge['id'] as int;
+      final playCount = prefs.getInt('challenge_play_count_$challengeId') ?? 0;
+
+      setState(() {
+        _challengePlayCounts[challengeId] = playCount;
+      });
+    }
+
+    debugPrint('Loaded challenge play counts: $_challengePlayCounts');
+  }
+
+  Future<void> _incrementPlayCount(int challengeId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final currentCount = prefs.getInt('challenge_play_count_$challengeId') ?? 0;
+    final newCount = currentCount + 1;
+
+    await prefs.setInt('challenge_play_count_$challengeId', newCount);
+
+    setState(() {
+      _challengePlayCounts[challengeId] = newCount;
+    });
+
+    debugPrint(
+        'Incremented play count for challenge $challengeId to $newCount');
+  }
+
+  Map<String, int> _calculateHeartRateRange(int zone) {
+    int lowerBound, upperBound;
+
+    switch (zone) {
+      case 1:
+        lowerBound = (72 + (_maxHR - 72) * 0.35).round();
+        upperBound = (72 + (_maxHR - 72) * 0.75).round();
+        break;
+      case 2:
+        lowerBound = (72 + (_maxHR - 72) * 0.45).round();
+        upperBound = (72 + (_maxHR - 72) * 0.85).round();
+        break;
+      case 3:
+        lowerBound = (72 + (_maxHR - 72) * 0.55).round();
+        upperBound = (72 + (_maxHR - 72) * 0.95).round();
+        break;
+      default:
+        lowerBound = 72;
+        upperBound = _maxHR;
+    }
+
+    return {'lower': lowerBound, 'upper': upperBound};
   }
 
   Future<String> _downloadAudio(String url, int challengeId) async {
@@ -189,6 +300,8 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
       });
 
       await _loadDownloadStatus();
+      await _loadChallengeScores();
+      await _loadChallengePlayCounts();
     } else {
       debugPrint('Failed to fetch challenges: ${response.statusCode}');
     }
@@ -441,8 +554,8 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                                           ],
                                         ),
                                       ),
-                                      const Icon(Icons.chevron_right,
-                                          color: Colors.white54),
+                                      // Display completion scores or right arrow
+                                      _buildScoreDisplay(challengeId),
                                     ],
                                   ),
                                 ),
@@ -456,6 +569,80 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildScoreDisplay(int challengeId) {
+    final scores = _challengeScores[challengeId];
+    final playCount = _challengePlayCounts[challengeId] ?? 0;
+
+    if (scores == null || scores.isEmpty) {
+      // No scores available, show the right arrow if no play count, or just play count
+      if (playCount > 0) {
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.grey[600],
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Text(
+                'Not completed',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              '${playCount}x played',
+              style: const TextStyle(
+                color: Colors.white54,
+                fontSize: 10,
+              ),
+            ),
+          ],
+        );
+      }
+      return const Icon(Icons.chevron_right, color: Colors.white54);
+    }
+
+    // Show the latest (highest completion number) score and play count
+    final latestScore = scores.last;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.purple[600],
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            '$latestScore pts',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          '${playCount}x played',
+          style: const TextStyle(
+            color: Colors.white54,
+            fontSize: 10,
+          ),
+        ),
+      ],
     );
   }
 
@@ -570,6 +757,25 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
 
   Widget _buildZoneButton(String title, String action,
       {VoidCallback? onTap, required int zoneId}) {
+    final heartRateRange = _calculateHeartRateRange(zoneId);
+    final hrText = '${heartRateRange['lower']}-${heartRateRange['upper']} BPM';
+
+    // Speed ranges for each zone
+    String speedText;
+    switch (zoneId) {
+      case 1:
+        speedText = '3.0-7.0 km/h';
+        break;
+      case 2:
+        speedText = '5.0-9.0 km/h';
+        break;
+      case 3:
+        speedText = '7.0-13.0 km/h';
+        break;
+      default:
+        speedText = '';
+    }
+
     return GestureDetector(
       onTap: onTap,
       child: Column(
@@ -578,7 +784,7 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
           Container(
             width: 90,
             height: 90,
-            margin: const EdgeInsets.only(bottom: 48),
+            margin: const EdgeInsets.only(bottom: 8),
             decoration: BoxDecoration(
               color: Colors.purple[600],
               shape: BoxShape.circle,
@@ -605,6 +811,33 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                   ),
                 ],
               ),
+            ),
+          ),
+          Container(
+            width: 90,
+            margin: const EdgeInsets.only(bottom: 16),
+            child: Column(
+              children: [
+                Text(
+                  hrText,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  speedText,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white60,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -881,6 +1114,13 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
 
                                     await _startChallenge(
                                         resolvedAudioData, zoneId);
+
+                                    // Increment play count for each challenge that will be played
+                                    for (var audioItem in resolvedAudioData) {
+                                      final challengeId =
+                                          audioItem['id'] as int;
+                                      await _incrementPlayCount(challengeId);
+                                    }
 
                                     await analytics.logEvent(
                                       name: 'workout_started',
