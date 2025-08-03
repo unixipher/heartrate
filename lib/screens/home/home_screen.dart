@@ -89,17 +89,24 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     analytics.setAnalyticsCollectionEnabled(true);
     super.initState();
-    _requestActivityRecognitionPermission();
-    _requestLocationPermissionIfAndroid();
-    _initializeTimeTracking();
-    _checkUserData();
-    _updatefcmToken();
-    _fetchChallenges();
+    _initializePermissionsAndData();
+  }
+
+  Future<void> _initializePermissionsAndData() async {
+    // Request permissions sequentially to avoid conflicts
+    await _requestActivityRecognitionPermission();
+    await _requestLocationPermissionIfAndroid();
 
     // NEW: Request pedometer permission for iOS
     if (Platform.isIOS) {
-      _requestPedometerPermission();
+      await _requestPedometerPermission();
     }
+
+    // Initialize other services and data
+    await _initializeTimeTracking();
+    await _checkUserData();
+    await _updatefcmToken();
+    await _fetchChallenges();
   }
 
   Future<void> _updatefcmToken() async {
@@ -140,10 +147,25 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _requestLocationPermissionIfAndroid() async {
     if (Platform.isAndroid) {
+      debugPrint('=== REQUESTING LOCATION PERMISSION FOR ANDROID ===');
       bool granted = await Permission.location.isGranted;
+      debugPrint('Location permission initially granted: $granted');
+
       if (!granted) {
-        await Permission.location.request();
+        debugPrint('Requesting location permission...');
+        final status = await Permission.location.request();
+        granted = status == PermissionStatus.granted;
+        debugPrint(
+            'Location permission request result: $granted (status: $status)');
       }
+
+      if (!granted) {
+        debugPrint('Location permission denied');
+      } else {
+        debugPrint('Location permission granted successfully');
+      }
+
+      debugPrint('=== LOCATION PERMISSION REQUEST COMPLETE ===');
     }
   }
 

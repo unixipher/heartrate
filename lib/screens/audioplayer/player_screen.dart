@@ -291,7 +291,147 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   Future<bool> _onWillPop() async {
-    return !_isLocked;
+    if (_isLocked) return false;
+    _showExitConfirmation();
+    return false; // Always prevent default back behavior
+  }
+
+  void _showExitConfirmation() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isDismissible: true,
+      builder: (context) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFF0A0D29),
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(24),
+              topRight: Radius.circular(24),
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Exit Challenge?',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Thewitcher',
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Are you sure you want to exit the challenge? Your progress will be saved.',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 16,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 32),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.grey[700],
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text(
+                          'Continue',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red[600],
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        onPressed: () {
+                          Navigator.pop(context); // Close bottom sheet
+                          _handleChallengeExit();
+                        },
+                        child: const Text(
+                          'Exit',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _handleChallengeExit() {
+    // Check if any challenges have been completed
+    if (_consecutiveChallengeCompletions > 0) {
+      // Navigate to completion screen with current progress
+      _navigateToCompletionScreenEarly();
+    } else {
+      // No challenges completed, go back to home/previous screen
+      Navigator.pop(context);
+    }
+  }
+
+  void _navigateToCompletionScreenEarly() {
+    final currentAudio = widget.audioData[_currentAudioIndex];
+    debugPrint('=== EARLY EXIT SCORING SUMMARY ===');
+    debugPrint('Total Score: $_currentScore');
+    debugPrint('Total Challenges Completed: $_consecutiveChallengeCompletions');
+    debugPrint('Individual Challenge Scores: $_challengeScores');
+    debugPrint('Total Nudges: $totalNudges');
+    debugPrint('Exiting at audio index: $_currentAudioIndex');
+    debugPrint('===================================');
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => CompletionScreen(
+            storyName: currentAudio['challengeName'],
+            backgroundImage: currentAudio['image'],
+            storyId: currentAudio['id'],
+            maxheartRate: _maxHR ?? 0.0,
+            zoneId: currentAudio['zoneId'],
+            timestampcount: totalNudges,
+            audioData: widget.audioData,
+            challengeCount: widget.challengeCount,
+            playingChallengeCount:
+                _consecutiveChallengeCompletions, // Use actual completed count
+            score: _currentScore,
+          ),
+        ),
+      );
+    });
   }
 
   void _startUnlockHold() {
@@ -1387,7 +1527,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
             onPressed: () {
-              if (!_isLocked) Navigator.pop(context);
+              if (!_isLocked) _showExitConfirmation();
             },
           ),
           title: Padding(

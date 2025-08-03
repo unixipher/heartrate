@@ -674,63 +674,110 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
             // Timeline node
             Column(
               children: [
-                Container(
-                  width: 70,
-                  height: 70,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: !isUnlocked
-                        ? Colors.grey[800]!.withOpacity(0.5)
-                        : isCompleted
-                            ? Colors.purple[600]
-                            : isDownloaded
-                                ? Colors.blue[600]
-                                : Colors.grey[600],
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.3),
-                      width: 2,
+                InkWell(
+                  onTap: isDownloading
+                      ? null
+                      : () async {
+                          if (!isUnlocked) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: const Text(
+                                  'Complete previous challenges to unlock this one.',
+                                  style: TextStyle(
+                                    color: Colors.black,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                backgroundColor: Colors.white,
+                                elevation: 0,
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                width: 240,
+                              ),
+                            );
+                            return;
+                          }
+
+                          if (!isDownloaded) {
+                            await _downloadAudio(
+                                challenge['audiourl'], challengeId);
+                          } else {
+                            await analytics.logEvent(
+                              name: 'challenge_selected',
+                              parameters: {
+                                'challenge_id': challenge['id'] ?? '',
+                                'challenge_title': challenge['title'] ?? '',
+                              },
+                            );
+                            setState(() {
+                              selectedChallenge = index;
+                            });
+                            _showZoneSelector(context);
+                          }
+                        },
+                  borderRadius: BorderRadius.circular(35),
+                  child: Container(
+                    width: 70,
+                    height: 70,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: !isUnlocked
+                          ? Colors.grey[800]!.withOpacity(0.5)
+                          : isCompleted
+                              ? Colors.purple[600]
+                              : isDownloaded
+                                  ? Colors.blue[600]
+                                  : Colors.grey[600],
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.3),
+                        width: 2,
+                      ),
+                      boxShadow: [
+                        if (isCompleted || (isUnlocked && isDownloaded))
+                          BoxShadow(
+                            color: (isCompleted
+                                    ? Colors.purple[600]!
+                                    : Colors.blue[600]!)
+                                .withOpacity(0.3),
+                            blurRadius: 8,
+                            spreadRadius: 2,
+                          ),
+                      ],
                     ),
-                    boxShadow: [
-                      if (isCompleted || (isUnlocked && isDownloaded))
-                        BoxShadow(
-                          color: (isCompleted
-                                  ? Colors.purple[600]!
-                                  : Colors.blue[600]!)
-                              .withOpacity(0.3),
-                          blurRadius: 8,
-                          spreadRadius: 2,
-                        ),
-                    ],
-                  ),
-                  child: Center(
-                    child: isDownloading
-                        ? const CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          )
-                        : !isUnlocked
-                            ? const Icon(
-                                Icons.lock_outline,
-                                color: Colors.white54,
-                                size: 32,
-                              )
-                            : isCompleted
-                                ? const Icon(
-                                    Icons.check_circle,
-                                    color: Colors.white,
-                                    size: 32,
-                                  )
-                                : isDownloaded
-                                    ? const Icon(
-                                        Icons.play_arrow_rounded,
-                                        color: Colors.white,
-                                        size: 32,
-                                      )
-                                    : const Icon(
-                                        Icons.download,
-                                        color: Colors.white,
-                                        size: 32,
-                                      ),
+                    child: Center(
+                      child: isDownloading
+                          ? const CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            )
+                          : !isUnlocked
+                              ? const Icon(
+                                  Icons.lock_outline,
+                                  color: Colors.white54,
+                                  size: 32,
+                                )
+                              : isCompleted
+                                  ? const Icon(
+                                      Icons.check_circle,
+                                      color: Colors.white,
+                                      size: 32,
+                                    )
+                                  : isDownloaded
+                                      ? const Icon(
+                                          Icons.play_arrow_rounded,
+                                          color: Colors.white,
+                                          size: 32,
+                                        )
+                                      : const Icon(
+                                          Icons.play_arrow,
+                                          color: Colors.white,
+                                          size: 32,
+                                        ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -815,29 +862,38 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    challenge['title'] ?? '',
-                                    style: TextStyle(
-                                      color: isUnlocked
-                                          ? Colors.white
-                                          : Colors.white54,
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w600,
-                                      letterSpacing: 0.5,
-                                    ),
+                                  challenge['title'] ?? '',
+                                  style: TextStyle(
+                                    color: isUnlocked
+                                      ? Colors.white
+                                      : Colors.white54,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 0.5,
+                                  ),
                                   ),
                                   const SizedBox(height: 6),
+                                  // Text(
+                                  //   _formatDuration(
+                                  //     _audioDurations[challengeId],
+                                  //     isLoading:
+                                  //         _durationLoading[challengeId] ??
+                                  //             false,
+                                  //   ),
+                                  //   style: TextStyle(
+                                  //     color: isUnlocked
+                                  //         ? Colors.white70
+                                  //         : Colors.white38,
+                                  //     fontSize: 14,
+                                  //   ),
+                                  // ),
+                                  if ((_challengePlayCounts[challengeId] ?? 0) != 0)
                                   Text(
-                                    _formatDuration(
-                                      _audioDurations[challengeId],
-                                      isLoading:
-                                          _durationLoading[challengeId] ??
-                                              false,
-                                    ),
+                                    'Completed ${_challengePlayCounts[challengeId]} time${(_challengePlayCounts[challengeId] ?? 0) == 1 ? '' : 's'}',
                                     style: TextStyle(
-                                      color: isUnlocked
-                                          ? Colors.white70
-                                          : Colors.white38,
-                                      fontSize: 14,
+                                    color: isUnlocked ? Colors.white70 : Colors.white38,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w400,
                                     ),
                                   ),
                                 ],
@@ -967,7 +1023,7 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
             children: [
               const SizedBox(width: 4),
               Text(
-                '$latestScore out of 40 pts',
+                '$latestScore/40 pts',
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 11,
