@@ -472,22 +472,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
       await _audioManager.initializePlaylist(widget.audioData);
       _initializeAudioListeners();
 
-      // Check story ID to decide on playing intro
+      // Play intro for all stories
       final int storyId = widget.audioData.first['storyId'];
-      if (storyId == 1 || storyId == 3) {
-        // Skip intro for story 1 and 3
-        debugPrint('Story ID is $storyId. Skipping intro audio.');
-        setState(() {
-          _isPlayingIntro = false;
-          _introCompleted = true;
-        });
-        await _startMainAudio();
-      } else {
-        // Play intro for other stories
-        debugPrint('Story ID is $storyId. Playing intro audio.');
-        _initializeIntroAudioListeners();
-        await _playIntroAudio();
-      }
+      debugPrint('Story ID is $storyId. Playing intro audio.');
+      _initializeIntroAudioListeners();
+      await _playIntroAudio();
 
       _initializeTimestamps();
       debugPrint('Playlist initialized and ready.');
@@ -1011,32 +1000,64 @@ class _PlayerScreenState extends State<PlayerScreen> {
   void _initializeTimestamps() {
     final currentAudio = widget.audioData[_currentAudioIndex];
     int adjustedIndexId = currentAudio['indexid'];
+    final int storyId = currentAudio['storyId'];
 
     if (adjustedIndexId >= 1) {
       adjustedIndexId = ((adjustedIndexId - 1) % 5) + 1;
     }
 
     List<String> timeStrings = [];
-    switch (adjustedIndexId) {
-      case 0:
-      case 1:
-      case 2:
-      case 3:
-      case 4:
-      case 5:
-        timeStrings = [
-          '1:20',
-          '1:50',
-          '2:20',
-          '2:50',
-          '3:20',
-          '3:50',
-          '4:20',
-          '4:50',
-        ];
-        break;
-      default:
-        timeStrings = [];
+
+    // Special handling for storyId 1 and 3
+    if (storyId == 1 || storyId == 3) {
+      switch (adjustedIndexId) {
+        case 0:
+          timeStrings = ['2:20', '2:50', '3:20', '3:50', '4:20', '4:50'];
+          break;
+        case 1:
+        case 2:
+        case 3:
+        case 4:
+          timeStrings = [
+            '1:20',
+            '1:50',
+            '2:20',
+            '2:50',
+            '3:20',
+            '3:50',
+            '4:20',
+            '4:50',
+          ];
+          break;
+        case 5:
+          timeStrings = ['1:20', '1:50', '2:20', '2:50', '3:20', '3:50'];
+          break;
+        default:
+          timeStrings = [];
+      }
+    } else {
+      // Original logic for other storyIds
+      switch (adjustedIndexId) {
+        case 0:
+        case 1:
+        case 2:
+        case 3:
+        case 4:
+        case 5:
+          timeStrings = [
+            '1:20',
+            '1:50',
+            '2:20',
+            '2:50',
+            '3:20',
+            '3:50',
+            '4:20',
+            '4:50',
+          ];
+          break;
+        default:
+          timeStrings = [];
+      }
     }
 
     _timestamps = timeStrings.map((time) {
@@ -1396,25 +1417,31 @@ class _PlayerScreenState extends State<PlayerScreen> {
         }
 
         String overlayPath;
-        const int overlayIndex = 0;
+        final filteredChallenges = widget.audioData;
+        final challengeId = filteredChallenges.indexWhere(
+          (c) => c['id'] == currentAudio['id'],
+        );
         switch (storyId) {
           case 1:
             overlayPath =
-                'assets/audio/aradium/overlay/$overlayIndex/${overlayType}_$i.wav';
+                'assets/audio/aradium/overlay/$challengeId/${overlayType}_$i.wav';
             break;
           case 2:
+            const int overlayIndex = 0;
             overlayPath =
                 'assets/audio/smm/overlay/$overlayIndex/${overlayType}_$i.wav';
             break;
           case 3:
             overlayPath =
-                'assets/audio/luther/overlay/$overlayIndex/${overlayType}_$i.wav';
+                'assets/audio/luther/overlay/$challengeId/${overlayType}_$i.wav';
             break;
           case 4:
+            const int overlayIndex = 0;
             overlayPath =
                 'assets/audio/dare/overlay/$overlayIndex/${overlayType}_$i.wav';
             break;
           default:
+            const int overlayIndex = 0;
             overlayPath =
                 'assets/audio/overlay/$overlayIndex/${overlayType}_$i.wav';
         }

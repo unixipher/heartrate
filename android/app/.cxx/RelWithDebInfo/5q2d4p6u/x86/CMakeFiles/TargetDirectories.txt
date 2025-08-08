@@ -1,2 +1,0 @@
-/home/sysadmin/Documents/heartrate/android/app/.cxx/RelWithDebInfo/5q2d4p6u/x86/CMakeFiles/edit_cache.dir
-/home/sysadmin/Documents/heartrate/android/app/.cxx/RelWithDebInfo/5q2d4p6u/x86/CMakeFiles/rebuild_cache.dir

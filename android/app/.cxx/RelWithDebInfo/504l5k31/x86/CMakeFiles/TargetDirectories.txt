@@ -1,2 +1,0 @@
-/Users/mrinmoyhalder/aexlrt/android/app/.cxx/RelWithDebInfo/504l5k31/x86/CMakeFiles/edit_cache.dir
-/Users/mrinmoyhalder/aexlrt/android/app/.cxx/RelWithDebInfo/504l5k31/x86/CMakeFiles/rebuild_cache.dir

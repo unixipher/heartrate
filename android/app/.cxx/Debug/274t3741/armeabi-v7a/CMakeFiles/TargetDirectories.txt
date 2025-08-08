@@ -1,2 +1,0 @@
-/home/sysadmin/Documents/heartrate/android/app/.cxx/Debug/274t3741/armeabi-v7a/CMakeFiles/edit_cache.dir
-/home/sysadmin/Documents/heartrate/android/app/.cxx/Debug/274t3741/armeabi-v7a/CMakeFiles/rebuild_cache.dir
