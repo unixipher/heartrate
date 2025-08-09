@@ -294,12 +294,12 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
     // First challenge is always unlocked
     if (index == 0) return true;
 
-    // Check if previous challenge has been completed at least once
+    // Check if previous challenge play count is not 0
     final previousChallenge = filteredChallenges[index - 1];
     final previousChallengeId = previousChallenge['id'] as int;
-    final previousScores = _challengeScores[previousChallengeId];
+    final previousPlayCount = _challengePlayCounts[previousChallengeId] ?? 0;
 
-    return previousScores != null && previousScores.isNotEmpty;
+    return previousPlayCount != 0;
   }
 
   Map<String, int> _calculateHeartRateRange(int zone) {
@@ -862,15 +862,15 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                  challenge['title'] ?? '',
-                                  style: TextStyle(
-                                    color: isUnlocked
-                                      ? Colors.white
-                                      : Colors.white54,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: 0.5,
-                                  ),
+                                    challenge['title'] ?? '',
+                                    style: TextStyle(
+                                      color: isUnlocked
+                                          ? Colors.white
+                                          : Colors.white54,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: 0.5,
+                                    ),
                                   ),
                                   const SizedBox(height: 6),
                                   // Text(
@@ -887,15 +887,19 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                                   //     fontSize: 14,
                                   //   ),
                                   // ),
-                                  if ((_challengePlayCounts[challengeId] ?? 0) != 0)
-                                  Text(
-                                    'Completed ${_challengePlayCounts[challengeId]} time${(_challengePlayCounts[challengeId] ?? 0) == 1 ? '' : 's'}',
-                                    style: TextStyle(
-                                    color: isUnlocked ? Colors.white70 : Colors.white38,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w400,
+                                  if ((_challengePlayCounts[challengeId] ??
+                                          0) !=
+                                      0)
+                                    Text(
+                                      'Completed ${_challengePlayCounts[challengeId]} time${(_challengePlayCounts[challengeId] ?? 0) == 1 ? '' : 's'}',
+                                      style: TextStyle(
+                                        color: isUnlocked
+                                            ? Colors.white70
+                                            : Colors.white38,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w400,
+                                      ),
                                     ),
-                                  ),
                                 ],
                               ),
                             ),

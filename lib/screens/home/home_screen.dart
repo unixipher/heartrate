@@ -456,20 +456,64 @@ class _HomeScreenState extends State<HomeScreen> {
             Center(
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(
-                  _characters.length,
-                  (index) => Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: _currentPage == index
-                          ? Colors.purple
-                          : Colors.grey.withOpacity(0.5),
+                children: [
+                  // Left Arrow
+                  IconButton(
+                    onPressed: _currentPage > 0
+                        ? () {
+                            _pageController.previousPage(
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeInOut,
+                            );
+                          }
+                        : null,
+                    icon: Icon(
+                      Icons.arrow_back_ios,
+                      color: _currentPage > 0
+                          ? Colors.white
+                          : Colors.white.withOpacity(0.3),
+                      size: 20,
                     ),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  // Page Indicators (Three Dots)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: List.generate(
+                      _characters.length,
+                      (index) => Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _currentPage == index
+                              ? Colors.purple
+                              : Colors.grey.withOpacity(0.5),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Right Arrow
+                  IconButton(
+                    onPressed: _currentPage < _characters.length - 1
+                        ? () {
+                            _pageController.nextPage(
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeInOut,
+                            );
+                          }
+                        : null,
+                    icon: Icon(
+                      Icons.arrow_forward_ios,
+                      color: _currentPage < _characters.length - 1
+                          ? Colors.white
+                          : Colors.white.withOpacity(0.3),
+                      size: 20,
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 24),
@@ -493,6 +537,47 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: Colors.white,
                   fontSize: 16,
                   height: 1.4,
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            // Start Button
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Center(
+                child: ElevatedButton(
+                  onPressed: () async {
+                    final character = _characters[_currentPage];
+                    await analytics.logEvent(
+                      name: 'character_selected',
+                      parameters: {'character_name': character.name},
+                    );
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => character.page),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.purple,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 16,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 5,
+                  ),
+                  child: const Text(
+                    'START',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Thewitcher',
+                      letterSpacing: 2,
+                    ),
+                  ),
                 ),
               ),
             ),

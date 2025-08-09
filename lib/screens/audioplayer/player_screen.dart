@@ -85,6 +85,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   int _currentPacingSegment = -1;
   List<Duration> _pacingSegmentEnds = [];
   bool _useSocket = false;
+  bool _pacingOperationInProgress = false;
 
   // Distance tracking variables
   double _totalDistanceKm = 0.0;
@@ -1293,8 +1294,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   void _checkForPacingAudio(Duration position) {
     if (_isInDetour) return;
-
     if (!_currentAudioStarted) return;
+    if (_pacingOperationInProgress) return; // Prevent overlapping operations
 
     final int previousAudiosDuration = _currentAudioIndex * 5;
     final Duration globalPosition =
@@ -1309,17 +1310,32 @@ class _PlayerScreenState extends State<PlayerScreen> {
       }
     }
     if (newSegment != _currentPacingSegment) {
-      _audioManager.stopPacing();
+      _pacingOperationInProgress = true;
       _currentPacingSegment = newSegment;
 
-      // Select pacing audio based on heart rate for iOS, speed for Android or iOS fallback
+      // Stop pacing audio first
+      _audioManager.stopPacing();
+
+      // Schedule pacing audio start with a delay to prevent rapid operations
       if (_currentPacingSegment != -1 &&
           _currentPacingSegment < _pacingAudioFiles.length) {
-        String pacingAudioPath =
-            'assets/audio/pacing/${_pacingAudioFiles[_currentPacingSegment]}';
-        _audioManager.playPacingLoop(pacingAudioPath);
-        debugPrint(
-            'Playing pacing audio (segment $_currentPacingSegment): $pacingAudioPath');
+        Future.delayed(const Duration(milliseconds: 150), () async {
+          // Double-check we're still in the same segment after delay
+          if (_currentPacingSegment == newSegment) {
+            String pacingAudioPath =
+                'assets/audio/pacing/${_pacingAudioFiles[_currentPacingSegment]}';
+            try {
+              await _audioManager.playPacingLoop(pacingAudioPath);
+              debugPrint(
+                  'Playing pacing audio (segment $_currentPacingSegment): $pacingAudioPath');
+            } catch (e) {
+              debugPrint('Error playing pacing audio: $e');
+            }
+          }
+          _pacingOperationInProgress = false;
+        });
+      } else {
+        _pacingOperationInProgress = false;
       }
     }
   }
@@ -1505,6 +1521,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
     _unlockTimer?.cancel();
     _dataSubscription?.cancel();
     _distanceSubscription?.cancel(); // Cancel the new subscription
+
+    // Reset pacing operation flag
+    _pacingOperationInProgress = false;
 
     _audioManager.dispose();
     _positionSubscription.cancel();

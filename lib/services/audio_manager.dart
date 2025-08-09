@@ -10,6 +10,8 @@ class AudioManager {
   AudioPlayer _pacingPlayer = AudioPlayer();
   AudioPlayer _introPlayer = AudioPlayer(); // Add intro player
 
+  bool _audioSessionInitialized = false; // Track initialization state
+
   // Add playlist management
   ConcatenatingAudioSource? _playlist;
   bool _isPlaylistInitialized = false;
@@ -26,6 +28,8 @@ class AudioManager {
 
   // Initialize audio session for background playback
   Future<void> _initializeAudioSession() async {
+    if (_audioSessionInitialized) return; // Avoid re-initialization
+
     try {
       final session = await AudioSession.instance;
       await session.configure(const AudioSessionConfiguration(
@@ -44,6 +48,8 @@ class AudioManager {
         androidAudioFocusGainType: AndroidAudioFocusGainType.gain,
         androidWillPauseWhenDucked: false,
       ));
+      _audioSessionInitialized = true;
+      debugPrint('AudioManager: Audio session initialized successfully');
     } catch (e) {
       debugPrint('Error initializing audio session: $e');
     }
@@ -51,18 +57,37 @@ class AudioManager {
 
   Future<void> reset() async {
     try {
+      // Stop all players first
+      await _mainPlayer.stop();
+      await _overlayPlayer.stop();
+      await _pacingPlayer.stop();
+      await _introPlayer.stop();
+
+      // Wait a bit for operations to complete
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      // Then dispose
       await _mainPlayer.dispose();
       await _overlayPlayer.dispose();
       await _pacingPlayer.dispose();
       await _introPlayer.dispose();
-    } catch (_) {}
+
+      // Wait a bit more for disposal to complete
+      await Future.delayed(const Duration(milliseconds: 200));
+    } catch (e) {
+      debugPrint('Error during reset: $e');
+    }
+
+    // Create new instances
     _mainPlayer = AudioPlayer();
     _overlayPlayer = AudioPlayer();
     _pacingPlayer = AudioPlayer();
     _introPlayer = AudioPlayer();
     _playlist = null;
     _isPlaylistInitialized = false;
-    _initializeAudioSession();
+    _audioSessionInitialized =
+        false; // Reset flag so session can be re-initialized
+    await _initializeAudioSession();
     _mainPlayer.playerStateStream.listen((state) {
       debugPrint(
           'Player state: ${state.processingState}, playing: ${state.playing}');
@@ -228,17 +253,40 @@ class AudioManager {
 
   Future<void> playPacing(String assetPath, {double volume = 1}) async {
     try {
+      // Check if player is in a valid state
+      if (_pacingPlayer.processingState == ProcessingState.loading) {
+        debugPrint('AudioManager: Pacing player is loading, waiting...');
+        await Future.delayed(const Duration(milliseconds: 100));
+      }
+
       await _pacingPlayer.stop();
       await _pacingPlayer.setVolume(volume);
       await _pacingPlayer.setAsset(assetPath);
       await _pacingPlayer.play();
     } catch (e) {
       debugPrint('AudioManager: Error playing pacing: $e');
+      // Try to recover by recreating the pacing player
+      try {
+        await _pacingPlayer.dispose();
+        await Future.delayed(const Duration(milliseconds: 100));
+        _pacingPlayer = AudioPlayer();
+        await _pacingPlayer.setVolume(volume);
+        await _pacingPlayer.setAsset(assetPath);
+        await _pacingPlayer.play();
+      } catch (recoveryError) {
+        debugPrint('AudioManager: Recovery failed: $recoveryError');
+      }
     }
   }
 
   Future<void> playPacingLoop(String path, {double volume = 1}) async {
     try {
+      // Check if player is in a valid state
+      if (_pacingPlayer.processingState == ProcessingState.loading) {
+        debugPrint('AudioManager: Pacing player is loading, waiting...');
+        await Future.delayed(const Duration(milliseconds: 100));
+      }
+
       await _pacingPlayer.stop();
       await _pacingPlayer.setVolume(volume);
       await _pacingPlayer.setAsset(path);
@@ -246,12 +294,27 @@ class AudioManager {
       await _pacingPlayer.play();
     } catch (e) {
       debugPrint('AudioManager: Error playing pacing loop: $e');
+      // Try to recover by recreating the pacing player
+      try {
+        await _pacingPlayer.dispose();
+        await Future.delayed(const Duration(milliseconds: 100));
+        _pacingPlayer = AudioPlayer();
+        await _pacingPlayer.setVolume(volume);
+        await _pacingPlayer.setAsset(path);
+        await _pacingPlayer.setLoopMode(LoopMode.one);
+        await _pacingPlayer.play();
+      } catch (recoveryError) {
+        debugPrint('AudioManager: Recovery failed: $recoveryError');
+      }
     }
   }
 
   Future<void> stopPacing() async {
     try {
-      await _pacingPlayer.stop();
+      if (_pacingPlayer.processingState != ProcessingState.idle) {
+        await _pacingPlayer.stop();
+        debugPrint('AudioManager: Stopped pacing audio');
+      }
     } catch (e) {
       debugPrint('AudioManager: Error stopping pacing: $e');
     }
