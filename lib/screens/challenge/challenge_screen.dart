@@ -53,6 +53,10 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
       {}; // Track which durations are being loaded
   int _maxHR = 200; // Default value
 
+  // Part expansion state
+  final Map<int, bool> _partExpanded = {};
+  final int _challengesPerPart = 6;
+
   @override
   void initState() {
     analytics.setAnalyticsCollectionEnabled(true);
@@ -62,6 +66,10 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
     _startTypewriter();
     _loadDownloadStatus();
     _loadMaxHR();
+
+    // Initialize part expansion state - only first part is expanded by default
+    _partExpanded[0] = true;
+
     // Load challenge scores after a brief delay to ensure filteredChallenges is populated
     Future.delayed(const Duration(milliseconds: 500), () {
       if (filteredChallenges.isNotEmpty) {
@@ -259,22 +267,6 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
     }
   }
 
-  String _formatDuration(Duration? duration, {bool isLoading = false}) {
-    if (isLoading) return 'Loading...';
-    if (duration == null) return '5:00 minutes'; // fallback
-
-    final minutes = duration.inMinutes;
-    final seconds = duration.inSeconds % 60;
-
-    if (minutes == 0) {
-      return '${seconds}s';
-    } else if (seconds == 0) {
-      return '${minutes}:00 minutes';
-    } else {
-      return '${minutes}:${seconds.toString().padLeft(2, '0')} minutes';
-    }
-  }
-
   Future<void> _incrementPlayCount(int challengeId) async {
     final prefs = await SharedPreferences.getInstance();
     final currentCount = prefs.getInt('challenge_play_count_$challengeId') ?? 0;
@@ -300,6 +292,129 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
     final previousPlayCount = _challengePlayCounts[previousChallengeId] ?? 0;
 
     return previousPlayCount != 0;
+  }
+
+  bool _isPartUnlocked(int partIndex) {
+    // Part 1 is always unlocked
+    if (partIndex == 0) return true;
+
+    // Check if all challenges in previous part are completed
+    final previousPartStartIndex = (partIndex - 1) * _challengesPerPart;
+    final previousPartEndIndex =
+        (partIndex * _challengesPerPart).clamp(0, filteredChallenges.length);
+
+    for (int i = previousPartStartIndex; i < previousPartEndIndex; i++) {
+      if (i >= filteredChallenges.length) break;
+      final challengeId = filteredChallenges[i]['id'] as int;
+      final playCount = _challengePlayCounts[challengeId] ?? 0;
+      if (playCount == 0) return false;
+    }
+
+    // Auto-expand newly unlocked parts
+    if (_partExpanded[partIndex] == null) {
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (mounted) {
+          setState(() {
+            _partExpanded[partIndex] = true;
+          });
+        }
+      });
+    }
+
+    return true;
+  }
+
+  int _getPartCompletionCount(int partIndex) {
+    final partStartIndex = partIndex * _challengesPerPart;
+    final partEndIndex = ((partIndex + 1) * _challengesPerPart)
+        .clamp(0, filteredChallenges.length);
+
+    int completedCount = 0;
+    for (int i = partStartIndex; i < partEndIndex; i++) {
+      if (i >= filteredChallenges.length) break;
+      final challengeId = filteredChallenges[i]['id'] as int;
+      final playCount = _challengePlayCounts[challengeId] ?? 0;
+      if (playCount > 0) completedCount++;
+    }
+    return completedCount;
+  }
+
+  int _getTotalParts() {
+    return (filteredChallenges.length / _challengesPerPart).ceil();
+  }
+
+  List<Map<String, dynamic>> _getChallengesForPart(int partIndex) {
+    final startIndex = partIndex * _challengesPerPart;
+    final endIndex = ((partIndex + 1) * _challengesPerPart)
+        .clamp(0, filteredChallenges.length);
+
+    if (startIndex >= filteredChallenges.length) return [];
+    return filteredChallenges.sublist(startIndex, endIndex);
+  }
+
+  String _getPartTitle(int partIndex) {
+    switch (widget.storyId) {
+      case 1: // Aradium - Jarek's story
+        switch (partIndex) {
+          case 0:
+            return "SURVIVE THE\nCHAKRAVYUH FORMATION";
+          case 1:
+            return "CROSS THE FOREST\nOF ILLUSIONS";
+          case 2:
+            return "ASCEND THE\nSULPHUR PEAKS";
+          case 3:
+            return "INFILTRATE THE\nENEMY STRONGHOLD";
+          case 4:
+            return "RECLAIM THE\nTHRONE";
+          default:
+            return "PART ${partIndex + 1}";
+        }
+      case 2: // Project SMM - Agent Seahorse
+        switch (partIndex) {
+          case 0:
+            return "INFILTRATE THE\nSAND MAFIA";
+          case 1:
+            return "GATHER\nINTELLIGENCE";
+          case 2:
+            return "EXPOSE THE\nKINGPINS";
+          case 3:
+            return "FINAL\nCONFRONTATION";
+          case 4:
+            return "RESTORE\nORDER";
+          default:
+            return "PART ${partIndex + 1}";
+        }
+      case 3: // Luther - Maya's story
+        switch (partIndex) {
+          case 0:
+            return "SURVIVE THE\nBOT UPRISING";
+          case 1:
+            return "FIND THE\nTRUTH";
+          case 2:
+            return "EXPOSE THE\nCONSPIRACY";
+          case 3:
+            return "SAVE\nHUMANITY";
+          case 4:
+            return "RESTORE\nPEACE";
+          default:
+            return "PART ${partIndex + 1}";
+        }
+      default:
+        switch (partIndex) {
+          case 0:
+            return "SURVIVE THE\nCHAKRAVYUH FORMATION";
+          case 1:
+            return "CROSS THE FOREST\nOF ILLUSIONS";
+          case 2:
+            return "ASCEND THE\nSULPHUR PEAKS";
+          case 3:
+            return "INFILTRATE THE\nENEMY STRONGHOLD";
+          case 4:
+            return "FINAL\nCONFRONTATION";
+          default:
+            return "PART ${partIndex + 1}";
+        }
+    }
   }
 
   Map<String, int> _calculateHeartRateRange(int zone) {
@@ -567,28 +682,21 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                         child: ListView.builder(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 20, vertical: 16),
-                          itemCount: filteredChallenges.length,
-                          itemBuilder: (context, index) {
-                            final challenge = filteredChallenges[index];
-                            final challengeId = challenge['id'] as int;
-                            final isDownloaded =
-                                _downloadStatus[challengeId] ?? false;
-                            final isDownloading =
-                                _isDownloading[challengeId] ?? false;
-                            final isUnlocked = _isChallengeUnlocked(index);
-                            final isCompleted =
-                                _challengeScores[challengeId] != null &&
-                                    _challengeScores[challengeId]!.isNotEmpty;
-
-                            return _buildTimelineItem(
-                              context,
-                              index,
-                              challenge,
-                              challengeId,
-                              isDownloaded,
-                              isDownloading,
-                              isUnlocked,
-                              isCompleted,
+                          itemCount: _getTotalParts(),
+                          itemBuilder: (context, partIndex) {
+                            return Column(
+                              children: [
+                                _buildPartBanner(partIndex),
+                                AnimatedContainer(
+                                  duration: const Duration(milliseconds: 300),
+                                  height: _partExpanded[partIndex] == true
+                                      ? null
+                                      : 0,
+                                  child: _partExpanded[partIndex] == true
+                                      ? _buildPartChallenges(partIndex)
+                                      : const SizedBox.shrink(),
+                                ),
+                              ],
                             );
                           },
                         ),
@@ -598,6 +706,344 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildPartBanner(int partIndex) {
+    final isUnlocked = _isPartUnlocked(partIndex);
+    final isExpanded = _partExpanded[partIndex] ?? false;
+    final completionCount = _getPartCompletionCount(partIndex);
+    final totalChallenges = _getChallengesForPart(partIndex).length;
+    final isCompleted =
+        completionCount == totalChallenges && totalChallenges > 0;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: isUnlocked
+              ? isCompleted
+                  ? [Colors.purple[700]!, Colors.purple[500]!]
+                  : [Colors.blueGrey[800]!, Colors.blueGrey[600]!]
+              : [Colors.grey[900]!, Colors.grey[800]!],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isUnlocked
+              ? isCompleted
+                  ? Colors.purple[300]!.withOpacity(0.5)
+                  : Colors.blue[300]!.withOpacity(0.3)
+              : Colors.grey[600]!.withOpacity(0.3),
+          width: 1,
+        ),
+        boxShadow: [
+          if (isUnlocked && isCompleted)
+            BoxShadow(
+              color: Colors.purple[400]!.withOpacity(0.3),
+              blurRadius: 12,
+              spreadRadius: 2,
+            ),
+          if (isUnlocked && !isCompleted)
+            BoxShadow(
+              color: Colors.blue[400]!.withOpacity(0.2),
+              blurRadius: 8,
+              spreadRadius: 1,
+            ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: isUnlocked
+              ? () {
+                  setState(() {
+                    _partExpanded[partIndex] = !isExpanded;
+                  });
+                }
+              : () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text(
+                        'Complete previous parts to unlock this one.',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      backgroundColor: Colors.white,
+                      elevation: 0,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      width: 280,
+                    ),
+                  );
+                },
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                // Part completion icon
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: isUnlocked
+                          ? isCompleted
+                              ? [Colors.amber[400]!, Colors.orange[600]!]
+                              : [Colors.blue[400]!, Colors.blue[600]!]
+                          : [Colors.grey[600]!, Colors.grey[700]!],
+                    ),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.4),
+                      width: 2,
+                    ),
+                    boxShadow: [
+                      if (isUnlocked)
+                        BoxShadow(
+                          color: (isCompleted
+                                  ? Colors.amber[400]!
+                                  : Colors.blue[400]!)
+                              .withOpacity(0.3),
+                          blurRadius: 8,
+                          spreadRadius: 1,
+                        ),
+                    ],
+                  ),
+                  child: Stack(
+                    children: [
+                      Center(
+                        child: Icon(
+                          isUnlocked
+                              ? isCompleted
+                                  ? Icons.emoji_events
+                                  : Icons.play_circle_filled
+                              : Icons.lock,
+                          color: Colors.white,
+                          size: 32,
+                        ),
+                      ),
+                      if (isCompleted)
+                        Positioned(
+                          top: 8,
+                          right: 8,
+                          child: Container(
+                            width: 16,
+                            height: 16,
+                            decoration: BoxDecoration(
+                              color: Colors.green[500],
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 1),
+                            ),
+                            child: const Icon(
+                              Icons.check,
+                              color: Colors.white,
+                              size: 10,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(width: 16),
+
+                // Part title and info
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            "PART ${partIndex + 1}",
+                            style: TextStyle(
+                              color: isUnlocked ? Colors.white : Colors.white54,
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 2,
+                            ),
+                          ),
+                          if (isCompleted) ...[
+                            const SizedBox(width: 8),
+                            Icon(
+                              Icons.verified,
+                              color: Colors.amber[400],
+                              size: 18,
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _getPartTitle(partIndex),
+                        style: TextStyle(
+                          color: isUnlocked ? Colors.white : Colors.white54,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: 'Battambang',
+                          height: 1.2,
+                        ),
+                      ),
+                      if (isUnlocked && completionCount > 0) ...[
+                        const SizedBox(height: 8),
+                        // Progress bar
+                        Container(
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[700],
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                          child: FractionallySizedBox(
+                            alignment: Alignment.centerLeft,
+                            widthFactor: completionCount / totalChallenges,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: isCompleted
+                                      ? [
+                                          Colors.amber[400]!,
+                                          Colors.orange[600]!
+                                        ]
+                                      : [Colors.blue[400]!, Colors.blue[600]!],
+                                ),
+                                borderRadius: BorderRadius.circular(3),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+
+                // Challenge progress and expand icon
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    if (isUnlocked) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: isCompleted
+                                ? [Colors.amber[400]!, Colors.orange[600]!]
+                                : [Colors.blue[400]!, Colors.blue[600]!],
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: (isCompleted
+                                      ? Colors.amber[400]!
+                                      : Colors.blue[400]!)
+                                  .withOpacity(0.3),
+                              blurRadius: 4,
+                              spreadRadius: 1,
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              "$completionCount/$totalChallenges",
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            if (isCompleted) ...[
+                              const SizedBox(width: 4),
+                              const Icon(
+                                Icons.star,
+                                color: Colors.white,
+                                size: 14,
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      if (completionCount > 0 && !isCompleted)
+                        Text(
+                          "${(completionCount / totalChallenges * 100).round()}%",
+                          style: TextStyle(
+                            color: Colors.blue[300],
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      const SizedBox(height: 4),
+                    ],
+                    AnimatedRotation(
+                      turns: isExpanded ? 0.5 : 0.0,
+                      duration: const Duration(milliseconds: 300),
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          Icons.keyboard_arrow_down,
+                          color: isUnlocked ? Colors.white : Colors.white54,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPartChallenges(int partIndex) {
+    final challenges = _getChallengesForPart(partIndex);
+    final partStartIndex = partIndex * _challengesPerPart;
+
+    return Column(
+      children: challenges.asMap().entries.map((entry) {
+        final localIndex = entry.key;
+        final challenge = entry.value;
+        final globalIndex = partStartIndex + localIndex;
+        final challengeId = challenge['id'] as int;
+        final isDownloaded = _downloadStatus[challengeId] ?? false;
+        final isDownloading = _isDownloading[challengeId] ?? false;
+        final isUnlocked = _isChallengeUnlocked(globalIndex);
+        final isCompleted = _challengeScores[challengeId] != null &&
+            _challengeScores[challengeId]!.isNotEmpty;
+
+        return Padding(
+          padding: const EdgeInsets.only(left: 16, top: 8),
+          child: _buildTimelineItem(
+            context,
+            globalIndex,
+            challenge,
+            challengeId,
+            isDownloaded,
+            isDownloading,
+            isUnlocked,
+            isCompleted,
+          ),
+        );
+      }).toList(),
     );
   }
 
@@ -654,12 +1100,12 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    isCompleted ? Colors.purple[400]! : Colors.grey[600]!,
+                    isCompleted ? Colors.green[400]! : Colors.grey[600]!,
                     _isChallengeUnlocked(index + 1) &&
                             _challengeScores[filteredChallenges[index + 1]
                                     ['id']] !=
                                 null
-                        ? Colors.purple[400]!
+                        ? Colors.green[400]!
                         : Colors.grey[600]!,
                   ],
                 ),
@@ -721,17 +1167,24 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                         },
                   borderRadius: BorderRadius.circular(35),
                   child: Container(
-                    width: 70,
-                    height: 70,
+                    width: 50,
+                    height: 50,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: !isUnlocked
-                          ? Colors.grey[800]!.withOpacity(0.5)
-                          : isCompleted
-                              ? Colors.purple[600]
-                              : isDownloaded
-                                  ? Colors.blue[600]
-                                  : Colors.grey[600],
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: !isUnlocked
+                            ? [
+                                Colors.grey[800]!.withOpacity(0.5),
+                                Colors.grey[700]!.withOpacity(0.5)
+                              ]
+                            : isCompleted
+                                ? [Colors.green[500]!, Colors.green[600]!]
+                                : isDownloaded
+                                    ? [Colors.blue[500]!, Colors.blue[600]!]
+                                    : [Colors.grey[600]!, Colors.grey[700]!],
+                      ),
                       border: Border.all(
                         color: Colors.white.withOpacity(0.3),
                         width: 2,
@@ -740,7 +1193,7 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                         if (isCompleted || (isUnlocked && isDownloaded))
                           BoxShadow(
                             color: (isCompleted
-                                    ? Colors.purple[600]!
+                                    ? Colors.green[500]!
                                     : Colors.blue[600]!)
                                 .withOpacity(0.3),
                             blurRadius: 8,
@@ -758,24 +1211,24 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                               ? const Icon(
                                   Icons.lock_outline,
                                   color: Colors.white54,
-                                  size: 32,
+                                  size: 24,
                                 )
                               : isCompleted
                                   ? const Icon(
                                       Icons.check_circle,
                                       color: Colors.white,
-                                      size: 32,
+                                      size: 24,
                                     )
                                   : isDownloaded
                                       ? const Icon(
                                           Icons.play_arrow_rounded,
                                           color: Colors.white,
-                                          size: 32,
+                                          size: 24,
                                         )
                                       : const Icon(
                                           Icons.play_arrow,
                                           color: Colors.white,
-                                          size: 32,
+                                          size: 24,
                                         ),
                     ),
                   ),
@@ -837,19 +1290,47 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                         },
                   borderRadius: BorderRadius.circular(16),
                   child: Container(
-                    margin: const EdgeInsets.only(bottom: 20),
-                    padding: const EdgeInsets.all(20),
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: !isUnlocked
-                          ? Colors.grey[800]!.withOpacity(0.3)
-                          : index == selectedChallenge && isDownloaded
-                              ? Colors.purple[600]!.withOpacity(0.8)
-                              : Colors.blueGrey[700]!.withOpacity(0.6),
-                      borderRadius: BorderRadius.circular(16),
+                      gradient: LinearGradient(
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                        colors: !isUnlocked
+                            ? [
+                                Colors.grey[800]!.withOpacity(0.3),
+                                Colors.grey[700]!.withOpacity(0.3)
+                              ]
+                            : index == selectedChallenge && isDownloaded
+                                ? [
+                                    Colors.purple[600]!.withOpacity(0.8),
+                                    Colors.purple[500]!.withOpacity(0.8)
+                                  ]
+                                : isCompleted
+                                    ? [
+                                        Colors.green[700]!.withOpacity(0.6),
+                                        Colors.green[600]!.withOpacity(0.6)
+                                      ]
+                                    : [
+                                        Colors.blueGrey[700]!.withOpacity(0.5),
+                                        Colors.blueGrey[600]!.withOpacity(0.5)
+                                      ],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: Colors.white.withOpacity(0.1),
+                        color: isCompleted
+                            ? Colors.green[300]!.withOpacity(0.3)
+                            : Colors.white.withOpacity(0.1),
                         width: 1,
                       ),
+                      boxShadow: [
+                        if (isCompleted)
+                          BoxShadow(
+                            color: Colors.green[400]!.withOpacity(0.2),
+                            blurRadius: 6,
+                            spreadRadius: 1,
+                          ),
+                      ],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
