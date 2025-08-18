@@ -19,7 +19,9 @@ class CompletionScreen extends StatefulWidget {
   final dynamic audioData;
   final int challengeCount;
   final int playingChallengeCount;
-  final int score; // Add score parameter
+  final int score; // This is the total score for the session
+  final Map<int, int>
+      challengeScores; // This map holds the individual scores
 
   const CompletionScreen({
     super.key,
@@ -32,7 +34,8 @@ class CompletionScreen extends StatefulWidget {
     required this.audioData,
     required this.challengeCount,
     required this.playingChallengeCount,
-    required this.score, // Add score parameter
+    required this.score,
+    required this.challengeScores,
   });
 
   @override
@@ -148,29 +151,35 @@ class _CompletionScreenState extends State<CompletionScreen>
   Future<void> _updateChallengeStatus() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token') ?? '';
-    final List<int> challengeIds =
-        (widget.audioData as List).map((item) => item['id'] as int).toList();
 
-    try {
-      final response = await http.post(
-        Uri.parse('https://authcheck.co/updatechallenge'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'challengeId': challengeIds,
-          'status': true,
-          'score': widget.score,
-        }),
-      );
+    for (var entry in widget.challengeScores.entries) {
+      final challengeId = entry.key;
+      final score = entry.value;
 
-      if (response.statusCode == 200) {
-        debugPrint('Challenge updated successfully: ${response.statusCode}');
-        debugPrint(widget.audioData.toString());
+      try {
+        final response = await http.post(
+          Uri.parse('https://authcheck.co/updatechallenge'),
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode({
+            'challengeId': [challengeId], // Send as a list with one ID
+            'status': true, // Assuming completion if we are here
+            'score': score,
+          }),
+        );
+
+        if (response.statusCode == 200) {
+          debugPrint(
+              'Challenge $challengeId updated successfully with score $score');
+        } else {
+          debugPrint(
+              'Failed to update challenge $challengeId: ${response.statusCode}');
+        }
+      } catch (e) {
+        debugPrint('Update challenge error for $challengeId: $e');
       }
-    } catch (e) {
-      debugPrint('Update challenge error: $e');
     }
   }
 
@@ -997,7 +1006,7 @@ class _CompletionScreenState extends State<CompletionScreen>
                   child: Column(
                     children: [
                       Text(
-                        _useHeartRateData ? "Heart Rate" : "Speed",
+                        _useHeartRateData ? "HR" : "Speed",
                         style: const TextStyle(
                           color: Colors.white70,
                           fontSize: 16,

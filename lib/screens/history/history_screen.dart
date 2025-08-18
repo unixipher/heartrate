@@ -1791,12 +1791,26 @@ class _HistoryScreenState extends State<HistoryScreen>
   }
 
   Widget _buildWorkoutHistoryTab() {
+    // Sort workoutHistory by startTime descending (most recent first)
+    List<dynamic> sortedWorkoutHistory = List.from(workoutHistory);
+    sortedWorkoutHistory.sort((a, b) {
+      final aTime = a['startTime'] != null
+          ? DateTime.tryParse(a['startTime'].toString())
+          : null;
+      final bTime = b['startTime'] != null
+          ? DateTime.tryParse(b['startTime'].toString())
+          : null;
+      if (aTime == null && bTime == null) return 0;
+      if (aTime == null) return 1;
+      if (bTime == null) return -1;
+      return bTime.compareTo(aTime);
+    });
     return RefreshIndicator(
       onRefresh: fetchCompletedChallenges,
       child: ListView.builder(
-        itemCount: workoutHistory.length,
+        itemCount: sortedWorkoutHistory.length,
         itemBuilder: (context, index) {
-          final workout = workoutHistory[index];
+          final workout = sortedWorkoutHistory[index];
 
           // Safe parsing of start and end times
           DateTime? startTime;
@@ -1825,6 +1839,8 @@ class _HistoryScreenState extends State<HistoryScreen>
           final challengeCount =
               (workout['challengeIds'] as List?)?.length ?? 0;
 
+          // Numbering: highest number at the top
+          final workoutNumber = sortedWorkoutHistory.length - index;
           return Card(
             margin: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
             color: Colors.white10,
@@ -1837,7 +1853,7 @@ class _HistoryScreenState extends State<HistoryScreen>
               child: ListTile(
                 leading: const Icon(Icons.fitness_center, color: Colors.white),
                 title: Text(
-                  'Workout #${index + 1}',
+                  'Workout #$workoutNumber',
                   style: const TextStyle(color: Colors.white),
                 ),
                 subtitle: Column(
@@ -1867,12 +1883,26 @@ class _HistoryScreenState extends State<HistoryScreen>
   }
 
   Widget _buildChallengeHistoryTab() {
+    // Sort completedChallenges by completedAt descending (most recent first)
+    List<dynamic> sortedChallenges = List.from(completedChallenges);
+    sortedChallenges.sort((a, b) {
+      final aTime = a['completedAt'] != null
+          ? DateTime.tryParse(a['completedAt'].toString())
+          : null;
+      final bTime = b['completedAt'] != null
+          ? DateTime.tryParse(b['completedAt'].toString())
+          : null;
+      if (aTime == null && bTime == null) return 0;
+      if (aTime == null) return 1;
+      if (bTime == null) return -1;
+      return bTime.compareTo(aTime);
+    });
     return RefreshIndicator(
       onRefresh: fetchCompletedChallenges,
       child: ListView.builder(
-        itemCount: completedChallenges.length,
+        itemCount: sortedChallenges.length,
         itemBuilder: (context, index) {
-          final challenge = completedChallenges[index];
+          final challenge = sortedChallenges[index];
 
           // Parse and format the timestamp to local time
           String formattedCompletedAt = 'No Timestamp';
@@ -1890,6 +1920,8 @@ class _HistoryScreenState extends State<HistoryScreen>
             }
           }
 
+          // Numbering: highest number at the top
+          final challengeNumber = sortedChallenges.length - index;
           return Card(
             margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
             color: Colors.white10,
@@ -1902,7 +1934,8 @@ class _HistoryScreenState extends State<HistoryScreen>
               child: ListTile(
                 leading: const Icon(Icons.music_note, color: Colors.white),
                 title: Text(
-                  challenge['challenge']['title'] ?? 'No Title',
+                  'Challenge #$challengeNumber: ' +
+                      (challenge['challenge']['title'] ?? 'No Title'),
                   style: const TextStyle(color: Colors.white),
                 ),
                 subtitle: Column(

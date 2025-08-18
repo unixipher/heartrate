@@ -18,12 +18,14 @@ class PlayerScreen extends StatefulWidget {
   final List<Map<String, dynamic>> audioData;
   final int challengeCount;
   final int playingChallengeCount;
+  final Map<int, int> challengePlayCounts;
 
   const PlayerScreen({
     super.key,
     required this.challengeCount,
     required this.audioData,
     required this.playingChallengeCount,
+    required this.challengePlayCounts,
   });
 
   @override
@@ -39,9 +41,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
   final FirebaseAnalytics analytics = FirebaseAnalytics.instance;
 
   // Scoring system variables
-  int _currentScore = 0;
+  Map<int, int> _challengeScoresMap = {};
+  Map<int, bool> _challengeCompletionStatus = {};
   int _consecutiveChallengeCompletions = 0;
-  List<int> _challengeScores = []; // Track score for each challenge
 
   // --- START: Detour Feature Variables ---
   int _outOfZoneCount = 0;
@@ -124,14 +126,17 @@ class _PlayerScreenState extends State<PlayerScreen> {
     analytics.setAnalyticsCollectionEnabled(true);
     super.initState();
     debugPrint('=== INITIALIZING SCORING SYSTEM ===');
-    debugPrint('Initial Score: $_currentScore');
-    debugPrint(
-      'Initial Challenge Completions: $_consecutiveChallengeCompletions',
-    );
     debugPrint('===================================');
     _initializePlayer();
     _initializeService();
     _initializeDetourTimestamps(); // Initialize detour timestamps
+
+    // Initialize scores and completion status for all challenges in this workout.
+    for (var audio in widget.audioData) {
+      final challengeId = audio['id'] as int;
+      _challengeScoresMap[challengeId] = 0;
+      _challengeCompletionStatus[challengeId] = false;
+    }
 
     // Initialize pedometer for iOS
     if (Platform.isIOS) {
@@ -393,9 +398,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   void _handleChallengeExit() {
-    // Check if any challenges have been completed
-    if (_consecutiveChallengeCompletions > 0) {
-      // Navigate to completion screen with current progress
+    // If the first audio has started, the user has made some progress.
+    if (_currentAudioStarted) {
       _navigateToCompletionScreenEarly();
     } else {
       // No challenges completed, go back to home/previous screen
@@ -405,13 +409,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   void _navigateToCompletionScreenEarly() {
     final currentAudio = widget.audioData[_currentAudioIndex];
+    final totalScore =
+        _challengeScoresMap.values.fold(0, (sum, score) => sum + score);
+
     debugPrint('=== EARLY EXIT SCORING SUMMARY ===');
-    debugPrint('Total Score: $_currentScore');
+    debugPrint('Total Score: $totalScore');
     debugPrint('Total Challenges Completed: $_consecutiveChallengeCompletions');
-    debugPrint('Individual Challenge Scores: $_challengeScores');
+    debugPrint('Individual Challenge Scores: $_challengeScoresMap');
     debugPrint('Total Nudges: $totalNudges');
     debugPrint('Exiting at audio index: $_currentAudioIndex');
     debugPrint('===================================');
+
+    // No need to save here anymore, it's already done in real-time.
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Navigator.pushReplacement(
@@ -426,9 +435,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
             timestampcount: totalNudges,
             audioData: widget.audioData,
             challengeCount: widget.challengeCount,
-            playingChallengeCount:
-                _consecutiveChallengeCompletions, // Use actual completed count
-            score: _currentScore,
+            playingChallengeCount: _consecutiveChallengeCompletions > 0
+                ? _consecutiveChallengeCompletions
+                : 1,
+            score: totalScore,
+            challengeScores: _challengeScoresMap,
           ),
         ),
       );
@@ -934,48 +945,91 @@ class _PlayerScreenState extends State<PlayerScreen> {
     currentTrackNudges = 0;
   }
 
-  Future<void> _handleAudioCompletion() async {
-    if (_isCompleting) return;
-    setState(() {
-      _isCompleting = true;
-    });
-
-    _consecutiveChallengeCompletions++;
-
-    int challengeCompletionScore;
-    if (_consecutiveChallengeCompletions == 1) {
-      challengeCompletionScore = 20;
-    } else {
-      challengeCompletionScore = 20 * _consecutiveChallengeCompletions;
+  /// Updates the score in the app's memory and immediately saves it to the device.
+  Future<void> _updateAndSaveScore(int challengeId, int pointsToAdd, {bool isCompletedUpdate = false}) async {
+    // Ensure the challenge exists in the map
+    if (!_challengeScoresMap.containsKey(challengeId)) {
+      _challengeScoresMap[challengeId] = 0;
     }
 
+    // Update the in-memory score and completion status
     setState(() {
-      _currentScore += challengeCompletionScore;
-      _challengeScores.add(challengeCompletionScore);
+      _challengeScoresMap[challengeId] = (_challengeScoresMap[challengeId]! + pointsToAdd);
+      if (isCompletedUpdate) {
+        _challengeCompletionStatus[challengeId] = true;
+      }
     });
 
-    // Store individual audio completion score in SharedPreferences
-    await _storeAudioCompletionScore(challengeCompletionScore);
+    // Immediately save the new total score for this challenge to the device
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final currentAudio = widget.audioData.firstWhere((audio) => audio['id'] == challengeId);
+      final challengeName = currentAudio['challengeName'] as String;
+      final playCount = widget.challengePlayCounts[challengeId] ?? 1;
+      final String audioKey =
+          'audio_completion_${challengeId}_${challengeName}_completion_$playCount';
+
+      final Map<String, dynamic> completionData = {
+        'score': _challengeScoresMap[challengeId],
+        'completed': _challengeCompletionStatus[challengeId] ?? false,
+        'completionNumber': playCount,
+        'audioId': challengeId,
+        'challengeName': challengeName,
+        'storyId': currentAudio['storyId'],
+        'zoneId': currentAudio['zoneId'],
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      };
+
+      await prefs.setString(audioKey, jsonEncode(completionData));
+      debugPrint(
+          'Realtime save for challenge $challengeId: New score is ${_challengeScoresMap[challengeId]}, Completed: ${completionData['completed']}');
+    } catch (e) {
+      debugPrint('Error during real-time save for challenge $challengeId: $e');
+    }
+  }
+
+  Future<void> _handleAudioCompletion() async {
+    if (_isCompleting) return;
+    if (_currentAudioIndex >= widget.audioData.length) return;
+
+    setState(() => _isCompleting = true);
+
+    final currentChallengeId = widget.audioData[_currentAudioIndex]['id'] as int;
+    int challengeCompletionScore = 20;
+
+    // Add consecutive bonus
+    _consecutiveChallengeCompletions++;
+    if (_consecutiveChallengeCompletions > 1) {
+      challengeCompletionScore += (_consecutiveChallengeCompletions * 20);
+    }
+
+    // Use the new function to add the completion bonus and mark as complete.
+    // The 'await' ensures this save operation finishes before any other code runs.
+    await _updateAndSaveScore(currentChallengeId, challengeCompletionScore, isCompletedUpdate: true);
 
     debugPrint(
-      'Challenge completed! Score +$challengeCompletionScore (Challenge #$_consecutiveChallengeCompletions). Total: $_currentScore',
+      'Challenge completed and saved! Score +$challengeCompletionScore. New total: ${_challengeScoresMap[currentChallengeId]}',
     );
+
+    setState(() => _isCompleting = false);
 
     if (_currentAudioIndex + 1 >= widget.audioData.length) {
       _navigateToCompletionScreen();
-    } else {
-      debugPrint('Moving to next track automatically');
     }
   }
 
   void _navigateToCompletionScreen() {
     final lastAudio = widget.audioData.last;
+    final totalScore =
+        _challengeScoresMap.values.fold(0, (sum, score) => sum + score);
     debugPrint('=== FINAL SCORING SUMMARY ===');
-    debugPrint('Total Score: $_currentScore');
+    debugPrint('Total Score: $totalScore');
     debugPrint('Total Challenges Completed: $_consecutiveChallengeCompletions');
-    debugPrint('Individual Challenge Scores: $_challengeScores');
+    debugPrint('Individual Challenge Scores: $_challengeScoresMap');
     debugPrint('Total Nudges: $totalNudges');
     debugPrint('============================');
+
+    // No need to save here anymore, it's already done in real-time.
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Navigator.pushReplacement(
@@ -991,7 +1045,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
             audioData: widget.audioData,
             challengeCount: widget.challengeCount,
             playingChallengeCount: widget.playingChallengeCount,
-            score: _currentScore,
+            score: totalScore,
+            challengeScores: _challengeScoresMap,
           ),
         ),
       );
@@ -1108,38 +1163,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
     });
   }
 
-  Future<void> _storeAudioCompletionScore(int score) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final currentAudio = widget.audioData[_currentAudioIndex];
-
-      // Create a unique key for this audio completion
-      // Using audio ID, challenge name, and completion number for uniqueness
-      final String audioKey =
-          'audio_completion_${currentAudio['id']}_${currentAudio['challengeName']}_completion_$_consecutiveChallengeCompletions';
-
-      // Store the completion score with timestamp for reference
-      final Map<String, dynamic> completionData = {
-        'score': score,
-        'completionNumber': _consecutiveChallengeCompletions,
-        'audioId': currentAudio['id'],
-        'challengeName': currentAudio['challengeName'],
-        'storyId': currentAudio['storyId'],
-        'zoneId': currentAudio['zoneId'],
-        'timestamp': DateTime.now().millisecondsSinceEpoch,
-        'totalNudges': currentTrackNudges,
-      };
-
-      // Store as JSON string
-      await prefs.setString(audioKey, jsonEncode(completionData));
-
-      debugPrint(
-          'Stored audio completion: $audioKey with data: $completionData');
-    } catch (e) {
-      debugPrint('Error storing audio completion score: $e');
-    }
-  }
-
   int roundToNearest10(double value) {
     return (value / 10).round() * 10;
   }
@@ -1236,20 +1259,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
           }
 
           // Apply scoring based on whether the user is in or out of zone
+          final challengeId = currentAudio['id'] as int;
           if (isOutOfZone) {
             // User is out of zone: -1 point
-            setState(() {
-              _currentScore -= 1;
-            });
-            debugPrint(
-                'Score -1: Out of zone during detour. Total: $_currentScore');
+            _updateAndSaveScore(challengeId, -1);
           } else {
             // User is in zone: +5 points
-            setState(() {
-              _currentScore += 5;
-            });
-            debugPrint(
-                'Score +5: In zone during detour. Total: $_currentScore');
+            _updateAndSaveScore(challengeId, 5);
             debugPrint("Skipping detour audio d$i because user is in zone.");
             continue; // Skip playing the out-of-zone audio cue
           }
@@ -1372,8 +1388,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
       inZone = (_currentHR! <= upperBound && _currentHR! >= lowerBound);
       // **MODIFIED LOGIC**: Overlay 'S' only plays if HR is above the upper bound.
       overlayType = (_currentHR! > upperBound) ? 'S' : 'A';
-      debugPrint(
-          "Heart rate based - Inside zone (for scoring): $inZone, Overlay Type: $overlayType");
     }
     // Fallback to speed for iOS if heart rate unavailable, or use speed for Android
     else if ((Platform.isIOS &&
@@ -1403,8 +1417,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
           _currentSpeedKmph! >= lowerBound);
       // **MODIFIED LOGIC**: Overlay 'S' only plays if speed is above the upper bound.
       overlayType = (_currentSpeedKmph! > upperBound) ? 'S' : 'A';
-      debugPrint(
-          "Speed based - Inside zone (for scoring): $inZone, Overlay Type: $overlayType");
     } else {
       // Default case if no sensor data is available
       overlayType = 'A';
@@ -1418,29 +1430,23 @@ class _PlayerScreenState extends State<PlayerScreen> {
         currentTrackNudges++;
 
         // Apply scoring based on inZone status (between lower and upper bounds)
+        final challengeId = currentAudio['id'] as int;
         if (inZone) {
-          setState(() {
-            _currentScore += 5;
-          });
-          debugPrint('Score +5: In zone at overlay, total: $_currentScore');
+          _updateAndSaveScore(challengeId, 5);
         } else {
-          setState(() {
-            _currentScore -= 1;
-            _outOfZoneCount++;
-          });
-          debugPrint(
-              'Score -1: Outside zone at overlay, total: $_currentScore, Out of zone count: $_outOfZoneCount');
+          _updateAndSaveScore(challengeId, -1);
+          _outOfZoneCount++;
         }
 
         String overlayPath;
         final filteredChallenges = widget.audioData;
-        final challengeId = filteredChallenges.indexWhere(
+        final challengeIndex = filteredChallenges.indexWhere(
           (c) => c['id'] == currentAudio['id'],
         );
         switch (storyId) {
           case 1:
             overlayPath =
-                'assets/audio/aradium/overlay/$challengeId/${overlayType}_$i.wav';
+                'assets/audio/aradium/overlay/$challengeIndex/${overlayType}_$i.wav';
             break;
           case 2:
             const int overlayIndex = 0;
@@ -1449,7 +1455,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
             break;
           case 3:
             overlayPath =
-                'assets/audio/luther/overlay/$challengeId/${overlayType}_$i.wav';
+                'assets/audio/luther/overlay/$challengeIndex/${overlayType}_$i.wav';
             break;
           case 4:
             const int overlayIndex = 0;
@@ -1561,6 +1567,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
     final currentAudio = widget.audioData[_currentAudioIndex];
     final Duration remaining = _globalTotalDuration - _globalPosition;
+    final totalScore =
+        _challengeScoresMap.values.fold(0, (sum, score) => sum + score);
 
     return WillPopScope(
       onWillPop: _onWillPop,
@@ -1694,7 +1702,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
                                                 style: const TextStyle(
                                                   color: Colors.white,
                                                   fontSize: 32,
-                                                  fontWeight: FontWeight.normal,
+                                                  fontWeight:
+                                                      FontWeight.normal,
                                                   fontFamily: 'Thewitcher',
                                                   letterSpacing: 2,
                                                 ),
@@ -1867,7 +1876,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                                     ),
                                     const SizedBox(height: 5),
                                     Text(
-                                      "$_currentScore",
+                                      "$totalScore",
                                       style: const TextStyle(
                                         color: Colors.white,
                                         fontSize: 24,
@@ -2116,7 +2125,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                                     ),
                                     const SizedBox(height: 5),
                                     Text(
-                                      "$_currentScore",
+                                      "$totalScore",
                                       style: const TextStyle(
                                         color: Colors.white,
                                         fontSize: 24,

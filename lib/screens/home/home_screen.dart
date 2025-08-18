@@ -352,11 +352,10 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 16),
             const Center(
               child: Text(
-                'Choose Your Character \nyou want to be',
+                'Choose The Character \nyou want to be',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 26,
-                  fontFamily: 'Thewitcher',
+                  fontSize: 24,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 1.5,
                 ),

@@ -141,9 +141,9 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
       final challengeId = challenge['id'] as int;
       final challengeName = challenge['title'] as String;
       List<int> scores = [];
+      bool wasCompleted = false;
 
-      // Look for all completion entries for this challenge
-      // We'll check up to 10 possible completions (can be adjusted)
+      // Check up to 10 possible completions
       for (int completion = 1; completion <= 10; completion++) {
         final String audioKey =
             'audio_completion_${challengeId}_${challengeName}_completion_$completion';
@@ -155,6 +155,9 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                 jsonDecode(completionDataJson);
             final int score = completionData['score'] ?? 0;
             scores.add(score);
+            if (completionData['completed'] == true) {
+              wasCompleted = true;
+            }
           } catch (e) {
             debugPrint('Error parsing completion data for $audioKey: $e');
           }
@@ -422,16 +425,16 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
 
     switch (zone) {
       case 1:
-        lowerBound = (72 + (_maxHR - 72) * 0.35).round();
-        upperBound = (72 + (_maxHR - 72) * 0.75).round();
+        lowerBound = (72 + (_maxHR - 72) * 0.5).round();
+        upperBound = (72 + (_maxHR - 72) * 0.6).round();
         break;
       case 2:
-        lowerBound = (72 + (_maxHR - 72) * 0.45).round();
-        upperBound = (72 + (_maxHR - 72) * 0.85).round();
+        lowerBound = (72 + (_maxHR - 72) * 0.6).round();
+        upperBound = (72 + (_maxHR - 72) * 0.7).round();
         break;
       case 3:
-        lowerBound = (72 + (_maxHR - 72) * 0.55).round();
-        upperBound = (72 + (_maxHR - 72) * 0.95).round();
+        lowerBound = (72 + (_maxHR - 72) * 0.7).round();
+        upperBound = (72 + (_maxHR - 72) * 0.8).round();
         break;
       default:
         lowerBound = 72;
@@ -1354,20 +1357,6 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                                     ),
                                   ),
                                   const SizedBox(height: 6),
-                                  // Text(
-                                  //   _formatDuration(
-                                  //     _audioDurations[challengeId],
-                                  //     isLoading:
-                                  //         _durationLoading[challengeId] ??
-                                  //             false,
-                                  //   ),
-                                  //   style: TextStyle(
-                                  //     color: isUnlocked
-                                  //         ? Colors.white70
-                                  //         : Colors.white38,
-                                  //     fontSize: 14,
-                                  //   ),
-                                  // ),
                                   if ((_challengePlayCounts[challengeId] ??
                                           0) !=
                                       0)
@@ -1387,21 +1376,6 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                             _buildScoreDisplay(challengeId, isUnlocked),
                           ],
                         ),
-                        // if (isCompleted) ...[
-                        //   const SizedBox(height: 12),
-                        //   Container(
-                        //     padding: const EdgeInsets.symmetric(
-                        //         horizontal: 12, vertical: 6),
-                        //     child: Text(
-                        //       'Challenge Completed ${_challengePlayCounts[challengeId] ?? 0} time',
-                        //       style: const TextStyle(
-                        //         color: Colors.white,
-                        //         fontSize: 12,
-                        //         fontWeight: FontWeight.w500,
-                        //       ),
-                        //     ),
-                        //   ),
-                        // ],
                       ],
                     ),
                   ),
@@ -1787,29 +1761,15 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
                                 ),
+                                textAlign: TextAlign.center,
                               ),
-                              TextButton(
-                                onPressed: isLoading
-                                    ? null
-                                    : () {
-                                        Navigator.pop(context);
-                                        _showZoneSelector(context);
-                                      },
-                                child: const Text(
-                                  'Skip',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              )
+                              const SizedBox(width: 48),
                             ],
                           ),
                         ),
                         const SizedBox(height: 16),
                         // Time Selector
-                        Container(
+                        SizedBox(
                           height: 150,
                           child: Stack(
                             children: [
@@ -2023,6 +1983,8 @@ class _ChallengeScreenState extends State<ChallengeScreen> {
                                                 filteredChallenges.length,
                                             playingChallengeCount:
                                                 challengesToSend,
+                                            challengePlayCounts:
+                                                _challengePlayCounts,
                                           ),
                                         ),
                                       );
