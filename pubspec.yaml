@@ -46,6 +46,7 @@ dependencies:
   device_info_plus: ^11.3.1  
   sensors_plus: ^3.0.2
   firebase_messaging: ^15.2.9
+  pedometer: ^4.1.1
 
 
 dev_dependencies:

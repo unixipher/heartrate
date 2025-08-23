@@ -13,6 +13,7 @@ import 'package:flutter/services.dart';
 import 'package:testingheartrate/services/gps_service.dart';
 import 'package:cm_pedometer/cm_pedometer.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:http/http.dart' as http;
 
 class PlayerScreen extends StatefulWidget {
   final List<Map<String, dynamic>> audioData;
@@ -918,6 +919,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
       index,
     ) {
       if (index != null && index != _currentPlaylistIndex) {
+        // A track has finished, the previous index is the one that's complete.
+        if (_currentPlaylistIndex != null) {
+          // Call the new function to handle completion of the previous track
+          _handleTrackCompletion(_currentPlaylistIndex!);
+        }
         setState(() {
           _currentAudioIndex = index;
           _currentPlaylistIndex = index;
@@ -983,10 +989,55 @@ class _PlayerScreenState extends State<PlayerScreen> {
       await prefs.setString(audioKey, jsonEncode(completionData));
       debugPrint(
           'Realtime save for challenge $challengeId: New score is ${_challengeScoresMap[challengeId]}, Completed: ${completionData['completed']}');
+      
+      // If the challenge is completed, update the status on the server
+      if (isCompletedUpdate) {
+        final token = prefs.getString('token') ?? '';
+        final response = await http.post(
+          Uri.parse('https://authcheck.co/updatechallenge'),
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode({
+            'challengeId': [challengeId],
+            'status': true,
+            'score': _challengeScoresMap[challengeId],
+          }),
+        );
+        if (response.statusCode == 200) {
+          debugPrint('Challenge $challengeId status updated on server.');
+        } else {
+          debugPrint('Failed to update challenge $challengeId on server: ${response.statusCode}');
+        }
+      }
+
     } catch (e) {
       debugPrint('Error during real-time save for challenge $challengeId: $e');
     }
   }
+
+  /// Handles the completion of a single track in the playlist.
+  Future<void> _handleTrackCompletion(int completedAudioIndex) async {
+    if (completedAudioIndex >= widget.audioData.length) return;
+
+    final completedChallengeId = widget.audioData[completedAudioIndex]['id'] as int;
+    int challengeCompletionScore = 20;
+
+    // Add consecutive bonus
+    _consecutiveChallengeCompletions++;
+    if (_consecutiveChallengeCompletions > 1) {
+      challengeCompletionScore += (_consecutiveChallengeCompletions * 20);
+    }
+
+    // Use the new function to add the completion bonus and mark as complete.
+    await _updateAndSaveScore(completedChallengeId, challengeCompletionScore, isCompletedUpdate: true);
+
+    debugPrint(
+      'Challenge $completedChallengeId (track $completedAudioIndex) completed and saved! Score +$challengeCompletionScore. New total: ${_challengeScoresMap[completedChallengeId]}',
+    );
+  }
+
 
   Future<void> _handleAudioCompletion() async {
     if (_isCompleting) return;

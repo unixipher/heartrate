@@ -524,6 +524,12 @@
       "languageVersion": "3.2"
     },
     {
+      "name": "pedometer",
+      "rootUri": "file:///Users/mrinmoyhalder/.pub-cache/hosted/pub.dev/pedometer-4.1.1",
+      "packageUri": "lib/",
+      "languageVersion": "2.17"
+    },
+    {
       "name": "pedometer_2",
       "rootUri": "file:///Users/mrinmoyhalder/.pub-cache/hosted/pub.dev/pedometer_2-5.0.4",
       "packageUri": "lib/",

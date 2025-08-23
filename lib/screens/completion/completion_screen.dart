@@ -101,9 +101,6 @@ class _CompletionScreenState extends State<CompletionScreen>
   }
 
   Future<void> _updateChallengeAndFetchData() async {
-    // First update challenge status
-    await _updateChallengeStatus();
-
     // Update user score
     await _updateUserScore();
 
@@ -145,41 +142,6 @@ class _CompletionScreenState extends State<CompletionScreen>
     } else {
       // App went to background
       _confettiController.stop();
-    }
-  }
-
-  Future<void> _updateChallengeStatus() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token') ?? '';
-
-    for (var entry in widget.challengeScores.entries) {
-      final challengeId = entry.key;
-      final score = entry.value;
-
-      try {
-        final response = await http.post(
-          Uri.parse('https://authcheck.co/updatechallenge'),
-          headers: {
-            'Authorization': 'Bearer $token',
-            'Content-Type': 'application/json',
-          },
-          body: jsonEncode({
-            'challengeId': [challengeId], // Send as a list with one ID
-            'status': true, // Assuming completion if we are here
-            'score': score,
-          }),
-        );
-
-        if (response.statusCode == 200) {
-          debugPrint(
-              'Challenge $challengeId updated successfully with score $score');
-        } else {
-          debugPrint(
-              'Failed to update challenge $challengeId: ${response.statusCode}');
-        }
-      } catch (e) {
-        debugPrint('Update challenge error for $challengeId: $e');
-      }
     }
   }
 

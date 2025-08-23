@@ -214,6 +214,11 @@
 			<key>isShown</key>
 			<false/>
 		</dict>
+		<key>pedometer.xcscheme</key>
+		<dict>
+			<key>isShown</key>
+			<false/>
+		</dict>
 		<key>pedometer_2.xcscheme</key>
 		<dict>
 			<key>isShown</key>
